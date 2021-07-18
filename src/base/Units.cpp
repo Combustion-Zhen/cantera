@@ -24,6 +24,7 @@ const std::map<std::string, Units> knownUnits{
 
     // Length [L]
     {"m", Units(1.0, 0, 1, 0)},
+    {"cm", Units(.01, 0, 1, 0)},
     {"micron", Units(1e-6, 0, 1, 0)},
     {"angstrom", Units(1e-10, 0, 1, 0)},
     {"Å", Units(1e-10, 0, 1, 0)},
@@ -78,6 +79,7 @@ const std::map<std::string, Units> knownUnits{
 
     //! Activation energy units [M*L^2/T^2/Q]
     {"J/kmol", Units(1.0, 1, 2, -2, 0, 0, -1)},
+    {"cal/mol", Units(4184.0, 1, 2, -2, 0, 0, -1)},
 };
 
 const std::map<std::string, double> prefixes{
