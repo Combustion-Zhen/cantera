@@ -283,6 +283,10 @@ std::string Units::str(bool skip_unity) const
         // print '1' as the numerator is empty
         return fmt::format("1{}", den);
     }
+    if (num.size()) {
+        // concatenate numerator and denominator (skipping leading '*')
+        out = fmt::format("{}{}", num.substr(2), out);
+    }
 
     std::string factor;
     if (m_factor == roundf(m_factor)) {
