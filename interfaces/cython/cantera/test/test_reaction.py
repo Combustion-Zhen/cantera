@@ -539,6 +539,8 @@ class ReactionTests:
 
         ct.make_deprecation_warnings_fatal() # re-enable fatal deprecation warnings
 
+        ct.make_deprecation_warnings_fatal() # re-enable fatal deprecation warnings
+
     def test_deprecated_setters(self):
         # check property setters deprecated in new framework
         if self._yaml is None:
