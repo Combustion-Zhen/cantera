@@ -285,9 +285,20 @@ std::string Units::str(bool skip_unity) const
     }
     if (num.size()) {
         // concatenate numerator and denominator (skipping leading '*')
-        out = fmt::format("{}{}", num.substr(2), out);
+        out = fmt::format("{}{}", num.substr(3), out);
+    } else if (leading_one) {
+        // print '1' as the numerator is empty
+        out = fmt::format("1{}", out);
+    } else if (out.size()) {
+        out = out.substr(1);
     }
 
+    return out;
+}
+
+std::string Units::str() const
+{
+    std::string out = unit_str(false);
     std::string factor;
     if (m_factor == roundf(m_factor)) {
         // ensure that fmt::format does not round to integer
