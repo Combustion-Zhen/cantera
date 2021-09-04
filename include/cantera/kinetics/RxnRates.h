@@ -491,6 +491,9 @@ public:
      *  @param coeffs  Coefficient array dimensioned `nT` by `nP` where `nT` and
      *      `nP` are the number of temperatures and pressures used in the fit,
      *      respectively.
+     *
+     * @deprecated  Deprecated in Cantera 2.6.
+     *              Use constructor using pairs for range input.
      */
     Chebyshev(double Tmin, double Tmax, double Pmin, double Pmax,
               const Array2D& coeffs);
@@ -561,23 +564,63 @@ public:
     }
 
     //! Minimum valid temperature [K]
-    double Tmin() const {
-        return Tmin_;
+    /*!
+     * @deprecated  Deprecated in Cantera 2.6.
+     *              Replaceable with @see temperatureRange()
+     */
+    double Tmin() const
+    {
+        warn_deprecated("Chebyshev::Tmin", "Deprecated in Cantera 2.6; "
+            "replaceable with temperatureRange.");
+        return m_Trange.first;
     }
 
     //! Maximum valid temperature [K]
-    double Tmax() const {
-        return Tmax_;
+    /*!
+     * @deprecated  Deprecated in Cantera 2.6.
+     *              Replaceable with @see temperatureRange()
+     */
+    double Tmax() const
+    {
+        warn_deprecated("Chebyshev::Tmax", "Deprecated in Cantera 2.6; "
+            "replaceable with temperatureRange.");
+        return m_Trange.second;
+    }
+
+    // Range of valid temperatures (min, max) [K]
+    const std::pair<double, double>& temperatureRange() const
+    {
+        return m_Trange;
     }
 
     //! Minimum valid pressure [Pa]
-    double Pmin() const {
-        return Pmin_;
+    /*!
+     * @deprecated  Deprecated in Cantera 2.6.
+     *              Replaceable with @see pressureRange()
+     */
+    double Pmin() const
+    {
+        warn_deprecated("Chebyshev::Pmin", "Deprecated in Cantera 2.6; "
+            "replaceable with pressureRange.");
+        return m_Prange.first;
     }
 
     //! Maximum valid pressure [Pa]
-    double Pmax() const {
-        return Pmax_;
+    /*!
+     * @deprecated  Deprecated in Cantera 2.6.
+     *              Replaceable with @see pressureRange()
+     */
+    double Pmax() const
+    {
+        warn_deprecated("Chebyshev::Pmax", "Deprecated in Cantera 2.6; "
+            "replaceable with pressureRange.");
+        return m_Prange.second;
+    }
+
+    // Range of valid pressures (min, max) [Pa]
+    const std::pair<double, double>& pressureRange() const
+    {
+        return m_Prange;
     }
 
     //! Number of points in the pressure direction
@@ -613,8 +656,8 @@ public:
     void setData(const Array2D& coeffs);
 
 protected:
-    double Tmin_, Tmax_; //!< valid temperature range
-    double Pmin_, Pmax_; //!< valid pressure range
+    std::pair<double, double> m_Trange; //!< valid temperature range
+    std::pair<double, double> m_Prange; //!< valid pressure range
     double TrNum_, TrDen_; //!< terms appearing in the reduced temperature
     double PrNum_, PrDen_; //!< terms appearing in the reduced pressure
 
