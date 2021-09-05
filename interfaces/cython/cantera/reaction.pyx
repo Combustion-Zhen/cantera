@@ -1609,7 +1609,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.getCoeffs().nColumns()
+                return self.cxx_object2().rate.data().nColumns()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1627,7 +1627,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.getCoeffs().nRows()
+                return self.cxx_object2().rate.data().nRows()
 
             warnings.warn(
                 self._deprecation_warning(

@@ -299,7 +299,7 @@ Chebyshev::Chebyshev(
     const Array2D& coeffs)
 {
     setLimits(Trange, Prange);
-    setCoeffs(coeffs);
+    setData(coeffs);
 }
 
 Chebyshev::Chebyshev(double Tmin, double Tmax, double Pmin, double Pmax,
