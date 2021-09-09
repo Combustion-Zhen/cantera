@@ -774,6 +774,10 @@ env['extra_lib_dirs'] = [d for d in env['extra_lib_dirs'].split(os.pathsep) if d
 env.Append(CPPPATH=env['extra_inc_dirs'],
            LIBPATH=env['extra_lib_dirs'])
 
+# Zhen Lu 20210909
+if env['OS'] == 'Darwin':
+    env['use_rpath_linkage'] = False
+
 if env['use_rpath_linkage']:
     env.Append(RPATH=env['extra_lib_dirs'])
 
