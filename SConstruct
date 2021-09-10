@@ -307,9 +307,9 @@ elif env['CC'] == 'cl': # Visual Studio
     env['openmp_flag'] = ['/openmp']
 
 elif 'icc' in env.subst('$CC'):
-    defaults.cxxFlags = '-std=c++0x'
     # Zhen Lu 20210909
     #defaults.ccFlags = '-vec-report0 -diag-disable 1478'
+    defaults.cxxFlags = '-std=c++0x'
     defaults.ccFlags = '-diag-disable 1478'
     defaults.warningFlags = '-Wcheck'
     env['openmp_flag'] = ['-openmp']
