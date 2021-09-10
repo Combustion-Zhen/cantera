@@ -24,7 +24,6 @@ const std::map<std::string, Units> knownUnits{
 
     // Length [L]
     {"m", Units(1.0, 0, 1, 0)},
-    {"cm", Units(.01, 0, 1, 0)},
     {"micron", Units(1e-6, 0, 1, 0)},
     {"angstrom", Units(1e-10, 0, 1, 0)},
     {"Å", Units(1e-10, 0, 1, 0)},
@@ -79,7 +78,6 @@ const std::map<std::string, Units> knownUnits{
 
     //! Activation energy units [M*L^2/T^2/Q]
     {"J/kmol", Units(1.0, 1, 2, -2, 0, 0, -1)},
-    {"cal/mol", Units(4184.0, 1, 2, -2, 0, 0, -1)},
 };
 
 const std::map<std::string, double> prefixes{
@@ -288,17 +286,9 @@ std::string Units::str(bool skip_unity) const
         out = fmt::format("{}{}", num.substr(3), out);
     } else if (leading_one) {
         // print '1' as the numerator is empty
-        out = fmt::format("1{}", out);
-    } else if (out.size()) {
-        out = out.substr(1);
+        return fmt::format("1{}", den);
     }
 
-    return out;
-}
-
-std::string Units::str() const
-{
-    std::string out = unit_str(false);
     std::string factor;
     if (m_factor == roundf(m_factor)) {
         // ensure that fmt::format does not round to integer

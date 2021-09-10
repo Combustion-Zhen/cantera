@@ -19,8 +19,6 @@ cdef class Units:
             self.units = CxxUnits(stringify(name), True)
 
     def __repr__(self):
-        if abs(self.units.factor() - 1.) < np.nextafter(0, 1):
-            return f"<Units({pystr(self.units.unit_str())}) at {id(self):0x}>"
         return f"<Units({pystr(self.units.str())}) at {id(self):0x}>"
 
     @staticmethod
