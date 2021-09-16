@@ -258,8 +258,6 @@ cdef class ChebyshevRate(ReactionRate):
     def __cinit__(self, temperature_range=None, pressure_range=None, data=None,
                   input_data=None, init=True):
 
-        cdef pair[double,double] Trange
-        cdef pair[double,double] Prange
         if init:
             if isinstance(input_data, dict):
                 self._rate.reset(new CxxChebyshevRate3(dict_to_anymap(input_data)))
@@ -1538,7 +1536,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.temperatureRange().first
+                return self.cxx_object2().rate.Tmin()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1556,7 +1554,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.temperatureRange().second
+                return self.cxx_object2().rate.Tmax()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1574,7 +1572,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.pressureRange().first
+                return self.cxx_object2().rate.Pmin()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1591,7 +1589,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.pressureRange().second
+                return self.cxx_object2().rate.Pmax()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1609,7 +1607,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.data().nColumns()
+                return self.cxx_object2().rate.nPressure()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1627,7 +1625,7 @@ cdef class ChebyshevReaction(Reaction):
         """
         def __get__(self):
             if self.uses_legacy:
-                return self.cxx_object2().rate.data().nRows()
+                return self.cxx_object2().rate.nTemperature()
 
             warnings.warn(
                 self._deprecation_warning(
@@ -1671,11 +1669,7 @@ cdef class ChebyshevReaction(Reaction):
             for j, value in enumerate(row):
                 CxxArray2D_set(data, i, j, value)
 
-        cdef pair[double,double] Trange
-        Trange.first, Trange.second = Tmin, Tmax
-        cdef pair[double,double] Prange
-        Prange.first, Prange.second = Pmin, Pmax
-        r.rate = CxxChebyshev(Trange, Prange, data)
+        r.rate = CxxChebyshev(Tmin, Tmax, Pmin, Pmax, data)
 
     def set_parameters(self, Tmin, Tmax, Pmin, Pmax, coeffs):
         """

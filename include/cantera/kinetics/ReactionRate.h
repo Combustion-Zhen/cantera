@@ -399,10 +399,8 @@ public:
      *      `nP` are the number of temperatures and pressures used in the fit,
      *      respectively.
      */
-    ChebyshevRate3(
-        const std::pair<double, double> Trange,
-        const std::pair<double, double> Prange,
-        const Array2D& coeffs);
+    ChebyshevRate3(double Tmin, double Tmax, double Pmin, double Pmax,
+                   const Array2D& coeffs);
 
     //! Constructor using AnyMap content
     //! @param node  AnyMap containing rate information
