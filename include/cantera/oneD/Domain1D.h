@@ -15,6 +15,10 @@ namespace Cantera
 const int cFlowType = 50;
 const int cFreeFlow = 51;
 const int cAxisymmetricStagnationFlow = 52;
+//  Zhen Lu 210917
+const int cRadialFlow = 53;
+const int cTubularFlow = 54;
+
 const int cConnectorType = 100;
 const int cSurfType = 102;
 const int cInletType = 104;
@@ -23,6 +27,15 @@ const int cOutletType = 106;
 const int cEmptyType = 107;
 const int cOutletResType = 108;
 const int cPorousType = 109;
+
+// Zhen Lu 210916
+// coordinate types
+const int cCartesian = 0;
+const int cCylindrical = 1;
+const int cSpherical = 2;
+// temporal types
+const int cSteady = 0;
+const int cTransient = 1;
 
 class MultiJac;
 class OneDim;
@@ -51,6 +64,17 @@ public:
     //! Domain type flag.
     int domainType() {
         return m_type;
+    }
+
+    // Zhen Lu 210916
+    //! Coordinates type flag.
+    int coordinatesType() {
+        return m_ctype;
+    }
+
+    //! Temporal type flag.
+    int temporalType() {
+        return m_ttype;
     }
 
     //! The left-to-right location of this domain.
@@ -497,6 +521,8 @@ protected:
     OneDim* m_container;
     size_t m_index;
     int m_type;
+    // Zhen Lu 210916
+    int m_ctype, m_ttype;
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain

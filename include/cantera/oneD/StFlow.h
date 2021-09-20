@@ -170,18 +170,50 @@ public:
         m_dovisc = true;
     }
 
-    //! Return the type of flow domain being represented, either "Free Flame" or
-    //! "Axisymmetric Stagnation".
-    //! @see setFreeFlow setAxisymmetricFlow
-    virtual std::string flowType() {
-        if (m_type == cFreeFlow) {
-            return "Free Flame";
-        } else if (m_type == cAxisymmetricStagnationFlow) {
-            return "Axisymmetric Stagnation";
-        } else {
-            throw CanteraError("StFlow::flowType", "Unknown value for 'm_type'");
-        }
+    // Zhen Lu 210917
+    //! Set flow configuration for one-dimensional radial propagating flames, 
+    //! using specific inlet mass fluxes
+    void setRadialFlow() {
+        m_type = cRadialFlow;
+        m_dovisc = false;
     }
+
+    //! Set flow configuration for radial stagnation flames, 
+    //! using specific inlet mass fluxes
+    void setTubularFlow() {
+        m_type = cTubularFlow;
+        m_dovisc = true;
+    }
+
+    // Zhen Lu 210917
+    //! Return the type of flow domain being represented.
+    //! @see setFreeFlow setAxisymmetricFlow
+    virtual std::string flowType() const;
+    //virtual std::string flowType() {
+    //    if (m_type == cFreeFlow) {
+    //       return "Free Flame";
+    //    } else if (m_type == cAxisymmetricStagnationFlow) {
+    //        return "Axisymmetric Stagnation";
+    //    } else {
+    //        throw CanteraError("StFlow::flowType", "Unknown value for 'm_type'");
+    //    }
+    //}
+
+    // Zhen Lu 210920
+    //! Set the Cartesian coordinates
+    void setCartesian();
+
+    //! Set the Cylindrical coordinates
+    void setCylindrical();
+
+    //! Set the Spherical coordinates
+    void setSpherical();
+
+    //! Set steady state
+    void setSteady() { m_ttype = cSteady; }
+
+    //! Set transient state
+    void setTransient() { m_ttype = cTransient; }
 
     void solveEnergyEqn(size_t j=npos);
 

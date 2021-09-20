@@ -21,6 +21,9 @@ Domain1D::Domain1D(size_t nv, size_t points, double time) :
     m_container(0),
     m_index(npos),
     m_type(0),
+    // Zhen Lu 210916
+    m_ctype(0),
+    m_ttype(0),
     m_iloc(0),
     m_jstart(0),
     m_left(0),
