@@ -633,6 +633,68 @@ bool StFlow::componentActive(size_t n) const
     }
 }
 
+// Zhen Lu 210917
+string StFlow::flowType() const
+{
+    switch (m_type)
+    {
+    case cFreeFlow:
+        return "Free Flame";
+    case cAxisymmetricStagnationFlow:
+        return "Axisymmetric Stagnation";
+    case cRadialFlow:
+        return "Radial Flame";
+    case cTubularFlow:
+        return "Tubular Flame";
+    default:
+        throw CanteraError("StFlow::flowType", "Unknown value for 'm_type'");
+    }
+}
+
+// Zhen Lu 210920
+void StFlow::setCartesian()
+{
+    if (m_type == cTubularFlow)
+        throw CanteraError
+        (
+            "StFlow::setCartesian",
+            "TubularFlow works in the Cylindrical coordinates"
+        );
+
+    m_ctype = cCartesian;
+}
+
+void StFlow::setCylindrical()
+{
+    if (m_type == cAxisymmetricStagnationFlow)
+        throw CanteraError
+        (
+            "StFlow::setCylindrical",
+            "AxisymmetricStagnationFlow works in the Cartesian coordinates"
+        );
+
+    m_ctype = cCylindrical;
+}
+
+void StFlow::setSpherical()
+{
+    if (m_type == cTubularFlow)
+        throw CanteraError
+        (
+            "StFlow::setCartesian",
+            "TubularFlow works in the Cylindrical coordinates"
+        );
+    else if (m_type == cAxisymmetricStagnationFlow)
+        throw CanteraError
+        (
+            "StFlow::setCylindrical",
+            "AxisymmetricStagnationFlow works in the Cartesian coordinates"
+        );
+
+    m_ctype = cSpherical;
+}
+
+>>>>>>> 4c242c44a (new oneD flags)
 void StFlow::restore(const XML_Node& dom, doublereal* soln, int loglevel)
 {
     Domain1D::restore(dom, soln, loglevel);
@@ -1092,12 +1154,13 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
 {
     //algebraic constraint
     diag[index(c_offset_U, j)] = 0;
-    //----------------------------------------------
-    //    Continuity equation
-    //
-    //    d(\rho u)/dz + 2\rho V = 0
-    //----------------------------------------------
+
     if (domainType() == cAxisymmetricStagnationFlow) {
+        //----------------------------------------------
+        //    Continuity equation
+        //
+        //    d(\rho u)/dz + 2\rho V = 0
+        //----------------------------------------------
         // Note that this propagates the mass flow rate information to the left
         // (j+1 -> j) from the value specified at the right boundary. The
         // lambda information propagates in the opposite direction.
@@ -1106,9 +1169,9 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             -(density(j+1)*V(x,j+1) + density(j)*V(x,j));
     } else if (domainType() == cFreeFlow) {
         if (grid(j) > m_zfixed) {
-            rsd[index(c_offset_U,j)] =
-                - (rho_u(x,j) - rho_u(x,j-1))/m_dz[j-1]
-                - (density(j-1)*V(x,j-1) + density(j)*V(x,j));
+            rsd[index(c_offset_U,j)] = - (rho_u(x,j) - rho_u(x,j-1))/m_dz[j-1];
+                // Zhen Lu 210917
+                //- (density(j-1)*V(x,j-1) + density(j)*V(x,j));
         } else if (grid(j) == m_zfixed) {
             if (m_do_energy[j]) {
                 rsd[index(c_offset_U,j)] = (T(x,j) - m_tfixed);
@@ -1117,9 +1180,9 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
                                             - m_rho[0]*0.3);
             }
         } else if (grid(j) < m_zfixed) {
-            rsd[index(c_offset_U,j)] =
-                - (rho_u(x,j+1) - rho_u(x,j))/m_dz[j]
-                - (density(j+1)*V(x,j+1) + density(j)*V(x,j));
+            rsd[index(c_offset_U,j)] = - (rho_u(x,j+1) - rho_u(x,j))/m_dz[j];
+                // Zhen Lu 210917
+                //- (density(j+1)*V(x,j+1) + density(j)*V(x,j));
         }
     }
 }
