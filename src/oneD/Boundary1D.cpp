@@ -436,7 +436,9 @@ void Outlet1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
         size_t nc = m_flow_right->nComponents();
         double* xb = x;
         double* rb = r;
-        rb[c_offset_U] = xb[c_offset_L];
+        // Zhen Lu 210924
+        //rb[c_offset_U] = xb[c_offset_L];
+        rb[c_offset_L] = xb[c_offset_L];
         if (m_flow_right->doEnergy(0)) {
             rb[c_offset_T] = xb[c_offset_T] - xb[c_offset_T + nc];
         }
@@ -550,7 +552,9 @@ void OutletRes1D::eval(size_t jg, double* xg, double* rg,
 
         // this seems wrong...
         // zero Lambda
-        rb[c_offset_U] = xb[c_offset_L];
+        //rb[c_offset_U] = xb[c_offset_L];
+        // Zhen Lu 210924
+        rb[c_offset_L] = xb[c_offset_L];
 
         if (m_flow_right->doEnergy(0)) {
             // zero gradient for T
