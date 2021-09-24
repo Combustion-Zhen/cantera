@@ -216,10 +216,14 @@ public:
     void setSpherical();
 
     //! Set steady state
-    void setSteady() { m_ttype = cSteady; }
+    void setSteady() {
+        m_ttype = cSteady;
+    }
 
     //! Set transient state
-    void setTransient() { m_ttype = cTransient; }
+    void setTransient() {
+        m_ttype = cTransient;
+    }
 
     void solveEnergyEqn(size_t j=npos);
 
@@ -294,6 +298,11 @@ public:
      */
     virtual void eval(size_t j, doublereal* x, doublereal* r,
                       integer* mask, doublereal rdt);
+
+    // Zhen Lu 210920
+    //! Evaluate all residual components at the left boundary.
+    virtual void evalLeftBoundary(double* x, double* res, int* diag,
+                                  double rdt);
 
     //! Evaluate all residual components at the right boundary.
     virtual void evalRightBoundary(double* x, double* res, int* diag,
