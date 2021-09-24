@@ -153,6 +153,8 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
         return;
     }
 
+    // Zhen Lu 210920 usages of the boundary pointer is not the same as other bcs
+
     if (m_ilr == LeftInlet) {
         // Array elements corresponding to the first point of the flow domain
         double* xb = xg + m_flow->loc();
@@ -179,7 +181,7 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
         } else {
             // if the flow is a freely-propagating flame, mdot is not specified.
             // Set mdot equal to rho*u, and also set lambda to zero.
-            m_mdot = m_flow->density(0)*xb[0];
+            m_mdot = m_flow->density(0)*xb[c_offset_U];
             rb[c_offset_L] = xb[c_offset_L];
         }
 
@@ -193,12 +195,31 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
     } else {
         // right inlet
         // Array elements corresponding to the last point in the flow domain
+
+        double* xb = xg + loc() - m_flow->nComponents();
         double* rb = rg + loc() - m_flow->nComponents();
+
+        // fixed spreading rate
         rb[c_offset_V] -= m_V0;
+
+        // fixed temperature
         if (m_flow->doEnergy(m_flow->nPoints() - 1)) {
             rb[c_offset_T] -= m_temp; // T
         }
-        rb[c_offset_U] += m_mdot; // u
+
+        if (m_flow->fixed_mdot()) {
+            // The flow domain sets this to -rho*u. Add mdot to specify the mass
+            // flow rate.
+            // velocity is negative on the right inlet boundary
+            rb[c_offset_U] += m_mdot; // u
+        } else {
+            // if the flow is a freely-propagating flame, mdot is not specified.
+            // Set mdot equal to -rho*u
+            //m_mdot = - m_flow->density(lastPoint())*xb[c_offset_U];
+            m_mdot = - m_flow->density(m_flow->nPoints() - 1)*xb[c_offset_U];
+        }
+
+        // add the convective term to the species residual equations
         for (size_t k = 0; k < m_nsp; k++) {
             if (k != m_flow_left->rightExcessSpecies()) {
                 rb[c_offset_Y+k] += m_mdot * m_yin[k];
