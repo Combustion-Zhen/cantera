@@ -371,36 +371,37 @@ void StFlow::evalResidual(double* x, double* rsd, int* diag,
             //         left boundary
             //----------------------------------------------
             // these may be modified by a boundary object
-
-            // Continuity. This propagates information right-to-left, since
-            // rho_u at point 0 is dependent on rho_u at point 1, but not on
-            // mdot from the inlet.
-            rsd[index(c_offset_U,0)] =
-                -(rho_u(x,1) - rho_u(x,0))/m_dz[0]
-                -(density(1)*V(x,1) + density(0)*V(x,0));
-
-            // the inlet (or other) object connected to this one will modify
-            // these equations by subtracting its values for V, T, and mdot. As
-            // a result, these residual equations will force the solution
-            // variables to the values for the boundary object
-            rsd[index(c_offset_V,0)] = V(x,0);
-            if (doEnergy(0)) {
-                rsd[index(c_offset_T,0)] = T(x,0);
-            } else {
-                rsd[index(c_offset_T,0)] = T(x,0) - T_fixed(0);
-            }
-            rsd[index(c_offset_L,0)] = -rho_u(x,0);
-
-            // The default boundary condition for species is zero flux. However,
-            // the boundary object may modify this.
-            double sum = 0.0;
-            for (size_t k = 0; k < m_nsp; k++) {
-                sum += Y(x,k,0);
-                rsd[index(c_offset_Y + k, 0)] =
-                    -(m_flux(k,0) + rho_u(x,0)* Y(x,k,0));
-            }
-            rsd[index(c_offset_Y + leftExcessSpecies(), 0)] = 1.0 - sum;
-
+// Zhen Lu 210924
+//            // Continuity. This propagates information right-to-left, since
+//            // rho_u at point 0 is dependent on rho_u at point 1, but not on
+//            // mdot from the inlet.
+//            rsd[index(c_offset_U,0)] =
+//                -(rho_u(x,1) - rho_u(x,0))/m_dz[0]
+//                -(density(1)*V(x,1) + density(0)*V(x,0));
+//
+//            // the inlet (or other) object connected to this one will modify
+//            // these equations by subtracting its values for V, T, and mdot. As
+//            // a result, these residual equations will force the solution
+//            // variables to the values for the boundary object
+//            rsd[index(c_offset_V,0)] = V(x,0);
+//
+//            if (doEnergy(0)) {
+//                rsd[index(c_offset_T,0)] = T(x,0);
+//            } else {
+//                rsd[index(c_offset_T,0)] = T(x,0) - T_fixed(0);
+//            }
+//            rsd[index(c_offset_L,0)] = -rho_u(x,0);
+//
+//            // The default boundary condition for species is zero flux. However,
+//            // the boundary object may modify this.
+//            double sum = 0.0;
+//            for (size_t k = 0; k < m_nsp; k++) {
+//                sum += Y(x,k,0);
+//                rsd[index(c_offset_Y + k, 0)] =
+//                    -(m_flux(k,0) + rho_u(x,0)* Y(x,k,0));
+//            }
+//            rsd[index(c_offset_Y + leftExcessSpecies(), 0)] = 1.0 - sum;
+            evalLeftBoundary(x, rsd, diag, rdt);
             // set residual of poisson's equ to zero
             rsd[index(c_offset_E, 0)] = x[index(c_offset_E, j)];
         } else if (j == m_points - 1) {
@@ -1125,34 +1126,49 @@ void StFlow::fixTemperature(size_t j)
 // Zhen Lu 210920
 void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
 {
-    size_t j = 0;
+    // Continuity. This propagates information right-to-left, since
+    // rho_u at point 0 is dependent on rho_u at point 1, but not on
+    // mdot from the inlet.
+    rsd[index(c_offset_U,0)] = - (rho_u(x,1) - rho_u(x,0))/m_dz[0]
+                               - (density(1)*V(x,1) + density(0)*V(x,0));
 
     // the inlet (or other) object connected to this one will modify
     // these equations by subtracting its values for V, T, and mdot. As
     // a result, these residual equations will force the solution
     // variables to the values for the boundary object
+
+    rsd[index(c_offset_L,0)] = -rho_u(x,0);
+    //diag[index(c_offset_L,0)] = 0;
+
+    rsd[index(c_offset_V,0)] = V(x,0);
+
+    if (doEnergy(0)) {
+        rsd[index(c_offset_T,0)] = T(x,0);
+    } else {
+        rsd[index(c_offset_T,0)] = T(x,0) - T_fixed(0);
+    }
+
+    // The default boundary condition for species is zero flux. However,
+    // the boundary object may modify this.
+    double sum = 0.0;
+    for (size_t k = 0; k < m_nsp; k++) {
+        sum += Y(x,k,0);
+        rsd[index(c_offset_Y + k, 0)] =
+            -(m_flux(k,0) + rho_u(x,0)* Y(x,k,0));
+    }
+    rsd[index(c_offset_Y + leftExcessSpecies(),0)] = 1.0 - sum;
 }
 
 void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
 {
     size_t j = m_points - 1;
 
+    rsd[index(c_offset_L,j)] = lambda(x,j) - lambda(x,j-1);
+    //diag[index(c_offset_L,j)] = 0;
+
     // the boundary object connected to the right of this one may modify or
     // replace these equations. The default boundary conditions are zero u, V,
     // and T, and zero diffusive flux for all species.
-
-    rsd[index(c_offset_V,j)] = V(x,j);
-
-    rsd[index(c_offset_L, j)] = lambda(x,j) - lambda(x,j-1);
-    diag[index(c_offset_L, j)] = 0;
-
-    doublereal sum = 0.0;
-    for (size_t k = 0; k < m_nsp; k++) {
-        sum += Y(x,k,j);
-        rsd[index(k+c_offset_Y,j)] = m_flux(k,j-1) + rho_u(x,j)*Y(x,k,j);
-    }
-    rsd[index(c_offset_Y + rightExcessSpecies(), j)] = 1.0 - sum;
-    diag[index(c_offset_Y + rightExcessSpecies(), j)] = 0;
 
     if (domainType() == cAxisymmetricStagnationFlow) {
         rsd[index(c_offset_U,j)] = rho_u(x,j);
@@ -1168,13 +1184,22 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
         //rsd[index(c_offset_T,j)] = T(x,j) - T(x,j-1);
     }
 
+    rsd[index(c_offset_V,j)] = V(x,j);
+
     // Zhen Lu 210924
-    if (m_do_energy[j]) {
+    if (doEnergy(j)) {
         rsd[index(c_offset_T,j)] = T(x,j);
     } else {
         rsd[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
     }
 
+    doublereal sum = 0.0;
+    for (size_t k = 0; k < m_nsp; k++) {
+        sum += Y(x,k,j);
+        rsd[index(k+c_offset_Y,j)] = m_flux(k,j-1) + rho_u(x,j)*Y(x,k,j);
+    }
+    rsd[index(c_offset_Y + rightExcessSpecies(),j)] = 1.0 - sum;
+    //diag[index(c_offset_Y + rightExcessSpecies(),j)] = 0;
 }
 
 void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double rdt)
