@@ -369,36 +369,6 @@ void StFlow::evalResidual(double* x, double* rsd, int* diag,
             //         left boundary
             //----------------------------------------------
             // these may be modified by a boundary object
-// Zhen Lu 210924
-//            // Continuity. This propagates information right-to-left, since
-//            // rho_u at point 0 is dependent on rho_u at point 1, but not on
-//            // mdot from the inlet.
-//            rsd[index(c_offset_U,0)] =
-//                -(rho_u(x,1) - rho_u(x,0))/m_dz[0]
-//                -(density(1)*V(x,1) + density(0)*V(x,0));
-//
-//            // the inlet (or other) object connected to this one will modify
-//            // these equations by subtracting its values for V, T, and mdot. As
-//            // a result, these residual equations will force the solution
-//            // variables to the values for the boundary object
-//            rsd[index(c_offset_V,0)] = V(x,0);
-//
-//            if (doEnergy(0)) {
-//                rsd[index(c_offset_T,0)] = T(x,0);
-//            } else {
-//                rsd[index(c_offset_T,0)] = T(x,0) - T_fixed(0);
-//            }
-//            rsd[index(c_offset_L,0)] = -rho_u(x,0);
-//
-//            // The default boundary condition for species is zero flux. However,
-//            // the boundary object may modify this.
-//            double sum = 0.0;
-//            for (size_t k = 0; k < m_nsp; k++) {
-//                sum += Y(x,k,0);
-//                rsd[index(c_offset_Y + k, 0)] =
-//                    -(m_flux(k,0) + rho_u(x,0)* Y(x,k,0));
-//            }
-//            rsd[index(c_offset_Y + leftExcessSpecies(), 0)] = 1.0 - sum;
             evalLeftBoundary(x, rsd, diag, rdt);
             // set residual of poisson's equ to zero
             rsd[index(c_offset_E, 0)] = x[index(c_offset_E, j)];

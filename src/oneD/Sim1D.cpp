@@ -445,36 +445,10 @@ int Sim1D::setFixedTemperature(double t)
         size_t npnow = d.nPoints();
         size_t nstart = znew.size();
         if (d_free && d_free->domainType() == cFreeFlow) {
-//            for (size_t m = 0; m < npnow - 1; m++) {
-//                bool fixedpt = false;
-//                double t1 = value(n, 2, m);
-//                double t2 = value(n, 2, m + 1);
-//                // threshold to avoid adding new point too close to existing point
-//                double thresh = min(1., 1.e-1 * (t2 - t1));
-//                z1 = d.grid(m);
-//                z2 = d.grid(m + 1);
-//                if (fabs(t - t1) <= thresh) {
-//                    zfixed = z1;
-//                    fixedpt = true;
-//                } else if (fabs(t2 - t) <= thresh) {
-//                    zfixed = z2;
-//                    fixedpt = true;
-//                } else if ((t1 < t) && (t < t2)) {
-//                    mfixed = m;
-//                    zfixed = (z1 - z2) / (t1 - t2) * (t - t2) + z2;
-//                    fixedpt = true;
-//                }
-//
-//                if (fixedpt) {
-//                    d_free->m_zfixed = zfixed;
-//                    d_free->m_tfixed = t;
-//                    break;
-//                }
-//            }
             // Zhen Lu 210926
             bool fixedpt = false;
             // detect flow direction
-            if ( d_free->left()->domainType() == cInletType) {
+            if ( d_free->left()->domainType() == cInletType ) {
                 size_t m = 0;
                 while ( !fixedpt ) {
                     // throw error if no fixed point in the domain
