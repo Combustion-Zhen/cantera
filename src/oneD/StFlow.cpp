@@ -1108,10 +1108,6 @@ doublereal StFlow::divDiffFlux(size_t k, size_t j) const
 
 doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 {
-    //double c1 = m_tcon[j-1]*(T(x,j) - T(x,j-1));
-    //double c2 = m_tcon[j]*(T(x,j+1) - T(x,j));
-    //return -2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
-
     double flux_l = m_tcon[j-1] * ( T(x,j) - T(x,j-1) ) / m_dz[j-1];
     double flux_r = m_tcon[j] * ( T(x,j+1) - T(x,j) ) / m_dz[j];
 
