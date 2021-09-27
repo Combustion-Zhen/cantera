@@ -69,12 +69,12 @@ public:
 
     // Zhen Lu 210916
     //! Coordinates type flag.
-    int coordinatesType() {
+    int coordinatesType() const {
         return m_ctype;
     }
 
     //! Temporal type flag.
-    int temporalType() {
+    int temporalType() const {
         return m_ttype;
     }
 
