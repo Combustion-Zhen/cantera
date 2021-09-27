@@ -490,23 +490,6 @@ void StFlow::updateTransport(doublereal* x, size_t j0, size_t j1)
     }
 }
 
-void StFlow::showSolution(const doublereal* x)
-{
-    writelog("    Pressure:  {:10.4g} Pa\n", m_press);
-
-    Domain1D::showSolution(x);
-
-    if (m_do_radiation) {
-        writeline('-', 79, false, true);
-        writelog("\n          z      radiative heat loss");
-        writeline('-', 79, false, true);
-        for (size_t j = 0; j < m_points; j++) {
-            writelog("\n {:10.4g}        {:10.4g}", m_z[j], m_qdotRadiation[j]);
-        }
-        writelog("\n");
-    }
-}
-
 void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
 {
     if (m_do_multicomponent) {
@@ -669,7 +652,23 @@ void StFlow::setSpherical()
     m_ctype = cSpherical;
 }
 
->>>>>>> 4c242c44a (new oneD flags)
+void StFlow::showSolution(const doublereal* x)
+{
+    writelog("    Pressure:  {:10.4g} Pa\n", m_press);
+
+    Domain1D::showSolution(x);
+
+    if (m_do_radiation) {
+        writeline('-', 79, false, true);
+        writelog("\n          z      radiative heat loss");
+        writeline('-', 79, false, true);
+        for (size_t j = 0; j < m_points; j++) {
+            writelog("\n {:10.4g}        {:10.4g}", m_z[j], m_qdotRadiation[j]);
+        }
+        writelog("\n");
+    }
+}
+
 void StFlow::restore(const XML_Node& dom, doublereal* soln, int loglevel)
 {
     Domain1D::restore(dom, soln, loglevel);
@@ -1100,8 +1099,19 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     // Continuity. This propagates information right-to-left, since
     // rho_u at point 0 is dependent on rho_u at point 1, but not on
     // mdot from the inlet.
-    rsd[index(c_offset_U,0)] = - (rho_u(x,1) - rho_u(x,0))/m_dz[0]
-                               - (density(1)*V(x,1) + density(0)*V(x,0));
+    size_t m = coordinatesType();
+    rsd[index(c_offset_U,0)]
+    = 
+    rho_u(x,0) * pow(grid(0), m)
+    -
+    rho_u(x,1) * pow(grid(1), m);
+    //- (rho_u(x,1) - rho_u(x,0))/m_dz[0];
+
+    if (domainType() == cAxisymmetricStagnationFlow) {
+        rsd[index(c_offset_U,0)] 
+        -= 
+        (density(1)*V(x,1) + density(0)*V(x,0));
+    }
 
     // the inlet (or other) object connected to this one will modify
     // these equations by subtracting its values for V, T, and mdot. As
@@ -1109,7 +1119,6 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     // variables to the values for the boundary object
 
     rsd[index(c_offset_L,0)] = -rho_u(x,0);
-    //diag[index(c_offset_L,0)] = 0;
 
     rsd[index(c_offset_V,0)] = V(x,0);
 
@@ -1124,8 +1133,7 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     double sum = 0.0;
     for (size_t k = 0; k < m_nsp; k++) {
         sum += Y(x,k,0);
-        rsd[index(c_offset_Y + k, 0)] =
-            -(m_flux(k,0) + rho_u(x,0)* Y(x,k,0));
+        rsd[index(c_offset_Y+k,0)] = - m_flux(k,0) - rho_u(x,0)*Y(x,k,0);
     }
     rsd[index(c_offset_Y + leftExcessSpecies(),0)] = 1.0 - sum;
 }
@@ -1135,24 +1143,21 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     size_t j = m_points - 1;
 
     rsd[index(c_offset_L,j)] = lambda(x,j) - lambda(x,j-1);
-    //diag[index(c_offset_L,j)] = 0;
 
     // the boundary object connected to the right of this one may modify or
     // replace these equations. The default boundary conditions are zero u, V,
     // and T, and zero diffusive flux for all species.
 
-    if (domainType() == cAxisymmetricStagnationFlow) {
-        rsd[index(c_offset_U,j)] = rho_u(x,j);
-        //if (m_do_energy[j]) {
-        //    rsd[index(c_offset_T,j)] = T(x,j);
-        //} else {
-        //    rsd[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
-        //}
-    } else if (domainType() == cFreeFlow) {
-        // continuity
-        rsd[index(c_offset_U,j)] = rho_u(x,j) - rho_u(x,j-1);
-        // Zhen Lu 210924 This bc will be forced by Outlet1D::eval
-        //rsd[index(c_offset_T,j)] = T(x,j) - T(x,j-1);
+    rsd[index(c_offset_U,j)] = rho_u(x,j);
+    // continuity for the stationary flame
+    size_t m = coordinatesType();
+    if (domainType() == cFreeFlow) {
+        rsd[index(c_offset_U,j)] 
+        = 
+        rho_u(x,j) * pow(grid(j), m)
+        -
+        rho_u(x,j-1) * pow(grid(j-1), m);
+        //(rho_u(x,j) - rho_u(x,j-1));
     }
 
     rsd[index(c_offset_V,j)] = V(x,j);
@@ -1167,21 +1172,24 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     doublereal sum = 0.0;
     for (size_t k = 0; k < m_nsp; k++) {
         sum += Y(x,k,j);
-        rsd[index(k+c_offset_Y,j)] = m_flux(k,j-1) + rho_u(x,j)*Y(x,k,j);
+        rsd[index(c_offset_Y+k,j)] = m_flux(k,j-1) + rho_u(x,j)*Y(x,k,j);
     }
     rsd[index(c_offset_Y + rightExcessSpecies(),j)] = 1.0 - sum;
-    //diag[index(c_offset_Y + rightExcessSpecies(),j)] = 0;
 }
 
 void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double rdt)
 {
+    //----------------------------------------------
+    //    Continuity equation
+    //----------------------------------------------
+
+    size_t m = coordinatesType();
+
     //algebraic constraint
     diag[index(c_offset_U, j)] = 0;
 
     if (domainType() == cAxisymmetricStagnationFlow) {
         //----------------------------------------------
-        //    Continuity equation
-        //
         //    d(\rho u)/dz + 2\rho V = 0
         //----------------------------------------------
         // Note that this propagates the mass flow rate information to the left
@@ -1191,22 +1199,35 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             -(rho_u(x,j+1) - rho_u(x,j))/m_dz[j]
             -(density(j+1)*V(x,j+1) + density(j)*V(x,j));
     } else if (domainType() == cFreeFlow) {
-        if (grid(j) > m_zfixed) {
-            rsd[index(c_offset_U,j)] = - (rho_u(x,j) - rho_u(x,j-1))/m_dz[j-1];
-                // Zhen Lu 210917
-                //- (density(j-1)*V(x,j-1) + density(j)*V(x,j));
-        } else if (grid(j) == m_zfixed) {
+        if (grid(j) == m_zfixed) {
             if (m_do_energy[j]) {
-                rsd[index(c_offset_U,j)] = (T(x,j) - m_tfixed);
+                rsd[index(c_offset_U,j)] = T(x,j) - m_tfixed;
             } else {
-                rsd[index(c_offset_U,j)] = (rho_u(x,j)
-                                            - m_rho[0]*0.3);
+                rsd[index(c_offset_U,j)] = rho_u(x,j) - m_rho[0]*0.3;
             }
-        } else if (grid(j) < m_zfixed) {
-            rsd[index(c_offset_U,j)] = - (rho_u(x,j+1) - rho_u(x,j))/m_dz[j];
-                // Zhen Lu 210917
-                //- (density(j+1)*V(x,j+1) + density(j)*V(x,j));
-        }
+        } else {
+            if (grid(j) > m_zfixed) {
+                rsd[index(c_offset_U,j)] 
+                = 
+                rho_u(x,j-1) * pow(grid(j-1), m)
+                -
+                rho_u(x,j) * pow(grid(j), m);
+            } else if (grid(j) < m_zfixed) {
+                rsd[index(c_offset_U,j)] 
+                = 
+                rho_u(x,j) * pow(grid(j), m)
+                -
+                rho_u(x,j+1) * pow(grid(j+1), m);
+            }
+        } 
+    } else {
+        // use upwind differencing as default
+        size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+        rsd[index(c_offset_U,j)] 
+        = 
+        rho_u(x,jloc-1) * pow(grid(jloc-1), m)
+        -
+        rho_u(x,jloc) * pow(grid(jloc), m);
     }
 }
 
