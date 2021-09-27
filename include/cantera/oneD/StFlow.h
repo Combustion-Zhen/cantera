@@ -348,6 +348,14 @@ protected:
         m_kin->getNetProductionRates(&m_wdot(0,j));
     }
 
+    doublereal divDiffFlux(size_t k, size_t j) const;
+
+    doublereal divHeatFlux(const doublereal* x, size_t j) const;
+
+    doublereal dz(size_t j) const {
+        return m_dz[j];
+    }
+
     //! @name Solution components
     //! @{
 
@@ -428,12 +436,6 @@ protected:
         doublereal c1 = m_visc[j-1]*(V(x,j) - V(x,j-1));
         doublereal c2 = m_visc[j]*(V(x,j+1) - V(x,j));
         return 2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
-    }
-
-    doublereal divHeatFlux(const doublereal* x, size_t j) const {
-        doublereal c1 = m_tcon[j-1]*(T(x,j) - T(x,j-1));
-        doublereal c2 = m_tcon[j]*(T(x,j+1) - T(x,j));
-        return -2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
     }
 
     size_t mindex(size_t k, size_t j, size_t m) {
