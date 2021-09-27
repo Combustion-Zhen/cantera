@@ -906,100 +906,33 @@ void StFlow::evalResidual(double* x, double* rsd, int* diag,
     }
 
     for (size_t j = jmin; j <= jmax; j++) {
-
         if (j == 0) {
             //----------------------------------------------
             //         left boundary
             //----------------------------------------------
-            // these may be modified by a boundary object
             evalLeftBoundary(x, rsd, diag, rdt);
-            // set residual of poisson's equ to zero
-            rsd[index(c_offset_E, 0)] = x[index(c_offset_E, j)];
         } else if (j == m_points - 1) {
             //----------------------------------------------
             //         right boundary
             //----------------------------------------------
-            // these may be modified by a boundary object
             evalRightBoundary(x, rsd, diag, rdt);
-            // set residual of poisson's equ to zero
-            rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
-        } else { // interior points
+        } else {
+            //----------------------------------------------
+            //         interior points
+            //----------------------------------------------
             evalContinuity(j, x, rsd, diag, rdt);
-            // set residual of poisson's equ to zero
-            rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
 
-            //------------------------------------------------
-            //    Radial momentum equation
-            //
-            //    \rho dV/dt + \rho u dV/dz + \rho V^2
-            //       = d(\mu dV/dz)/dz - lambda
-            //-------------------------------------------------
-            rsd[index(c_offset_V,j)]
-            = (shear(x,j) - lambda(x,j) - rho_u(x,j)*dVdz(x,j)
-               - m_rho[j]*V(x,j)*V(x,j))/m_rho[j]
-              - rdt*(V(x,j) - V_prev(j));
-            diag[index(c_offset_V, j)] = 1;
+            evalRadialMomentum(j, x, rsd, diag, rdt);
 
-            //-------------------------------------------------
-            //    Species equations
-            //
-            //   \rho dY_k/dt + \rho u dY_k/dz + dJ_k/dz
-            //   = M_k\omega_k
-            //-------------------------------------------------
-            getWdot(x,j);
-            for (size_t k = 0; k < m_nsp; k++) {
-                rsd[index(c_offset_Y + k, j)]
-                = 
-                (
-                    - rho_u(x,j) * dYdz(x,k,j)
-                    - divDiffFlux(k,j)
-                    + m_wt[k] * wdot(k,j)
-                )/m_rho[j]
-                - 
-                rdt * (Y(x,k,j) - Y_prev(k,j));
-                diag[index(c_offset_Y + k, j)] = 1;
-            }
+            evalSpecies(j, x, rsd, diag, rdt);
 
-            //-----------------------------------------------
-            //    energy equation
-            //
-            //    \rho c_p dT/dt + \rho c_p u dT/dz
-            //    = d(k dT/dz)/dz
-            //      - sum_k(\omega_k h_k_ref)
-            //      - sum_k(J_k c_p_k / M_k) dT/dz
-            //-----------------------------------------------
-            if (m_do_energy[j]) {
-                setGas(x,j);
-
-                // heat release term
-                const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
-                const vector_fp& cp_R = m_thermo->cp_R_ref();
-                double sum = 0.0;
-                double sum2 = 0.0;
-                for (size_t k = 0; k < m_nsp; k++) {
-                    double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
-                    sum += wdot(k,j)*h_RT[k];
-                    sum2 += flxk*cp_R[k]/m_wt[k];
-                }
-                sum *= GasConstant * T(x,j);
-                double dtdzj = dTdz(x,j);
-                sum2 *= GasConstant * dtdzj;
-
-                rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
-                                            - divHeatFlux(x,j) - sum - sum2;
-                rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
-                rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
-                rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
-                diag[index(c_offset_T, j)] = 1;
-            } else {
-                // residual equations if the energy equation is disabled
-                rsd[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
-                diag[index(c_offset_T, j)] = 0;
-            }
+            evalEnergy(j, x, rsd, diag, rdt);
 
             rsd[index(c_offset_L, j)] = lambda(x,j) - lambda(x,j-1);
             diag[index(c_offset_L, j)] = 0;
         }
+        // set residual of poisson's equ to zero
+        rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
     }
 }
 
@@ -1015,7 +948,6 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     rho_u(x,0) * pow(z(0), m)
     -
     rho_u(x,1) * pow(z(1), m);
-    //- (rho_u(x,1) - rho_u(x,0))/m_dz[0];
 
     if (domainType() == cAxisymmetricStagnationFlow) {
         rsd[index(c_offset_U,0)] 
@@ -1067,7 +999,6 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
         rho_u(x,j) * pow(z(j), m)
         -
         rho_u(x,j-1) * pow(z(j-1), m);
-        //(rho_u(x,j) - rho_u(x,j-1));
     }
 
     rsd[index(c_offset_V,j)] = V(x,j);
@@ -1138,6 +1069,99 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
         rho_u(x,jloc-1) * pow(z(jloc-1), m)
         -
         rho_u(x,jloc) * pow(z(jloc), m);
+    }
+}
+
+void StFlow::evalRadialMomentum(size_t j, double* x, double* rsd, int* diag, double rdt)
+{
+    //------------------------------------------------
+    //    Radial momentum equation
+    //
+    //    \rho dV/dt + \rho u dV/dz + \rho V^2
+    //       = d(\mu dV/dz)/dz - lambda
+    //-------------------------------------------------
+    rsd[index(c_offset_V,j)]
+    = 
+    (
+        shear(x,j) 
+        -
+        lambda(x,j)
+        -
+        rho_u(x,j) * dVdz(x,j)
+        - m_rho[j] * V(x,j) * V(x,j)
+    ) / m_rho[j]
+    - rdt * (V(x,j) - V_prev(j));
+
+    diag[index(c_offset_V, j)] = 1;
+}
+
+void StFlow::evalSpecies(size_t j, double* x, double* rsd, int* diag, double rdt)
+{
+    //-------------------------------------------------
+    //    Species equations
+    //
+    //   \rho dY_k/dt + \rho u dY_k/dz + dJ_k/dz
+    //   = M_k\omega_k
+    //-------------------------------------------------
+
+    getWdot(x,j);
+
+    for (size_t k = 0; k < m_nsp; k++) {
+        rsd[index(c_offset_Y + k, j)]
+        = 
+        (
+            - rho_u(x,j) * dYdz(x,k,j)
+            - divDiffFlux(k,j)
+            + m_wt[k] * wdot(k,j)
+        )/m_rho[j]
+        - 
+        rdt * (Y(x,k,j) - Y_prev(k,j));
+
+        diag[index(c_offset_Y + k, j)] = 1;
+    }
+}
+
+void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
+{
+    //-----------------------------------------------
+    //    energy equation
+    //
+    //    \rho c_p dT/dt + \rho c_p u dT/dz
+    //    = d(k dT/dz)/dz
+    //      - sum_k(\omega_k h_k_ref)
+    //      - sum_k(J_k c_p_k / M_k) dT/dz
+    //-----------------------------------------------
+    if (m_do_energy[j]) {
+        setGas(x,j);
+
+        // heat release term
+        const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
+        const vector_fp& cp_R = m_thermo->cp_R_ref();
+        double sum = 0.0;
+        double sum2 = 0.0;
+        for (size_t k = 0; k < m_nsp; k++) {
+            // Zhen Lu 210928
+            //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
+            double flxk = (m_flux(k,j) - m_flux(k,j-1)) 
+                         / (z(j+1) - z(j-1)) * m_dz[j-1]
+                         + m_flux(k,j-1);
+            sum += wdot(k,j) * h_RT[k];
+            sum2 += flxk * cp_R[k] / m_wt[k];
+        }
+        sum *= GasConstant * T(x,j);
+        double dtdzj = dTdz(x,j);
+        sum2 *= GasConstant * dtdzj;
+
+        rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
+                                    - divHeatFlux(x,j) - sum - sum2;
+        rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
+        rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
+        rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
+        diag[index(c_offset_T, j)] = 1;
+    } else {
+        // residual equations if the energy equation is disabled
+        rsd[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
+        diag[index(c_offset_T, j)] = 0;
     }
 }
 
@@ -1220,17 +1244,19 @@ void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
     } else {
         for (size_t j = j0; j < j1; j++) {
             double sum = 0.0;
-            double wtm = m_wtm[j];
-            double rho = density(j);
-            double dz = z(j+1) - z(j);
+            // Zhen Lu 210928
+            // use midpoint properties
+            setGasAtMidpoint(x,j);
+            double rho = m_thermo->density();
+            double wtm = m_thermo->meanMolecularWeight();
             for (size_t k = 0; k < m_nsp; k++) {
-                m_flux(k,j) = m_wt[k]*(rho*m_diff[k+m_nsp*j]/wtm);
-                m_flux(k,j) *= (X(x,k,j) - X(x,k,j+1))/dz;
+                m_flux(k,j) = m_wt[k] * (rho * m_diff[k+m_nsp*j] / wtm);
+                m_flux(k,j) *= (X(x,k,j) - X(x,k,j+1))/m_dz[j];
                 sum -= m_flux(k,j);
             }
             // correction flux to insure that \sum_k Y_k V_k = 0.
             for (size_t k = 0; k < m_nsp; k++) {
-                m_flux(k,j) += sum*Y(x,k,j);
+                m_flux(k,j) += sum * 0.5 * (Y(x,k,j) + Y(x,k,j+1));
             }
         }
     }
