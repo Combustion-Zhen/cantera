@@ -313,6 +313,21 @@ protected:
     virtual void evalContinuity(size_t j, double* x, double* r,
                                 int* diag, double rdt);
 
+    //! Evaluate the residual corresponding to the V equation at all
+    //! interior grid points.
+    virtual void evalRadialMomentum(size_t j, double* x, double* r,
+                                    int* diag, double rdt);
+
+    //! Evaluate the residual corresponding to the species equation at all
+    //! interior grid points.
+    virtual void evalSpecies(size_t j, double* x, double* r,
+                             int* diag, double rdt);
+
+    //! Evaluate the residual corresponding to the energy equation at all
+    //! interior grid points.
+    virtual void evalEnergy(size_t j, double* x, double* r,
+                            int* diag, double rdt);
+
     //! Update the properties (thermo, transport, and diffusion flux).
     //! This function is called in eval after the points which need
     //! to be updated are defined.
