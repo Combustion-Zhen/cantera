@@ -15,6 +15,8 @@ using namespace std;
 namespace Cantera
 {
 
+// public member functions
+
 StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     Domain1D(nsp+c_offset_Y, points),
     m_press(-1.0),
@@ -593,20 +595,6 @@ void StFlow::solveEnergyEqn(size_t j)
     }
 }
 
-void StFlow::setBoundaryEmissivities(doublereal e_left, doublereal e_right)
-{
-    if (e_left < 0 || e_left > 1) {
-        throw CanteraError("StFlow::setBoundaryEmissivities",
-            "The left boundary emissivity must be between 0.0 and 1.0!");
-    } else if (e_right < 0 || e_right > 1) {
-        throw CanteraError("StFlow::setBoundaryEmissivities",
-            "The right boundary emissivity must be between 0.0 and 1.0!");
-    } else {
-        m_epsilon_left = e_left;
-        m_epsilon_right = e_right;
-    }
-}
-
 void StFlow::fixTemperature(size_t j)
 {
     bool changed = false;
@@ -630,6 +618,42 @@ void StFlow::fixTemperature(size_t j)
         needJacUpdate();
     }
 }
+
+void StFlow::setBoundaryEmissivities(doublereal e_left, doublereal e_right)
+{
+    if (e_left < 0 || e_left > 1) {
+        throw CanteraError("StFlow::setBoundaryEmissivities",
+            "The left boundary emissivity must be between 0.0 and 1.0!");
+    } else if (e_right < 0 || e_right > 1) {
+        throw CanteraError("StFlow::setBoundaryEmissivities",
+            "The right boundary emissivity must be between 0.0 and 1.0!");
+    } else {
+        m_epsilon_left = e_left;
+        m_epsilon_right = e_right;
+    }
+}
+
+void StFlow::setGas(const doublereal* x, size_t j)
+{
+    m_thermo->setTemperature(T(x,j));
+    const doublereal* yy = x + m_nv*j + c_offset_Y;
+    m_thermo->setMassFractions_NoNorm(yy);
+    m_thermo->setPressure(m_press);
+}
+
+void StFlow::setGasAtMidpoint(const doublereal* x, size_t j)
+{
+    m_thermo->setTemperature(0.5*(T(x,j)+T(x,j+1)));
+    const doublereal* yyj = x + m_nv*j + c_offset_Y;
+    const doublereal* yyjp = x + m_nv*(j+1) + c_offset_Y;
+    for (size_t k = 0; k < m_nsp; k++) {
+        m_ybar[k] = 0.5*(yyj[k] + yyjp[k]);
+    }
+    m_thermo->setMassFractions_NoNorm(m_ybar.data());
+    m_thermo->setPressure(m_press);
+}
+
+// protected member functions
 
 void StFlow::eval(size_t jg, doublereal* xg,
                   doublereal* rg, integer* diagg, doublereal rdt)
@@ -970,26 +994,6 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
         -
         rho_u(x,jloc) * pow(grid(jloc), m);
     }
-}
-
-void StFlow::setGas(const doublereal* x, size_t j)
-{
-    m_thermo->setTemperature(T(x,j));
-    const doublereal* yy = x + m_nv*j + c_offset_Y;
-    m_thermo->setMassFractions_NoNorm(yy);
-    m_thermo->setPressure(m_press);
-}
-
-void StFlow::setGasAtMidpoint(const doublereal* x, size_t j)
-{
-    m_thermo->setTemperature(0.5*(T(x,j)+T(x,j+1)));
-    const doublereal* yyj = x + m_nv*j + c_offset_Y;
-    const doublereal* yyjp = x + m_nv*(j+1) + c_offset_Y;
-    for (size_t k = 0; k < m_nsp; k++) {
-        m_ybar[k] = 0.5*(yyj[k] + yyjp[k]);
-    }
-    m_thermo->setMassFractions_NoNorm(m_ybar.data());
-    m_thermo->setPressure(m_press);
 }
 
 void StFlow::updateProperties(size_t jg, double* x, size_t jmin, size_t jmax)
