@@ -55,10 +55,76 @@ public:
     //! @name Problem Specification
     //! @{
 
+    //! Change the grid size. Called after grid refinement.
+    virtual void resize(size_t components, size_t points);
+
     virtual void setupGrid(size_t n, const doublereal* z);
 
     virtual void resetBadValues(double* xg);
 
+    //! set the transport manager
+    void setTransport(Transport& trans);
+
+    //! Write the initial solution estimate into array x.
+    virtual void _getInitialSoln(double* x);
+
+    virtual void _finalize(const doublereal* x);
+
+    virtual std::string componentName(size_t n) const;
+
+    virtual size_t componentIndex(const std::string& name) const;
+
+    // Zhen Lu 210917
+    //! Return the type of flow domain being represented.
+    //! @see setFreeFlow setAxisymmetricFlow
+    virtual std::string flowType() const;
+
+    // Zhen Lu 210920
+    //! Set the Cartesian coordinates
+    void setCartesian();
+
+    //! Set the Cylindrical coordinates
+    void setCylindrical();
+
+    //! Set the Spherical coordinates
+    void setSpherical();
+
+    //! Print the solution.
+    virtual void showSolution(const doublereal* x);
+
+    virtual void restore(const XML_Node& dom, doublereal* soln,
+                         int loglevel);
+
+    //! Save the current solution for this domain into an XML_Node
+    /*!
+     *  @param o    XML_Node to save the solution to.
+     *  @param sol  Current value of the solution vector. The object will pick
+     *              out which part of the solution vector pertains to this
+     *              object.
+     *
+     * @deprecated The XML output format is deprecated and will be removed in
+     *     Cantera 3.0.
+     */
+    virtual XML_Node& save(XML_Node& o, const doublereal* const sol);
+
+    void solveEnergyEqn(size_t j=npos);
+
+    void fixTemperature(size_t j=npos);
+
+    //! Set the emissivities for the boundary values
+    /*!
+     * Reads the emissivities for the left and right boundary values in the
+     * radiative term and writes them into the variables, which are used for the
+     * calculation.
+     */
+    void setBoundaryEmissivities(double e_left, double e_right);
+
+    //! Set the gas object state to be consistent with the solution at point j.
+    void setGas(const doublereal* x, size_t j);
+
+    //! Set the gas state to be consistent with the solution at the midpoint
+    //! between j and j + 1.
+    void setGasAtMidpoint(const doublereal* x, size_t j);
 
     ThermoPhase& phase() {
         return *m_thermo;
@@ -80,9 +146,6 @@ public:
         m_kin = &kin;
     }
 
-    //! set the transport manager
-    void setTransport(Transport& trans);
-
     //! Enable thermal diffusion, also known as Soret diffusion.
     //! Requires that multicomponent transport properties be
     //! enabled to carry out calculations.
@@ -103,11 +166,6 @@ public:
     doublereal pressure() const {
         return m_press;
     }
-
-    //! Write the initial solution estimate into array x.
-    virtual void _getInitialSoln(double* x);
-
-    virtual void _finalize(const doublereal* x);
 
     //! Sometimes it is desired to carry out the simulation using a specified
     //! temperature profile, rather than computing it by solving the energy
@@ -140,25 +198,8 @@ public:
     //! Returns true if the specified component is an active part of the solver state
     virtual bool componentActive(size_t n) const;
 
-    //! Print the solution.
-    virtual void showSolution(const doublereal* x);
-
-    //! Save the current solution for this domain into an XML_Node
-    /*!
-     *  @param o    XML_Node to save the solution to.
-     *  @param sol  Current value of the solution vector. The object will pick
-     *              out which part of the solution vector pertains to this
-     *              object.
-     *
-     * @deprecated The XML output format is deprecated and will be removed in
-     *     Cantera 3.0.
-     */
-    virtual XML_Node& save(XML_Node& o, const doublereal* const sol);
-
-    virtual void restore(const XML_Node& dom, doublereal* soln,
-                         int loglevel);
-
     virtual AnyMap serialize(const double* soln) const;
+
     virtual void restore(const AnyMap& state, double* soln, int loglevel);
 
     //! Set flow configuration for freely-propagating flames, using an internal
@@ -191,30 +232,6 @@ public:
         m_dovisc = true;
     }
 
-    // Zhen Lu 210917
-    //! Return the type of flow domain being represented.
-    //! @see setFreeFlow setAxisymmetricFlow
-    virtual std::string flowType() const;
-    //virtual std::string flowType() {
-    //    if (m_type == cFreeFlow) {
-    //       return "Free Flame";
-    //    } else if (m_type == cAxisymmetricStagnationFlow) {
-    //        return "Axisymmetric Stagnation";
-    //    } else {
-    //        throw CanteraError("StFlow::flowType", "Unknown value for 'm_type'");
-    //    }
-    //}
-
-    // Zhen Lu 210920
-    //! Set the Cartesian coordinates
-    void setCartesian();
-
-    //! Set the Cylindrical coordinates
-    void setCylindrical();
-
-    //! Set the Spherical coordinates
-    void setSpherical();
-
     //! Set steady state
     void setSteady() {
         m_ttype = cSteady;
@@ -224,8 +241,6 @@ public:
     void setTransient() {
         m_ttype = cTransient;
     }
-
-    void solveEnergyEqn(size_t j=npos);
 
     //! Turn radiation on / off.
     /*!
@@ -248,35 +263,15 @@ public:
         return m_qdotRadiation[j];
     }
 
-    //! Set the emissivities for the boundary values
-    /*!
-     * Reads the emissivities for the left and right boundary values in the
-     * radiative term and writes them into the variables, which are used for the
-     * calculation.
-     */
-    void setBoundaryEmissivities(double e_left, double e_right);
-
     //! Return emissivitiy at left boundary
     double leftEmissivity() const { return m_epsilon_left; }
 
     //! Return emissivitiy at right boundary
     double rightEmissivity() const { return m_epsilon_right; }
 
-    void fixTemperature(size_t j=npos);
-
     bool doEnergy(size_t j) {
         return m_do_energy[j];
     }
-
-    //! Change the grid size. Called after grid refinement.
-    virtual void resize(size_t components, size_t points);
-
-    //! Set the gas object state to be consistent with the solution at point j.
-    void setGas(const doublereal* x, size_t j);
-
-    //! Set the gas state to be consistent with the solution at the midpoint
-    //! between j and j + 1.
-    void setGasAtMidpoint(const doublereal* x, size_t j);
 
     doublereal density(size_t j) const {
         return m_rho[j];
@@ -289,6 +284,17 @@ public:
         m_dovisc = dovisc;
     }
 
+    //! Index of the species on the left boundary with the largest mass fraction
+    size_t leftExcessSpecies() const {
+        return m_kExcessLeft;
+    }
+
+    //! Index of the species on the right boundary with the largest mass fraction
+    size_t rightExcessSpecies() const {
+        return m_kExcessRight;
+    }
+
+protected:
     /*!
      *  Evaluate the residual function for axisymmetric stagnation flow. If
      *  j == npos, the residual function is evaluated at all grid points.
@@ -298,6 +304,11 @@ public:
      */
     virtual void eval(size_t j, doublereal* x, doublereal* r,
                       integer* mask, doublereal rdt);
+
+    //! Evaluate the residual function. This function is called in eval
+    //! after updateProperties is called.
+    virtual void evalResidual(double* x, double* rsd, int* diag,
+                              double rdt, size_t jmin, size_t jmax);
 
     // Zhen Lu 210920
     //! Evaluate all residual components at the left boundary.
@@ -312,32 +323,6 @@ public:
     //! interior grid points.
     virtual void evalContinuity(size_t j, double* x, double* r,
                                 int* diag, double rdt);
-
-    //! Index of the species on the left boundary with the largest mass fraction
-    size_t leftExcessSpecies() const {
-        return m_kExcessLeft;
-    }
-
-    //! Index of the species on the right boundary with the largest mass fraction
-    size_t rightExcessSpecies() const {
-        return m_kExcessRight;
-    }
-
-protected:
-    doublereal wdot(size_t k, size_t j) const {
-        return m_wdot(k,j);
-    }
-
-    //! Write the net production rates at point `j` into array `m_wdot`
-    void getWdot(doublereal* x, size_t j) {
-        setGas(x,j);
-        m_kin->getNetProductionRates(&m_wdot(0,j));
-    }
-
-    //! Evaluate the residual function. This function is called in eval
-    //! after updateProperties is called.
-    virtual void evalResidual(double* x, double* rsd, int* diag,
-                              double rdt, size_t jmin, size_t jmax);
 
     //! Update the properties (thermo, transport, and diffusion flux).
     //! This function is called in eval after the points which need
@@ -357,8 +342,18 @@ protected:
     //! Update the diffusive mass fluxes.
     virtual void updateDiffFluxes(const doublereal* x, size_t j0, size_t j1);
 
+    //! Write the net production rates at point `j` into array `m_wdot`
+    void getWdot(doublereal* x, size_t j) {
+        setGas(x,j);
+        m_kin->getNetProductionRates(&m_wdot(0,j));
+    }
+
     //! @name Solution components
     //! @{
+
+    doublereal wdot(size_t k, size_t j) const {
+        return m_wdot(k,j);
+    }
 
     doublereal T(const doublereal* x, size_t j) const {
         return x[index(c_offset_T, j)];
