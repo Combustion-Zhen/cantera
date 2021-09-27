@@ -172,26 +172,6 @@ void StFlow::_getInitialSoln(double* x)
     }
 }
 
-void StFlow::setGas(const doublereal* x, size_t j)
-{
-    m_thermo->setTemperature(T(x,j));
-    const doublereal* yy = x + m_nv*j + c_offset_Y;
-    m_thermo->setMassFractions_NoNorm(yy);
-    m_thermo->setPressure(m_press);
-}
-
-void StFlow::setGasAtMidpoint(const doublereal* x, size_t j)
-{
-    m_thermo->setTemperature(0.5*(T(x,j)+T(x,j+1)));
-    const doublereal* yyj = x + m_nv*j + c_offset_Y;
-    const doublereal* yyjp = x + m_nv*(j+1) + c_offset_Y;
-    for (size_t k = 0; k < m_nsp; k++) {
-        m_ybar[k] = 0.5*(yyj[k] + yyjp[k]);
-    }
-    m_thermo->setMassFractions_NoNorm(m_ybar.data());
-    m_thermo->setPressure(m_press);
-}
-
 void StFlow::_finalize(const doublereal* x)
 {
     if (!m_do_multicomponent && m_do_soret) {
@@ -234,299 +214,6 @@ void StFlow::_finalize(const doublereal* x)
                     m_zfixed = z(j+1);
                     return;
                 }
-            }
-        }
-    }
-}
-
-void StFlow::eval(size_t jg, doublereal* xg,
-                  doublereal* rg, integer* diagg, doublereal rdt)
-{
-    // if evaluating a Jacobian, and the global point is outside the domain of
-    // influence for this domain, then skip evaluating the residual
-    if (jg != npos && (jg + 1 < firstPoint() || jg > lastPoint() + 1)) {
-        return;
-    }
-
-    // start of local part of global arrays
-    doublereal* x = xg + loc();
-    doublereal* rsd = rg + loc();
-    integer* diag = diagg + loc();
-
-    size_t jmin, jmax;
-    if (jg == npos) { // evaluate all points
-        jmin = 0;
-        jmax = m_points - 1;
-    } else { // evaluate points for Jacobian
-        size_t jpt = (jg == 0) ? 0 : jg - firstPoint();
-        jmin = std::max<size_t>(jpt, 1) - 1;
-        jmax = std::min(jpt+1,m_points-1);
-    }
-
-    updateProperties(jg, x, jmin, jmax);
-    evalResidual(x, rsd, diag, rdt, jmin, jmax);
-}
-
-void StFlow::updateProperties(size_t jg, double* x, size_t jmin, size_t jmax)
-{
-    // properties are computed for grid points from j0 to j1
-    size_t j0 = std::max<size_t>(jmin, 1) - 1;
-    size_t j1 = std::min(jmax+1,m_points-1);
-
-    updateThermo(x, j0, j1);
-    if (jg == npos || m_force_full_update) {
-        // update transport properties only if a Jacobian is not being
-        // evaluated, or if specifically requested
-        updateTransport(x, j0, j1);
-    }
-    if (jg == npos) {
-        double* Yleft = x + index(c_offset_Y, jmin);
-        m_kExcessLeft = distance(Yleft, max_element(Yleft, Yleft + m_nsp));
-        double* Yright = x + index(c_offset_Y, jmax);
-        m_kExcessRight = distance(Yright, max_element(Yright, Yright + m_nsp));
-    }
-
-    // update the species diffusive mass fluxes whether or not a
-    // Jacobian is being evaluated
-    updateDiffFluxes(x, j0, j1);
-}
-
-void StFlow::evalResidual(double* x, double* rsd, int* diag,
-                          double rdt, size_t jmin, size_t jmax)
-{
-    //----------------------------------------------------
-    // evaluate the residual equations at all required
-    // grid points
-    //----------------------------------------------------
-
-    // calculation of qdotRadiation
-
-    // The simple radiation model used was established by Y. Liu and B. Rogg [Y.
-    // Liu and B. Rogg, Modelling of thermally radiating diffusion flames with
-    // detailed chemistry and transport, EUROTHERM Seminars, 17:114-127, 1991].
-    // This model uses the optically thin limit and the gray-gas approximation
-    // to simply calculate a volume specified heat flux out of the Planck
-    // absorption coefficients, the boundary emissivities and the temperature.
-    // The model considers only CO2 and H2O as radiating species. Polynomial
-    // lines calculate the species Planck coefficients for H2O and CO2. The data
-    // for the lines is taken from the RADCAL program [Grosshandler, W. L.,
-    // RADCAL: A Narrow-Band Model for Radiation Calculations in a Combustion
-    // Environment, NIST technical note 1402, 1993]. The coefficients for the
-    // polynomials are taken from [http://www.sandia.gov/TNF/radiation.html].
-
-    if (m_do_radiation) {
-        // variable definitions for the Planck absorption coefficient and the
-        // radiation calculation:
-        doublereal k_P_ref = 1.0*OneAtm;
-
-        // polynomial coefficients:
-        const doublereal c_H2O[6] = {-0.23093, -1.12390, 9.41530, -2.99880,
-                                     0.51382, -1.86840e-5};
-        const doublereal c_CO2[6] = {18.741, -121.310, 273.500, -194.050,
-                                     56.310, -5.8169};
-
-        // calculation of the two boundary values
-        double boundary_Rad_left = m_epsilon_left * StefanBoltz * pow(T(x, 0), 4);
-        double boundary_Rad_right = m_epsilon_right * StefanBoltz * pow(T(x, m_points - 1), 4);
-
-        // loop over all grid points
-        for (size_t j = jmin; j < jmax; j++) {
-            // helping variable for the calculation
-            double radiative_heat_loss = 0;
-
-            // calculation of the mean Planck absorption coefficient
-            double k_P = 0;
-            // absorption coefficient for H2O
-            if (m_kRadiating[1] != npos) {
-                double k_P_H2O = 0;
-                for (size_t n = 0; n <= 5; n++) {
-                    k_P_H2O += c_H2O[n] * pow(1000 / T(x, j), (double) n);
-                }
-                k_P_H2O /= k_P_ref;
-                k_P += m_press * X(x, m_kRadiating[1], j) * k_P_H2O;
-            }
-            // absorption coefficient for CO2
-            if (m_kRadiating[0] != npos) {
-                double k_P_CO2 = 0;
-                for (size_t n = 0; n <= 5; n++) {
-                    k_P_CO2 += c_CO2[n] * pow(1000 / T(x, j), (double) n);
-                }
-                k_P_CO2 /= k_P_ref;
-                k_P += m_press * X(x, m_kRadiating[0], j) * k_P_CO2;
-            }
-
-            // calculation of the radiative heat loss term
-            radiative_heat_loss = 2 * k_P *(2 * StefanBoltz * pow(T(x, j), 4)
-            - boundary_Rad_left - boundary_Rad_right);
-
-            // set the radiative heat loss vector
-            m_qdotRadiation[j] = radiative_heat_loss;
-        }
-    }
-
-    for (size_t j = jmin; j <= jmax; j++) {
-
-        if (j == 0) {
-            //----------------------------------------------
-            //         left boundary
-            //----------------------------------------------
-            // these may be modified by a boundary object
-            evalLeftBoundary(x, rsd, diag, rdt);
-            // set residual of poisson's equ to zero
-            rsd[index(c_offset_E, 0)] = x[index(c_offset_E, j)];
-        } else if (j == m_points - 1) {
-            //----------------------------------------------
-            //         right boundary
-            //----------------------------------------------
-            // these may be modified by a boundary object
-            evalRightBoundary(x, rsd, diag, rdt);
-            // set residual of poisson's equ to zero
-            rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
-        } else { // interior points
-            evalContinuity(j, x, rsd, diag, rdt);
-            // set residual of poisson's equ to zero
-            rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
-
-            //------------------------------------------------
-            //    Radial momentum equation
-            //
-            //    \rho dV/dt + \rho u dV/dz + \rho V^2
-            //       = d(\mu dV/dz)/dz - lambda
-            //-------------------------------------------------
-            rsd[index(c_offset_V,j)]
-            = (shear(x,j) - lambda(x,j) - rho_u(x,j)*dVdz(x,j)
-               - m_rho[j]*V(x,j)*V(x,j))/m_rho[j]
-              - rdt*(V(x,j) - V_prev(j));
-            diag[index(c_offset_V, j)] = 1;
-
-            //-------------------------------------------------
-            //    Species equations
-            //
-            //   \rho dY_k/dt + \rho u dY_k/dz + dJ_k/dz
-            //   = M_k\omega_k
-            //-------------------------------------------------
-            getWdot(x,j);
-            for (size_t k = 0; k < m_nsp; k++) {
-                double convec = rho_u(x,j)*dYdz(x,k,j);
-                double diffus = 2.0*(m_flux(k,j) - m_flux(k,j-1))
-                                / (z(j+1) - z(j-1));
-                rsd[index(c_offset_Y + k, j)]
-                = (m_wt[k]*(wdot(k,j))
-                   - convec - diffus)/m_rho[j]
-                  - rdt*(Y(x,k,j) - Y_prev(k,j));
-                diag[index(c_offset_Y + k, j)] = 1;
-            }
-
-            //-----------------------------------------------
-            //    energy equation
-            //
-            //    \rho c_p dT/dt + \rho c_p u dT/dz
-            //    = d(k dT/dz)/dz
-            //      - sum_k(\omega_k h_k_ref)
-            //      - sum_k(J_k c_p_k / M_k) dT/dz
-            //-----------------------------------------------
-            if (m_do_energy[j]) {
-                setGas(x,j);
-
-                // heat release term
-                const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
-                const vector_fp& cp_R = m_thermo->cp_R_ref();
-                double sum = 0.0;
-                double sum2 = 0.0;
-                for (size_t k = 0; k < m_nsp; k++) {
-                    double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
-                    sum += wdot(k,j)*h_RT[k];
-                    sum2 += flxk*cp_R[k]/m_wt[k];
-                }
-                sum *= GasConstant * T(x,j);
-                double dtdzj = dTdz(x,j);
-                sum2 *= GasConstant * dtdzj;
-
-                rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
-                                            - divHeatFlux(x,j) - sum - sum2;
-                rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
-                rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
-                rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
-                diag[index(c_offset_T, j)] = 1;
-            } else {
-                // residual equations if the energy equation is disabled
-                rsd[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
-                diag[index(c_offset_T, j)] = 0;
-            }
-
-            rsd[index(c_offset_L, j)] = lambda(x,j) - lambda(x,j-1);
-            diag[index(c_offset_L, j)] = 0;
-        }
-    }
-}
-
-void StFlow::updateTransport(doublereal* x, size_t j0, size_t j1)
-{
-     if (m_do_multicomponent) {
-        for (size_t j = j0; j < j1; j++) {
-            setGasAtMidpoint(x,j);
-            doublereal wtm = m_thermo->meanMolecularWeight();
-            doublereal rho = m_thermo->density();
-            m_visc[j] = (m_dovisc ? m_trans->viscosity() : 0.0);
-            m_trans->getMultiDiffCoeffs(m_nsp, &m_multidiff[mindex(0,0,j)]);
-
-            // Use m_diff as storage for the factor outside the summation
-            for (size_t k = 0; k < m_nsp; k++) {
-                m_diff[k+j*m_nsp] = m_wt[k] * rho / (wtm*wtm);
-            }
-
-            m_tcon[j] = m_trans->thermalConductivity();
-            if (m_do_soret) {
-                m_trans->getThermalDiffCoeffs(m_dthermal.ptrColumn(0) + j*m_nsp);
-            }
-        }
-    } else { // mixture averaged transport
-        for (size_t j = j0; j < j1; j++) {
-            setGasAtMidpoint(x,j);
-            m_visc[j] = (m_dovisc ? m_trans->viscosity() : 0.0);
-            m_trans->getMixDiffCoeffs(&m_diff[j*m_nsp]);
-            m_tcon[j] = m_trans->thermalConductivity();
-        }
-    }
-}
-
-void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
-{
-    if (m_do_multicomponent) {
-        for (size_t j = j0; j < j1; j++) {
-            double dz = z(j+1) - z(j);
-            for (size_t k = 0; k < m_nsp; k++) {
-                doublereal sum = 0.0;
-                for (size_t m = 0; m < m_nsp; m++) {
-                    sum += m_wt[m] * m_multidiff[mindex(k,m,j)] * (X(x,m,j+1)-X(x,m,j));
-                }
-                m_flux(k,j) = sum * m_diff[k+j*m_nsp] / dz;
-            }
-        }
-    } else {
-        for (size_t j = j0; j < j1; j++) {
-            double sum = 0.0;
-            double wtm = m_wtm[j];
-            double rho = density(j);
-            double dz = z(j+1) - z(j);
-            for (size_t k = 0; k < m_nsp; k++) {
-                m_flux(k,j) = m_wt[k]*(rho*m_diff[k+m_nsp*j]/wtm);
-                m_flux(k,j) *= (X(x,k,j) - X(x,k,j+1))/dz;
-                sum -= m_flux(k,j);
-            }
-            // correction flux to insure that \sum_k Y_k V_k = 0.
-            for (size_t k = 0; k < m_nsp; k++) {
-                m_flux(k,j) += sum*Y(x,k,j);
-            }
-        }
-    }
-
-    if (m_do_soret) {
-        for (size_t m = j0; m < j1; m++) {
-            double gradlogT = 2.0 * (T(x,m+1) - T(x,m)) /
-                              ((T(x,m+1) + T(x,m)) * (z(m+1) - z(m)));
-            for (size_t k = 0; k < m_nsp; k++) {
-                m_flux(k,m) -= m_dthermal(k,m)*gradlogT;
             }
         }
     }
@@ -895,68 +582,6 @@ XML_Node& StFlow::save(XML_Node& o, const doublereal* const sol)
     return flow;
 }
 
-AnyMap StFlow::serialize(const double* soln) const
-{
-    AnyMap state = Domain1D::serialize(soln);
-    state["type"] = flowType();
-    state["pressure"] = m_press;
-
-    state["phase"]["name"] = m_thermo->name();
-    AnyValue source = m_thermo->input().getMetadata("filename");
-    state["phase"]["source"] = source.empty() ? "<unknown>" : source.asString();
-
-    state["radiation-enabled"] = m_do_radiation;
-    if (m_do_radiation) {
-        state["radiative-heat-loss"] = m_qdotRadiation;
-        state["emissivity-left"] = m_epsilon_left;
-        state["emissivity-right"] = m_epsilon_right;
-    }
-
-    std::set<bool> energy_flags(m_do_energy.begin(), m_do_energy.end());
-    if (energy_flags.size() == 1) {
-        state["energy-enabled"] = m_do_energy[0];
-    } else {
-        state["energy-enabled"] = m_do_energy;
-    }
-
-    state["Soret-enabled"] = m_do_soret;
-
-    std::set<bool> species_flags(m_do_species.begin(), m_do_species.end());
-    if (species_flags.size() == 1) {
-        state["species-enabled"] = m_do_species[0];
-    } else {
-        for (size_t k = 0; k < m_nsp; k++) {
-            state["species-enabled"][m_thermo->speciesName(k)] = m_do_species[k];
-        }
-    }
-
-    state["refine-criteria"]["ratio"] = m_refiner->maxRatio();
-    state["refine-criteria"]["slope"] = m_refiner->maxDelta();
-    state["refine-criteria"]["curve"] = m_refiner->maxSlope();
-    state["refine-criteria"]["prune"] = m_refiner->prune();
-    state["refine-criteria"]["grid-min"] = m_refiner->gridMin();
-    state["refine-criteria"]["max-points"] =
-        static_cast<long int>(m_refiner->maxPoints());
-
-    if (m_zfixed != Undef) {
-        state["fixed-point"]["location"] = m_zfixed;
-        state["fixed-point"]["temperature"] = m_tfixed;
-    }
-
-    state["grid"] = m_z;
-    vector_fp data(nPoints());
-    for (size_t i = 0; i < nComponents(); i++) {
-        if (componentActive(i)) {
-            for (size_t j = 0; j < nPoints(); j++) {
-                data[j] = soln[index(i,j)];
-            }
-            state[componentName(i)] = data;
-        }
-    }
-
-    return state;
-}
-
 void StFlow::restore(const AnyMap& state, double* soln, int loglevel)
 {
     Domain1D::restore(state, soln, loglevel);
@@ -1031,6 +656,68 @@ void StFlow::restore(const AnyMap& state, double* soln, int loglevel)
     }
 }
 
+AnyMap StFlow::serialize(const double* soln) const
+{
+    AnyMap state = Domain1D::serialize(soln);
+    state["type"] = flowType();
+    state["pressure"] = m_press;
+
+    state["phase"]["name"] = m_thermo->name();
+    AnyValue source = m_thermo->input().getMetadata("filename");
+    state["phase"]["source"] = source.empty() ? "<unknown>" : source.asString();
+
+    state["radiation-enabled"] = m_do_radiation;
+    if (m_do_radiation) {
+        state["radiative-heat-loss"] = m_qdotRadiation;
+        state["emissivity-left"] = m_epsilon_left;
+        state["emissivity-right"] = m_epsilon_right;
+    }
+
+    std::set<bool> energy_flags(m_do_energy.begin(), m_do_energy.end());
+    if (energy_flags.size() == 1) {
+        state["energy-enabled"] = m_do_energy[0];
+    } else {
+        state["energy-enabled"] = m_do_energy;
+    }
+
+    state["Soret-enabled"] = m_do_soret;
+
+    std::set<bool> species_flags(m_do_species.begin(), m_do_species.end());
+    if (species_flags.size() == 1) {
+        state["species-enabled"] = m_do_species[0];
+    } else {
+        for (size_t k = 0; k < m_nsp; k++) {
+            state["species-enabled"][m_thermo->speciesName(k)] = m_do_species[k];
+        }
+    }
+
+    state["refine-criteria"]["ratio"] = m_refiner->maxRatio();
+    state["refine-criteria"]["slope"] = m_refiner->maxDelta();
+    state["refine-criteria"]["curve"] = m_refiner->maxSlope();
+    state["refine-criteria"]["prune"] = m_refiner->prune();
+    state["refine-criteria"]["grid-min"] = m_refiner->gridMin();
+    state["refine-criteria"]["max-points"] =
+        static_cast<long int>(m_refiner->maxPoints());
+
+    if (m_zfixed != Undef) {
+        state["fixed-point"]["location"] = m_zfixed;
+        state["fixed-point"]["temperature"] = m_tfixed;
+    }
+
+    state["grid"] = m_z;
+    vector_fp data(nPoints());
+    for (size_t i = 0; i < nComponents(); i++) {
+        if (componentActive(i)) {
+            for (size_t j = 0; j < nPoints(); j++) {
+                data[j] = soln[index(i,j)];
+            }
+            state[componentName(i)] = data;
+        }
+    }
+
+    return state;
+}
+
 void StFlow::solveEnergyEqn(size_t j)
 {
     bool changed = false;
@@ -1090,6 +777,209 @@ void StFlow::fixTemperature(size_t j)
     m_refiner->setActive(c_offset_T, false);
     if (changed) {
         needJacUpdate();
+    }
+}
+
+void StFlow::eval(size_t jg, doublereal* xg,
+                  doublereal* rg, integer* diagg, doublereal rdt)
+{
+    // if evaluating a Jacobian, and the global point is outside the domain of
+    // influence for this domain, then skip evaluating the residual
+    if (jg != npos && (jg + 1 < firstPoint() || jg > lastPoint() + 1)) {
+        return;
+    }
+
+    // start of local part of global arrays
+    doublereal* x = xg + loc();
+    doublereal* rsd = rg + loc();
+    integer* diag = diagg + loc();
+
+    size_t jmin, jmax;
+    if (jg == npos) { // evaluate all points
+        jmin = 0;
+        jmax = m_points - 1;
+    } else { // evaluate points for Jacobian
+        size_t jpt = (jg == 0) ? 0 : jg - firstPoint();
+        jmin = std::max<size_t>(jpt, 1) - 1;
+        jmax = std::min(jpt+1,m_points-1);
+    }
+
+    updateProperties(jg, x, jmin, jmax);
+    evalResidual(x, rsd, diag, rdt, jmin, jmax);
+}
+
+void StFlow::evalResidual(double* x, double* rsd, int* diag,
+                          double rdt, size_t jmin, size_t jmax)
+{
+    //----------------------------------------------------
+    // evaluate the residual equations at all required
+    // grid points
+    //----------------------------------------------------
+
+    // calculation of qdotRadiation
+
+    // The simple radiation model used was established by Y. Liu and B. Rogg [Y.
+    // Liu and B. Rogg, Modelling of thermally radiating diffusion flames with
+    // detailed chemistry and transport, EUROTHERM Seminars, 17:114-127, 1991].
+    // This model uses the optically thin limit and the gray-gas approximation
+    // to simply calculate a volume specified heat flux out of the Planck
+    // absorption coefficients, the boundary emissivities and the temperature.
+    // The model considers only CO2 and H2O as radiating species. Polynomial
+    // lines calculate the species Planck coefficients for H2O and CO2. The data
+    // for the lines is taken from the RADCAL program [Grosshandler, W. L.,
+    // RADCAL: A Narrow-Band Model for Radiation Calculations in a Combustion
+    // Environment, NIST technical note 1402, 1993]. The coefficients for the
+    // polynomials are taken from [http://www.sandia.gov/TNF/radiation.html].
+
+    if (m_do_radiation) {
+        // variable definitions for the Planck absorption coefficient and the
+        // radiation calculation:
+        doublereal k_P_ref = 1.0*OneAtm;
+
+        // polynomial coefficients:
+        const doublereal c_H2O[6] = {-0.23093, -1.12390, 9.41530, -2.99880,
+                                     0.51382, -1.86840e-5};
+        const doublereal c_CO2[6] = {18.741, -121.310, 273.500, -194.050,
+                                     56.310, -5.8169};
+
+        // calculation of the two boundary values
+        double boundary_Rad_left = m_epsilon_left * StefanBoltz * pow(T(x, 0), 4);
+        double boundary_Rad_right = m_epsilon_right * StefanBoltz * pow(T(x, m_points - 1), 4);
+
+        // loop over all grid points
+        for (size_t j = jmin; j < jmax; j++) {
+            // helping variable for the calculation
+            double radiative_heat_loss = 0;
+
+            // calculation of the mean Planck absorption coefficient
+            double k_P = 0;
+            // absorption coefficient for H2O
+            if (m_kRadiating[1] != npos) {
+                double k_P_H2O = 0;
+                for (size_t n = 0; n <= 5; n++) {
+                    k_P_H2O += c_H2O[n] * pow(1000 / T(x, j), (double) n);
+                }
+                k_P_H2O /= k_P_ref;
+                k_P += m_press * X(x, m_kRadiating[1], j) * k_P_H2O;
+            }
+            // absorption coefficient for CO2
+            if (m_kRadiating[0] != npos) {
+                double k_P_CO2 = 0;
+                for (size_t n = 0; n <= 5; n++) {
+                    k_P_CO2 += c_CO2[n] * pow(1000 / T(x, j), (double) n);
+                }
+                k_P_CO2 /= k_P_ref;
+                k_P += m_press * X(x, m_kRadiating[0], j) * k_P_CO2;
+            }
+
+            // calculation of the radiative heat loss term
+            radiative_heat_loss = 2 * k_P *(2 * StefanBoltz * pow(T(x, j), 4)
+            - boundary_Rad_left - boundary_Rad_right);
+
+            // set the radiative heat loss vector
+            m_qdotRadiation[j] = radiative_heat_loss;
+        }
+    }
+
+    for (size_t j = jmin; j <= jmax; j++) {
+
+        if (j == 0) {
+            //----------------------------------------------
+            //         left boundary
+            //----------------------------------------------
+            // these may be modified by a boundary object
+            evalLeftBoundary(x, rsd, diag, rdt);
+            // set residual of poisson's equ to zero
+            rsd[index(c_offset_E, 0)] = x[index(c_offset_E, j)];
+        } else if (j == m_points - 1) {
+            //----------------------------------------------
+            //         right boundary
+            //----------------------------------------------
+            // these may be modified by a boundary object
+            evalRightBoundary(x, rsd, diag, rdt);
+            // set residual of poisson's equ to zero
+            rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
+        } else { // interior points
+            evalContinuity(j, x, rsd, diag, rdt);
+            // set residual of poisson's equ to zero
+            rsd[index(c_offset_E, j)] = x[index(c_offset_E, j)];
+
+            //------------------------------------------------
+            //    Radial momentum equation
+            //
+            //    \rho dV/dt + \rho u dV/dz + \rho V^2
+            //       = d(\mu dV/dz)/dz - lambda
+            //-------------------------------------------------
+            rsd[index(c_offset_V,j)]
+            = (shear(x,j) - lambda(x,j) - rho_u(x,j)*dVdz(x,j)
+               - m_rho[j]*V(x,j)*V(x,j))/m_rho[j]
+              - rdt*(V(x,j) - V_prev(j));
+            diag[index(c_offset_V, j)] = 1;
+
+            //-------------------------------------------------
+            //    Species equations
+            //
+            //   \rho dY_k/dt + \rho u dY_k/dz + dJ_k/dz
+            //   = M_k\omega_k
+            //-------------------------------------------------
+            getWdot(x,j);
+            for (size_t k = 0; k < m_nsp; k++) {
+                double convec = rho_u(x,j) * dYdz(x,k,j);
+                // Zhen Lu 210927 non-uniform grid?
+                double diffus = 2.0 * (m_flux(k,j) - m_flux(k,j-1))
+                                / (z(j+1) - z(j-1));
+                rsd[index(c_offset_Y + k, j)]
+                = 
+                (
+                    - convec 
+                    - diffus
+                    + m_wt[k] * wdot(k,j)
+                )/m_rho[j]
+                - 
+                rdt * (Y(x,k,j) - Y_prev(k,j));
+                diag[index(c_offset_Y + k, j)] = 1;
+            }
+
+            //-----------------------------------------------
+            //    energy equation
+            //
+            //    \rho c_p dT/dt + \rho c_p u dT/dz
+            //    = d(k dT/dz)/dz
+            //      - sum_k(\omega_k h_k_ref)
+            //      - sum_k(J_k c_p_k / M_k) dT/dz
+            //-----------------------------------------------
+            if (m_do_energy[j]) {
+                setGas(x,j);
+
+                // heat release term
+                const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
+                const vector_fp& cp_R = m_thermo->cp_R_ref();
+                double sum = 0.0;
+                double sum2 = 0.0;
+                for (size_t k = 0; k < m_nsp; k++) {
+                    double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
+                    sum += wdot(k,j)*h_RT[k];
+                    sum2 += flxk*cp_R[k]/m_wt[k];
+                }
+                sum *= GasConstant * T(x,j);
+                double dtdzj = dTdz(x,j);
+                sum2 *= GasConstant * dtdzj;
+
+                rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
+                                            - divHeatFlux(x,j) - sum - sum2;
+                rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
+                rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
+                rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
+                diag[index(c_offset_T, j)] = 1;
+            } else {
+                // residual equations if the energy equation is disabled
+                rsd[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
+                diag[index(c_offset_T, j)] = 0;
+            }
+
+            rsd[index(c_offset_L, j)] = lambda(x,j) - lambda(x,j-1);
+            diag[index(c_offset_L, j)] = 0;
+        }
     }
 }
 
@@ -1228,6 +1118,131 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
         rho_u(x,jloc-1) * pow(grid(jloc-1), m)
         -
         rho_u(x,jloc) * pow(grid(jloc), m);
+    }
+}
+
+void StFlow::setGas(const doublereal* x, size_t j)
+{
+    m_thermo->setTemperature(T(x,j));
+    const doublereal* yy = x + m_nv*j + c_offset_Y;
+    m_thermo->setMassFractions_NoNorm(yy);
+    m_thermo->setPressure(m_press);
+}
+
+void StFlow::setGasAtMidpoint(const doublereal* x, size_t j)
+{
+    m_thermo->setTemperature(0.5*(T(x,j)+T(x,j+1)));
+    const doublereal* yyj = x + m_nv*j + c_offset_Y;
+    const doublereal* yyjp = x + m_nv*(j+1) + c_offset_Y;
+    for (size_t k = 0; k < m_nsp; k++) {
+        m_ybar[k] = 0.5*(yyj[k] + yyjp[k]);
+    }
+    m_thermo->setMassFractions_NoNorm(m_ybar.data());
+    m_thermo->setPressure(m_press);
+}
+
+void StFlow::updateProperties(size_t jg, double* x, size_t jmin, size_t jmax)
+{
+    // properties are computed for grid points from j0 to j1
+    size_t j0 = std::max<size_t>(jmin, 1) - 1;
+    size_t j1 = std::min(jmax+1,m_points-1);
+
+    updateThermo(x, j0, j1);
+    if (jg == npos || m_force_full_update) {
+        // update transport properties only if a Jacobian is not being
+        // evaluated, or if specifically requested
+        updateTransport(x, j0, j1);
+    }
+    if (jg == npos) {
+        double* Yleft = x + index(c_offset_Y, jmin);
+        m_kExcessLeft = distance(Yleft, max_element(Yleft, Yleft + m_nsp));
+        double* Yright = x + index(c_offset_Y, jmax);
+        m_kExcessRight = distance(Yright, max_element(Yright, Yright + m_nsp));
+    }
+
+    // update the species diffusive mass fluxes whether or not a
+    // Jacobian is being evaluated
+    updateDiffFluxes(x, j0, j1);
+}
+
+void StFlow::updateThermo(const doublereal* x, size_t j0, size_t j1) {
+    for (size_t j = j0; j <= j1; j++) {
+        setGas(x,j);
+        m_rho[j] = m_thermo->density();
+        m_wtm[j] = m_thermo->meanMolecularWeight();
+        m_cp[j] = m_thermo->cp_mass();
+    }
+}
+
+void StFlow::updateTransport(doublereal* x, size_t j0, size_t j1)
+{
+     if (m_do_multicomponent) {
+        for (size_t j = j0; j < j1; j++) {
+            setGasAtMidpoint(x,j);
+            doublereal wtm = m_thermo->meanMolecularWeight();
+            doublereal rho = m_thermo->density();
+            m_visc[j] = (m_dovisc ? m_trans->viscosity() : 0.0);
+            m_trans->getMultiDiffCoeffs(m_nsp, &m_multidiff[mindex(0,0,j)]);
+
+            // Use m_diff as storage for the factor outside the summation
+            for (size_t k = 0; k < m_nsp; k++) {
+                m_diff[k+j*m_nsp] = m_wt[k] * rho / (wtm*wtm);
+            }
+
+            m_tcon[j] = m_trans->thermalConductivity();
+            if (m_do_soret) {
+                m_trans->getThermalDiffCoeffs(m_dthermal.ptrColumn(0) + j*m_nsp);
+            }
+        }
+    } else { // mixture averaged transport
+        for (size_t j = j0; j < j1; j++) {
+            setGasAtMidpoint(x,j);
+            m_visc[j] = (m_dovisc ? m_trans->viscosity() : 0.0);
+            m_trans->getMixDiffCoeffs(&m_diff[j*m_nsp]);
+            m_tcon[j] = m_trans->thermalConductivity();
+        }
+    }
+}
+
+void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
+{
+    if (m_do_multicomponent) {
+        for (size_t j = j0; j < j1; j++) {
+            double dz = z(j+1) - z(j);
+            for (size_t k = 0; k < m_nsp; k++) {
+                doublereal sum = 0.0;
+                for (size_t m = 0; m < m_nsp; m++) {
+                    sum += m_wt[m] * m_multidiff[mindex(k,m,j)] * (X(x,m,j+1)-X(x,m,j));
+                }
+                m_flux(k,j) = sum * m_diff[k+j*m_nsp] / dz;
+            }
+        }
+    } else {
+        for (size_t j = j0; j < j1; j++) {
+            double sum = 0.0;
+            double wtm = m_wtm[j];
+            double rho = density(j);
+            double dz = z(j+1) - z(j);
+            for (size_t k = 0; k < m_nsp; k++) {
+                m_flux(k,j) = m_wt[k]*(rho*m_diff[k+m_nsp*j]/wtm);
+                m_flux(k,j) *= (X(x,k,j) - X(x,k,j+1))/dz;
+                sum -= m_flux(k,j);
+            }
+            // correction flux to insure that \sum_k Y_k V_k = 0.
+            for (size_t k = 0; k < m_nsp; k++) {
+                m_flux(k,j) += sum*Y(x,k,j);
+            }
+        }
+    }
+
+    if (m_do_soret) {
+        for (size_t m = j0; m < j1; m++) {
+            double gradlogT = 2.0 * (T(x,m+1) - T(x,m)) /
+                              ((T(x,m+1) + T(x,m)) * (z(m+1) - z(m)));
+            for (size_t k = 0; k < m_nsp; k++) {
+                m_flux(k,m) -= m_dthermal(k,m)*gradlogT;
+            }
+        }
     }
 }
 

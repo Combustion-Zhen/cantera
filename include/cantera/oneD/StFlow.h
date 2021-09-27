@@ -334,28 +334,28 @@ protected:
         m_kin->getNetProductionRates(&m_wdot(0,j));
     }
 
-    //! Update the properties (thermo, transport, and diffusion flux).
-    //! This function is called in eval after the points which need
-    //! to be updated are defined.
-    virtual void updateProperties(size_t jg, double* x, size_t jmin, size_t jmax);
-
     //! Evaluate the residual function. This function is called in eval
     //! after updateProperties is called.
     virtual void evalResidual(double* x, double* rsd, int* diag,
                               double rdt, size_t jmin, size_t jmax);
 
+    //! Update the properties (thermo, transport, and diffusion flux).
+    //! This function is called in eval after the points which need
+    //! to be updated are defined.
+    virtual void updateProperties(size_t jg, double* x, size_t jmin, size_t jmax);
+
     /**
      * Update the thermodynamic properties from point j0 to point j1
      * (inclusive), based on solution x.
      */
-    void updateThermo(const doublereal* x, size_t j0, size_t j1) {
-        for (size_t j = j0; j <= j1; j++) {
-            setGas(x,j);
-            m_rho[j] = m_thermo->density();
-            m_wtm[j] = m_thermo->meanMolecularWeight();
-            m_cp[j] = m_thermo->cp_mass();
-        }
-    }
+    void updateThermo(const doublereal* x, size_t j0, size_t j1);
+
+    //! Update the transport properties at grid points in the range from `j0`
+    //! to `j1`, based on solution `x`.
+    virtual void updateTransport(doublereal* x, size_t j0, size_t j1);
+
+    //! Update the diffusive mass fluxes.
+    virtual void updateDiffFluxes(const doublereal* x, size_t j0, size_t j1);
 
     //! @name Solution components
     //! @{
@@ -445,9 +445,6 @@ protected:
         return m*m_nsp*m_nsp + m_nsp*j + k;
     }
 
-    //! Update the diffusive mass fluxes.
-    virtual void updateDiffFluxes(const doublereal* x, size_t j0, size_t j1);
-
     //---------------------------------------------------------
     //             member data
     //---------------------------------------------------------
@@ -514,10 +511,6 @@ protected:
     size_t m_kExcessRight;
 
     bool m_dovisc;
-
-    //! Update the transport properties at grid points in the range from `j0`
-    //! to `j1`, based on solution `x`.
-    virtual void updateTransport(doublereal* x, size_t j0, size_t j1);
 
 public:
     //! Location of the point where temperature is fixed
