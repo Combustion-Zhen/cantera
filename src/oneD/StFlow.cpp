@@ -799,15 +799,11 @@ void StFlow::evalResidual(double* x, double* rsd, int* diag,
             //-------------------------------------------------
             getWdot(x,j);
             for (size_t k = 0; k < m_nsp; k++) {
-                double convec = rho_u(x,j) * dYdz(x,k,j);
-                // Zhen Lu 210927 non-uniform grid?
-                double diffus = 2.0 * (m_flux(k,j) - m_flux(k,j-1))
-                                / (z(j+1) - z(j-1));
                 rsd[index(c_offset_Y + k, j)]
                 = 
                 (
-                    - convec 
-                    - diffus
+                    - rho_u(x,j) * dYdz(x,k,j)
+                    - divDiffFlux(k,j)
                     + m_wt[k] * wdot(k,j)
                 )/m_rho[j]
                 - 
@@ -867,9 +863,9 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     size_t m = coordinatesType();
     rsd[index(c_offset_U,0)]
     = 
-    rho_u(x,0) * pow(grid(0), m)
+    rho_u(x,0) * pow(z(0), m)
     -
-    rho_u(x,1) * pow(grid(1), m);
+    rho_u(x,1) * pow(z(1), m);
     //- (rho_u(x,1) - rho_u(x,0))/m_dz[0];
 
     if (domainType() == cAxisymmetricStagnationFlow) {
@@ -919,9 +915,9 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     if (domainType() == cFreeFlow) {
         rsd[index(c_offset_U,j)] 
         = 
-        rho_u(x,j) * pow(grid(j), m)
+        rho_u(x,j) * pow(z(j), m)
         -
-        rho_u(x,j-1) * pow(grid(j-1), m);
+        rho_u(x,j-1) * pow(z(j-1), m);
         //(rho_u(x,j) - rho_u(x,j-1));
     }
 
@@ -964,25 +960,25 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             -(rho_u(x,j+1) - rho_u(x,j))/m_dz[j]
             -(density(j+1)*V(x,j+1) + density(j)*V(x,j));
     } else if (domainType() == cFreeFlow) {
-        if (grid(j) == m_zfixed) {
+        if (z(j) == m_zfixed) {
             if (m_do_energy[j]) {
                 rsd[index(c_offset_U,j)] = T(x,j) - m_tfixed;
             } else {
                 rsd[index(c_offset_U,j)] = rho_u(x,j) - m_rho[0]*0.3;
             }
         } else {
-            if (grid(j) > m_zfixed) {
+            if (z(j) > m_zfixed) {
                 rsd[index(c_offset_U,j)] 
                 = 
-                rho_u(x,j-1) * pow(grid(j-1), m)
+                rho_u(x,j-1) * pow(z(j-1), m)
                 -
-                rho_u(x,j) * pow(grid(j), m);
-            } else if (grid(j) < m_zfixed) {
+                rho_u(x,j) * pow(z(j), m);
+            } else if (z(j) < m_zfixed) {
                 rsd[index(c_offset_U,j)] 
                 = 
-                rho_u(x,j) * pow(grid(j), m)
+                rho_u(x,j) * pow(z(j), m)
                 -
-                rho_u(x,j+1) * pow(grid(j+1), m);
+                rho_u(x,j+1) * pow(z(j+1), m);
             }
         } 
     } else {
@@ -990,9 +986,9 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
         size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
         rsd[index(c_offset_U,j)] 
         = 
-        rho_u(x,jloc-1) * pow(grid(jloc-1), m)
+        rho_u(x,jloc-1) * pow(z(jloc-1), m)
         -
-        rho_u(x,jloc) * pow(grid(jloc), m);
+        rho_u(x,jloc) * pow(z(jloc), m);
     }
 }
 
@@ -1099,6 +1095,32 @@ void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
             }
         }
     }
+}
+
+doublereal StFlow::divDiffFlux(size_t k, size_t j) const
+{
+    double dz2 = z(j+1) - z(j-1);
+    double dfluxdz = 2.0 * (m_flux(k,j) - m_flux(k,j-1)) / dz2;
+    // interp the flux
+    double flux = m_flux(k,j-1) + dfluxdz * m_dz[j-1] / 2.0;
+    return dfluxdz + coordinatesType() * flux / z(j);
+}
+
+doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
+{
+    //double c1 = m_tcon[j-1]*(T(x,j) - T(x,j-1));
+    //double c2 = m_tcon[j]*(T(x,j+1) - T(x,j));
+    //return -2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
+
+    double flux_l = m_tcon[j-1] * ( T(x,j) - T(x,j-1) ) / m_dz[j-1];
+    double flux_r = m_tcon[j] * ( T(x,j+1) - T(x,j) ) / m_dz[j];
+
+    double dz2 = z(j+1) - z(j-1);
+    double dfluxdz = 2.0 * (flux_r - flux_l) / dz2;
+    // interp the flux
+    double flux = flux_l + dfluxdz * m_dz[j-1] / 2.0;
+
+    return - dfluxdz - coordinatesType() * flux / z(j);
 }
 
 } // namespace
