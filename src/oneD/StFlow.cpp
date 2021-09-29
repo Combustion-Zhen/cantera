@@ -1301,4 +1301,22 @@ doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
     return - dfluxdz - coordinatesType() * flux / z(j);
 }
 
+doublereal StFlow::dVdz(const doublereal* x, size_t j) const 
+{
+    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    return (V(x,jloc) - V(x,jloc-1))/m_dz[jloc-1];
+}
+
+doublereal StFlow::dYdz(const doublereal* x, size_t k, size_t j) const 
+{
+    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    return (Y(x,k,jloc) - Y(x,k,jloc-1))/m_dz[jloc-1];
+}
+
+doublereal StFlow::dTdz(const doublereal* x, size_t j) const 
+{
+    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    return (T(x,jloc) - T(x,jloc-1))/m_dz[jloc-1];
+}
+
 } // namespace
