@@ -1123,6 +1123,13 @@ void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
     }
 }
 
+doublereal StFlow::shear(const doublereal* x, size_t j) const 
+{
+    doublereal c1 = m_visc[j-1]*(V(x,j) - V(x,j-1));
+    doublereal c2 = m_visc[j]*(V(x,j+1) - V(x,j));
+    return 2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
+}
+
 doublereal StFlow::divDiffFlux(size_t k, size_t j) const
 {
     double dz2 = z(j+1) - z(j-1);

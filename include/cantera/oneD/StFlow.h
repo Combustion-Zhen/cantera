@@ -346,18 +346,19 @@ protected:
     //! Update the diffusive mass fluxes.
     virtual void updateDiffFluxes(const doublereal* x, size_t j0, size_t j1);
 
+    //! Calculate divergence of the stress
+    doublereal shear(const doublereal* x, size_t j) const;
+
+    //! Calculate divergence of the diffusive flux
+    doublereal divDiffFlux(size_t k, size_t j) const;
+
+    //! Calculate divergence of the heat flux
+    doublereal divHeatFlux(const doublereal* x, size_t j) const;
+
     //! Write the net production rates at point `j` into array `m_wdot`
     void getWdot(doublereal* x, size_t j) {
         setGas(x,j);
         m_kin->getNetProductionRates(&m_wdot(0,j));
-    }
-
-    doublereal divDiffFlux(size_t k, size_t j) const;
-
-    doublereal divHeatFlux(const doublereal* x, size_t j) const;
-
-    doublereal dz(size_t j) const {
-        return m_dz[j];
     }
 
     //! @name Solution components
@@ -435,12 +436,6 @@ protected:
         return (T(x,jloc) - T(x,jloc-1))/m_dz[jloc-1];
     }
     //! @}
-
-    doublereal shear(const doublereal* x, size_t j) const {
-        doublereal c1 = m_visc[j-1]*(V(x,j) - V(x,j-1));
-        doublereal c2 = m_visc[j]*(V(x,j+1) - V(x,j));
-        return 2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
-    }
 
     size_t mindex(size_t k, size_t j, size_t m) {
         return m*m_nsp*m_nsp + m_nsp*j + k;
