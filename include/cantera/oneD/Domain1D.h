@@ -62,28 +62,29 @@ public:
     Domain1D& operator=(const Domain1D&) = delete;
 
     //! Domain type flag.
-    int domainType() {
+    inline int domainType() const {
         return m_type;
     }
 
     // Zhen Lu 210916
     //! Coordinates type flag.
-    int coordinatesType() const {
+    inline int coordinatesType() const {
         return m_ctype;
     }
 
     //! Temporal type flag.
-    int temporalType() const {
+    inline int temporalType() const {
         return m_ttype;
     }
 
     //! The left-to-right location of this domain.
-    size_t domainIndex() {
+    inline size_t domainIndex() const {
         return m_index;
     }
 
+    // for bc init
     //! True if the domain is a connector domain.
-    bool isConnector() {
+    bool isConnector() const {
         return (m_type >= cConnectorType);
     }
 
@@ -92,6 +93,7 @@ public:
         return *m_container;
     }
 
+    // for OneDim init
     //! Specify the container object for this domain, and the position of this
     //! domain in the list.
     void setContainer(OneDim* c, size_t index) {
@@ -100,7 +102,7 @@ public:
     }
 
     //! Set the Jacobian bandwidth. See the discussion of method bandwidth().
-    void setBandwidth(int bw = -1) {
+    inline void setBandwidth(int bw = -1) {
         m_bw = bw;
     }
 
@@ -119,7 +121,7 @@ public:
      * setBandwidth to specify the bandwidth before passing this domain to the
      * Sim1D or OneDim constructor.
      */
-    size_t bandwidth() {
+    inline size_t bandwidth() const {
         return m_bw;
     }
 
@@ -128,7 +130,7 @@ public:
      * at the beginning of a simulation. Base class method does nothing, but may
      * be overloaded.
      */
-    virtual void init() {  }
+    virtual void init() {}
 
     virtual void setInitialState(doublereal* xlocal = 0) {}
     virtual void setState(size_t point, const doublereal* state, doublereal* x) {}
@@ -148,18 +150,18 @@ public:
     virtual void resize(size_t nv, size_t np);
 
     //! Return a reference to the grid refiner.
-    Refiner& refiner() {
+    inline Refiner& refiner() const {
         return *m_refiner;
     }
 
     //! Number of components at each grid point.
-    size_t nComponents() const {
+    inline size_t nComponents() const {
         return m_nv;
     }
 
     //! Check that the specified component index is in range.
     //! Throws an exception if n is greater than nComponents()-1
-    void checkComponentIndex(size_t n) const {
+    inline void checkComponentIndex(size_t n) const {
         if (n >= m_nv) {
             throw IndexError("Domain1D::checkComponentIndex", "points", n, m_nv-1);
         }
@@ -168,20 +170,20 @@ public:
     //! Check that an array size is at least nComponents().
     //! Throws an exception if nn is less than nComponents(). Used before calls
     //! which take an array pointer.
-    void checkComponentArraySize(size_t nn) const {
+    inline void checkComponentArraySize(size_t nn) const {
         if (m_nv > nn) {
             throw ArraySizeError("Domain1D::checkComponentArraySize", nn, m_nv);
         }
     }
 
     //! Number of grid points in this domain.
-    size_t nPoints() const {
+    inline size_t nPoints() const {
         return m_points;
     }
 
     //! Check that the specified point index is in range.
     //! Throws an exception if n is greater than nPoints()-1
-    void checkPointIndex(size_t n) const {
+    inline void checkPointIndex(size_t n) const {
         if (n >= m_points) {
             throw IndexError("Domain1D::checkPointIndex", "points", n, m_points-1);
         }
@@ -190,7 +192,7 @@ public:
     //! Check that an array size is at least nPoints().
     //! Throws an exception if nn is less than nPoints(). Used before calls
     //! which take an array pointer.
-    void checkPointArraySize(size_t nn) const {
+    inline void checkPointArraySize(size_t nn) const {
         if (m_points > nn) {
             throw ArraySizeError("Domain1D::checkPointArraySize", nn, m_points);
         }
@@ -199,14 +201,14 @@ public:
     //! Name of the nth component. May be overloaded.
     virtual std::string componentName(size_t n) const;
 
-    void setComponentName(size_t n, const std::string& name) {
+    inline void setComponentName(size_t n, const std::string& name) {
         m_name[n] = name;
     }
 
     //! index of component with name \a name.
     virtual size_t componentIndex(const std::string& name) const;
 
-    void setBounds(size_t n, doublereal lower, doublereal upper) {
+    inline void setBounds(size_t n, doublereal lower, doublereal upper) {
         m_min[n] = lower;
         m_max[n] = upper;
     }
@@ -232,42 +234,42 @@ public:
     void setSteadyTolerances(doublereal rtol, doublereal atol, size_t n=npos);
 
     //! Relative tolerance of the nth component.
-    doublereal rtol(size_t n) {
+    inline doublereal rtol(size_t n) {
         return (m_rdt == 0.0 ? m_rtol_ss[n] : m_rtol_ts[n]);
     }
 
     //! Absolute tolerance of the nth component.
-    doublereal atol(size_t n) {
+    inline doublereal atol(size_t n) {
         return (m_rdt == 0.0 ? m_atol_ss[n] : m_atol_ts[n]);
     }
 
     //! Steady relative tolerance of the nth component
-    double steady_rtol(size_t n) {
+    inline double steady_rtol(size_t n) {
         return m_rtol_ss[n];
     }
 
     //! Steady absolute tolerance of the nth component
-    double steady_atol(size_t n) {
+    inline double steady_atol(size_t n) {
         return m_atol_ss[n];
     }
 
     //! Transient relative tolerance of the nth component
-    double transient_rtol(size_t n) {
+    inline double transient_rtol(size_t n) {
         return m_rtol_ts[n];
     }
 
     //! Transient absolute tolerance of the nth component
-    double transient_atol(size_t n) {
+    inline double transient_atol(size_t n) {
         return m_atol_ts[n];
     }
 
     //! Upper bound on the nth component.
-    doublereal upperBound(size_t n) const {
+    inline doublereal upperBound(size_t n) const {
         return m_max[n];
     }
 
     //! Lower bound on the nth component
-    doublereal lowerBound(size_t n) const {
+    inline doublereal lowerBound(size_t n) const {
         return m_min[n];
     }
 
@@ -284,17 +286,17 @@ public:
     /*!
      * Set the internally-stored reciprocal of the time step to 0.0
      */
-    void setSteadyMode() {
+    inline void setSteadyMode() {
         m_rdt = 0.0;
     }
 
     //! True if in steady-state mode
-    bool steady() {
+    inline bool steady() const {
         return (m_rdt == 0.0);
     }
 
     //! True if not in steady-state mode
-    bool transient() {
+    inline bool transient() const {
         return (m_rdt != 0.0);
     }
 
@@ -323,10 +325,10 @@ public:
         throw NotImplementedError("Domain1D::eval");
     }
 
-    size_t index(size_t n, size_t j) const {
+    inline size_t index(size_t n, size_t j) const {
         return m_nv*j + n;
     }
-    doublereal value(const doublereal* x, size_t n, size_t j) const {
+    inline doublereal value(const doublereal* x, size_t n, size_t j) const {
         return x[index(n,j)];
     }
 
@@ -364,7 +366,7 @@ public:
      */
     virtual void restore(const XML_Node& dom, doublereal* soln, int loglevel);
 
-    size_t size() const {
+    inline size_t size() const {
         return m_nv*m_points;
     }
 
@@ -378,7 +380,8 @@ public:
      * Location of the start of the local solution vector in the global
      * solution vector,
      */
-    virtual size_t loc(size_t j = 0) const {
+    // Zhen Lu 210929 remove virtual
+    inline size_t loc(size_t j = 0) const {
         return m_iloc;
     }
 
@@ -386,7 +389,7 @@ public:
      * The index of the first (i.e., left-most) grid point belonging to this
      * domain.
      */
-    size_t firstPoint() const {
+    inline size_t firstPoint() const {
         return m_jstart;
     }
 
@@ -394,7 +397,7 @@ public:
      * The index of the last (i.e., right-most) grid point belonging to this
      * domain.
      */
-    size_t lastPoint() const {
+    inline size_t lastPoint() const {
         return m_jstart + m_points - 1;
     }
 
@@ -419,17 +422,17 @@ public:
     }
 
     //! Return a pointer to the left neighbor.
-    Domain1D* left() const {
+    inline Domain1D* left() const {
         return m_left;
     }
 
     //! Return a pointer to the right neighbor.
-    Domain1D* right() const {
+    inline Domain1D* right() const {
         return m_right;
     }
 
     //! Value of component n at point j in the previous solution.
-    double prevSoln(size_t n, size_t j) const {
+    inline double prevSoln(size_t n, size_t j) const {
         return m_slast[m_nv*j + n];
     }
 
@@ -451,26 +454,29 @@ public:
     //! Print the solution.
     virtual void showSolution(const doublereal* x);
 
-    doublereal z(size_t jlocal) const {
-        return m_z[jlocal];
+    inline doublereal z(size_t j) const {
+        return m_z[j];
     }
-    doublereal zmin() const {
+    inline doublereal dz(size_t j) const {
+        return m_z[j+1] - m_z[j];
+    }
+    inline doublereal zmin() const {
         return m_z[0];
     }
-    doublereal zmax() const {
+    inline doublereal zmax() const {
         return m_z[m_points - 1];
     }
 
     void setProfile(const std::string& name, double* values, double* soln);
 
-    vector_fp& grid() {
+    inline vector_fp& grid() {
         return m_z;
     }
-    const vector_fp& grid() const {
+    inline const vector_fp& grid() const {
         return m_z;
     }
-    doublereal grid(size_t point) const {
-        return m_z[point];
+    inline doublereal grid(size_t j) const {
+        return m_z[j];
     }
 
     //! called to set up initial grid, and after grid refinement
@@ -504,7 +510,7 @@ public:
      * Set this to `true` to force these properties to be udpated even while
      * calculating Jacobian elements.
      */
-    void forceFullUpdate(bool update) {
+    inline void forceFullUpdate(bool update) {
         m_force_full_update = update;
     }
 
