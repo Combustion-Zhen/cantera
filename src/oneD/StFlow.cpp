@@ -125,7 +125,6 @@ void StFlow::resize(size_t ncomponents, size_t points)
     m_qdotRadiation.resize(m_points, 0.0);
     m_fixedtemp.resize(m_points);
 
-    m_dz.resize(m_points-1);
     m_z.resize(m_points);
 }
 
@@ -140,7 +139,6 @@ void StFlow::setupGrid(size_t n, const doublereal* z)
                                "grid points must be monotonically increasing");
         }
         m_z[j] = z[j];
-        m_dz[j-1] = m_z[j] - m_z[j-1];
     }
 }
 
@@ -1037,7 +1035,7 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
         // (j+1 -> j) from the value specified at the right boundary. The
         // lambda information propagates in the opposite direction.
         rsd[index(c_offset_U,j)] =
-            -(rho_u(x,j+1) - rho_u(x,j))/m_dz[j]
+            -(rho_u(x,j+1) - rho_u(x,j))/dz(j)
             -(density(j+1)*V(x,j+1) + density(j)*V(x,j));
     } else if (domainType() == cFreeFlow) {
         if (z(j) == m_zfixed) {
@@ -1142,9 +1140,11 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
         for (size_t k = 0; k < m_nsp; k++) {
             // Zhen Lu 210928
             //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
-            double flxk = (m_flux(k,j) - m_flux(k,j-1)) 
-                         / (z(j+1) - z(j-1)) * m_dz[j-1]
-                         + m_flux(k,j-1);
+            double flxk = (
+                m_flux(k,j) * dz(j-1)
+                +
+                m_flux(k,j-1) * dz(j)
+            ) / d2z(j);
             sum += wdot(k,j) * h_RT[k];
             sum2 += flxk * cp_R[k] / m_wt[k];
         }
@@ -1251,7 +1251,7 @@ void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
             double wtm = m_thermo->meanMolecularWeight();
             for (size_t k = 0; k < m_nsp; k++) {
                 m_flux(k,j) = m_wt[k] * (rho * m_diff[k+m_nsp*j] / wtm);
-                m_flux(k,j) *= (X(x,k,j) - X(x,k,j+1))/m_dz[j];
+                m_flux(k,j) *= (X(x,k,j) - X(x,k,j+1))/dz(j);
                 sum -= m_flux(k,j);
             }
             // correction flux to insure that \sum_k Y_k V_k = 0.
@@ -1274,29 +1274,29 @@ void StFlow::updateDiffFluxes(const doublereal* x, size_t j0, size_t j1)
 
 doublereal StFlow::shear(const doublereal* x, size_t j) const 
 {
-    doublereal c1 = m_visc[j-1]*(V(x,j) - V(x,j-1));
-    doublereal c2 = m_visc[j]*(V(x,j+1) - V(x,j));
-    return 2.0*(c2/(z(j+1) - z(j)) - c1/(z(j) - z(j-1)))/(z(j+1) - z(j-1));
+    doublereal stress_l = m_visc[j-1]*(V(x,j) - V(x,j-1))/dz(j-1);
+    doublereal stress_r = m_visc[j]*(V(x,j+1) - V(x,j))/dz(j);
+
+    return 2.0 * (stress_r - stress_l) / d2z(j);
 }
 
 doublereal StFlow::divDiffFlux(size_t k, size_t j) const
 {
-    double dz2 = z(j+1) - z(j-1);
-    double dfluxdz = 2.0 * (m_flux(k,j) - m_flux(k,j-1)) / dz2;
+    double dfluxdz = 2.0 * (m_flux(k,j) - m_flux(k,j-1)) / d2z(j);
     // interp the flux
-    double flux = m_flux(k,j-1) + dfluxdz * m_dz[j-1] / 2.0;
+    double flux = (m_flux(k,j-1) * dz(j) + m_flux(k,j) * dz(j-1)) / d2z(j);
+
     return dfluxdz + coordinatesType() * flux / z(j);
 }
 
 doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 {
-    double flux_l = m_tcon[j-1] * ( T(x,j) - T(x,j-1) ) / m_dz[j-1];
-    double flux_r = m_tcon[j] * ( T(x,j+1) - T(x,j) ) / m_dz[j];
+    double flux_l = m_tcon[j-1] * ( T(x,j) - T(x,j-1) ) / dz(j-1);
+    double flux_r = m_tcon[j] * ( T(x,j+1) - T(x,j) ) / dz(j);
 
-    double dz2 = z(j+1) - z(j-1);
-    double dfluxdz = 2.0 * (flux_r - flux_l) / dz2;
+    double dfluxdz = 2.0 * (flux_r - flux_l) / d2z(j);
     // interp the flux
-    double flux = flux_l + dfluxdz * m_dz[j-1] / 2.0;
+    double flux = (flux_l * dz(j) + flux_r * dz(j-1)) / d2z(j);
 
     return - dfluxdz - coordinatesType() * flux / z(j);
 }
@@ -1304,19 +1304,19 @@ doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 doublereal StFlow::dVdz(const doublereal* x, size_t j) const 
 {
     size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    return (V(x,jloc) - V(x,jloc-1))/m_dz[jloc-1];
+    return (V(x,jloc) - V(x,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dYdz(const doublereal* x, size_t k, size_t j) const 
 {
     size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    return (Y(x,k,jloc) - Y(x,k,jloc-1))/m_dz[jloc-1];
+    return (Y(x,k,jloc) - Y(x,k,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dTdz(const doublereal* x, size_t j) const 
 {
     size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    return (T(x,jloc) - T(x,jloc-1))/m_dz[jloc-1];
+    return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
 }
 
 } // namespace
