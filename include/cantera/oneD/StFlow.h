@@ -133,10 +133,10 @@ public:
     //! between j and j + 1.
     void setGasAtMidpoint(const doublereal* x, size_t j);
 
-    ThermoPhase& phase() {
+    inline ThermoPhase& phase() {
         return *m_thermo;
     }
-    Kinetics& kinetics() {
+    inline Kinetics& kinetics() {
         return *m_kin;
     }
 
@@ -144,33 +144,33 @@ public:
      * Set the thermo manager. Note that the flow equations assume
      * the ideal gas equation.
      */
-    void setThermo(IdealGasPhase& th) {
+    inline void setThermo(IdealGasPhase& th) {
         m_thermo = &th;
     }
 
     //! Set the kinetics manager. The kinetics manager must
-    void setKinetics(Kinetics& kin) {
+    inline void setKinetics(Kinetics& kin) {
         m_kin = &kin;
     }
 
     //! Enable thermal diffusion, also known as Soret diffusion.
     //! Requires that multicomponent transport properties be
     //! enabled to carry out calculations.
-    void enableSoret(bool withSoret) {
+    inline void enableSoret(bool withSoret) {
         m_do_soret = withSoret;
     }
-    bool withSoret() const {
+    inline bool withSoret() const {
         return m_do_soret;
     }
 
     //! Set the pressure. Since the flow equations are for the limit of small
     //! Mach number, the pressure is very nearly constant throughout the flow.
-    void setPressure(doublereal p) {
+    inline void setPressure(doublereal p) {
         m_press = p;
     }
 
     //! The current pressure [Pa].
-    doublereal pressure() const {
+    inline doublereal pressure() const {
         return m_press;
     }
 
@@ -192,7 +192,7 @@ public:
     }
 
     //! The fixed temperature value at point j.
-    doublereal T_fixed(size_t j) const {
+    inline doublereal T_fixed(size_t j) const {
         return m_fixedtemp[j];
     }
 
@@ -249,44 +249,50 @@ public:
         m_do_radiation = doRadiation;
     }
 
+    // not used
     //! Returns `true` if the radiation term in the energy equation is enabled
     bool radiationEnabled() const {
         return m_do_radiation;
     }
 
+    // not used
     //! Return radiative heat loss at grid point j
     double radiativeHeatLoss(size_t j) const {
         return m_qdotRadiation[j];
     }
 
+    // not used
     //! Return emissivitiy at left boundary
     double leftEmissivity() const { return m_epsilon_left; }
 
+    // not used
     //! Return emissivitiy at right boundary
     double rightEmissivity() const { return m_epsilon_right; }
 
-    bool doEnergy(size_t j) {
+    inline bool doEnergy(size_t j) const {
         return m_do_energy[j];
     }
 
-    doublereal density(size_t j) const {
+    inline doublereal density(size_t j) const {
         return m_rho[j];
     }
 
-    virtual bool fixed_mdot() {
+    inline virtual bool fixed_mdot() const {
         return (domainType() != cFreeFlow);
     }
+
+    // in Outlet1D::init
     void setViscosityFlag(bool dovisc) {
         m_dovisc = dovisc;
     }
 
     //! Index of the species on the left boundary with the largest mass fraction
-    size_t leftExcessSpecies() const {
+    inline size_t leftExcessSpecies() const {
         return m_kExcessLeft;
     }
 
     //! Index of the species on the right boundary with the largest mass fraction
-    size_t rightExcessSpecies() const {
+    inline size_t rightExcessSpecies() const {
         return m_kExcessRight;
     }
 
@@ -362,6 +368,16 @@ protected:
     //! Calculate divergence of the heat flux
     doublereal divHeatFlux(const doublereal* x, size_t j) const;
 
+    //! @name convective spatial derivatives.
+    //! These use upwind differencing, assuming u(z) is negative
+    //! @{
+    doublereal dVdz(const doublereal* x, size_t j) const;
+
+    doublereal dYdz(const doublereal* x, size_t k, size_t j) const;
+
+    doublereal dTdz(const doublereal* x, size_t j) const;
+    //! @}
+
     //! Write the net production rates at point `j` into array `m_wdot`
     void getWdot(doublereal* x, size_t j) {
         setGas(x,j);
@@ -371,80 +387,56 @@ protected:
     //! @name Solution components
     //! @{
 
-    doublereal wdot(size_t k, size_t j) const {
+    inline doublereal wdot(size_t k, size_t j) const {
         return m_wdot(k,j);
     }
 
-    doublereal T(const doublereal* x, size_t j) const {
+    inline doublereal T(const doublereal* x, size_t j) const {
         return x[index(c_offset_T, j)];
     }
-    doublereal& T(doublereal* x, size_t j) {
+    inline doublereal& T(doublereal* x, size_t j) {
         return x[index(c_offset_T, j)];
     }
-    doublereal T_prev(size_t j) const {
+    inline doublereal T_prev(size_t j) const {
         return prevSoln(c_offset_T, j);
     }
 
-    doublereal rho_u(const doublereal* x, size_t j) const {
+    inline doublereal rho_u(const doublereal* x, size_t j) const {
         return m_rho[j]*x[index(c_offset_U, j)];
     }
 
-    doublereal u(const doublereal* x, size_t j) const {
+    inline doublereal u(const doublereal* x, size_t j) const {
         return x[index(c_offset_U, j)];
     }
 
-    doublereal V(const doublereal* x, size_t j) const {
+    inline doublereal V(const doublereal* x, size_t j) const {
         return x[index(c_offset_V, j)];
     }
-    doublereal V_prev(size_t j) const {
+    inline doublereal V_prev(size_t j) const {
         return prevSoln(c_offset_V, j);
     }
 
-    doublereal lambda(const doublereal* x, size_t j) const {
+    inline doublereal lambda(const doublereal* x, size_t j) const {
         return x[index(c_offset_L, j)];
     }
 
-    doublereal Y(const doublereal* x, size_t k, size_t j) const {
+    inline doublereal Y(const doublereal* x, size_t k, size_t j) const {
         return x[index(c_offset_Y + k, j)];
     }
-
-    doublereal& Y(doublereal* x, size_t k, size_t j) {
+    inline doublereal& Y(doublereal* x, size_t k, size_t j) {
         return x[index(c_offset_Y + k, j)];
     }
-
-    doublereal Y_prev(size_t k, size_t j) const {
+    inline doublereal Y_prev(size_t k, size_t j) const {
         return prevSoln(c_offset_Y + k, j);
     }
 
-    doublereal X(const doublereal* x, size_t k, size_t j) const {
+    inline doublereal X(const doublereal* x, size_t k, size_t j) const {
         return m_wtm[j]*Y(x,k,j)/m_wt[k];
     }
 
-    doublereal flux(size_t k, size_t j) const {
-        return m_flux(k, j);
-    }
     //! @}
 
-    //! @name convective spatial derivatives.
-    //! These use upwind differencing, assuming u(z) is negative
-    //! @{
-    doublereal dVdz(const doublereal* x, size_t j) const {
-        size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-        return (V(x,jloc) - V(x,jloc-1))/m_dz[jloc-1];
-    }
-
-    doublereal dYdz(const doublereal* x, size_t k, size_t j) const {
-        size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-        return (Y(x,k,jloc) - Y(x,k,jloc-1))/m_dz[jloc-1];
-    }
-
-    doublereal dTdz(const doublereal* x, size_t j) const {
-        size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-        return (T(x,jloc) - T(x,jloc-1))/m_dz[jloc-1];
-    }
-    //! @}
-
-    size_t mindex(size_t k, size_t j, size_t m) {
+    inline size_t mindex(size_t k, size_t j, size_t m) const {
         return m*m_nsp*m_nsp + m_nsp*j + k;
     }
 
