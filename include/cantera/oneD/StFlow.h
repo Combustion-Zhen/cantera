@@ -439,9 +439,6 @@ protected:
 
     doublereal m_press; // pressure
 
-    // grid parameters
-    vector_fp m_dz;
-
     // mixture thermo properties
     vector_fp m_rho;
     vector_fp m_wtm;
