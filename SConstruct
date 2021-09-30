@@ -682,12 +682,13 @@ config_options = [
         False),
     BoolVariable(
         "legacy_rate_constants",
-        """If set to 'false', rate constant calculations will will no longer include
-        third-body concentrations for ThreeBodyReaction objects. For Cantera 2.6, the
-        default is set to 'true' (no change of previous behavior). After Cantera 2.6,
-        the default will be changed to 'false', and rate constant calculations will be
-        consistent with conventional definitions (see Eq. 9.75 in Kee, Coltrin and
-        Glarborg, 'Chemically Reacting Flow', Wiley Interscience, 2003).""",
+        """If enabled, rate constant calculations include third-body concentrations
+        for three-body reactions, which corresponds to the legacy implementation.
+        For Cantera 2.6, the option remains enabled (no change compared to past
+        behavior). After Cantera 2.6, the default will be to disable this option,
+        and rate constant calculations will be consistent with conventional
+        definitions (see Eq. 9.75 in Kee, Coltrin and Glarborg, 'Chemically Reacting
+        Flow', Wiley Interscience, 2003).""",
         True),
 ]
 
@@ -722,7 +723,7 @@ for arg in ARGUMENTS:
         print('Encountered unexpected command line argument: %r' % arg)
         sys.exit(1)
 
-env["cantera_version"] = "2.6.0a2"
+env["cantera_version"] = "2.6.0a3"
 # For use where pre-release tags are not permitted (MSI, sonames)
 env['cantera_pure_version'] = re.match(r'(\d+\.\d+\.\d+)', env['cantera_version']).group(0)
 env['cantera_short_version'] = re.match(r'(\d+\.\d+)', env['cantera_version']).group(0)
@@ -1508,14 +1509,6 @@ if env["stage_dir"]:
         stage_prefix = Path(*stage_prefix.parts[1:])
 
     instRoot = Path.cwd().joinpath(env["stage_dir"], stage_prefix)
-
-    if env["python_prefix"]:
-        stage_py_prefix = Path(env["python_prefix"])
-        if stage_py_prefix.is_absolute():
-            stage_py_prefix = Path(*stage_py_prefix.parts[1:])
-        env["python_prefix"] = Path.cwd().joinpath(env["stage_dir"], stage_py_prefix)
-    else:
-        env["python_prefix"] = Path.cwd().joinpath(env["stage_dir"])
 else:
     instRoot = env["prefix"]
 

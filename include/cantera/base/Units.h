@@ -35,7 +35,8 @@ public:
                    double quantity=0);
 
     //! Create an object with the specified dimensions
-    explicit Units(const std::string& name);
+    //! @param force_unity  ensure that conversion factor is equal to one
+    explicit Units(const std::string& name, bool force_unity=false);
 
     //! Returns `true` if the specified Units are dimensionally consistent
     bool convertible(const Units& other) const;
@@ -49,7 +50,8 @@ public:
     Units& operator*=(const Units& other);
 
     //! Provide a string representation of these Units
-    std::string str() const;
+    //! @param skip_unity  do not print '1' if conversion factor is equal to one
+    std::string str(bool skip_unity=true) const;
 
     //! Raise these Units to a power, changing both the conversion factor and
     //! the dimensions of these Units.
@@ -108,6 +110,9 @@ public:
     //! Default constructor for unit system (needed as VS2019 does not
     //! recognize an optional argument with a default value)
     UnitSystem() : UnitSystem({}) {}
+
+    //! Return default units used by the unit system
+    std::map<std::string, std::string> defaults() const;
 
     //! Set the default units to convert from when explicit units are not
     //! provided. Defaults can be set for mass, length, time, quantity, energy,

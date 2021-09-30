@@ -1,6 +1,8 @@
 # This file is part of Cantera. See License.txt in the top-level directory or
 # at https://cantera.org/license.txt for license and copyright information.
 
+from ctypes import c_int
+
 # NOTE: These cdef functions cannot be members of Kinetics because they would
 # cause "layout conflicts" when creating derived classes with multiple bases,
 # e.g. class Solution. [Cython 0.16]
@@ -17,6 +19,39 @@ cdef np.ndarray get_reaction_array(Kinetics kin, kineticsMethod1d method):
     cdef np.ndarray[np.double_t, ndim=1] data = np.empty(kin.n_reactions)
     method(kin.kinetics, &data[0])
     return data
+
+cdef np.ndarray get_dense(Kinetics kin, kineticsMethodSparse method):
+    cdef CxxSparseMatrix smat = method(kin.kinetics)
+    cdef size_t length = smat.nonZeros()
+    if length == 0:
+        return np.zeros((kin.n_reactions, 0))
+
+    # index/value triplets
+    cdef np.ndarray[int, ndim=1, mode="c"] rows = np.empty(length, dtype=c_int)
+    cdef np.ndarray[int, ndim=1, mode="c"] cols = np.empty(length, dtype=c_int)
+    cdef np.ndarray[np.double_t, ndim=1] data = np.empty(length)
+
+    size = CxxSparseTriplets(smat, &rows[0], &cols[0], &data[0], length)
+    out = np.zeros((smat.rows(), smat.cols()))
+    for i in xrange(length):
+        out[rows[i], cols[i]] = data[i]
+    return out
+
+cdef tuple get_sparse(Kinetics kin, kineticsMethodSparse method):
+    # retrieve sparse matrix
+    cdef CxxSparseMatrix smat = method(kin.kinetics)
+
+    # pointers to values and inner indices of CSC storage
+    cdef size_t length = smat.nonZeros()
+    cdef np.ndarray[np.double_t, ndim=1] value = np.empty(length)
+    cdef np.ndarray[int, ndim=1, mode="c"] inner = np.empty(length, dtype=c_int)
+
+    # pointers outer indices of CSC storage
+    cdef size_t ncols = smat.outerSize()
+    cdef np.ndarray[int, ndim=1, mode="c"] outer = np.empty(ncols + 1, dtype=c_int)
+
+    CxxSparseCscData(smat, &value[0], &inner[0], &outer[0])
+    return value, inner, outer
 
 
 cdef class Kinetics(_SolutionBase):
@@ -210,8 +245,8 @@ cdef class Kinetics(_SolutionBase):
 
     def reactant_stoich_coeff(self, k_spec, int i_reaction):
         """
-        The stoichiometric coefficient of species *k_spec* as a reactant in
-        reaction *i_reaction*.
+        The stoichiometric coefficient of species ``k_spec`` as a reactant in
+        reaction ``i_reaction``.
         """
         cdef int k
         if isinstance(k_spec, (str, bytes)):
@@ -225,8 +260,8 @@ cdef class Kinetics(_SolutionBase):
 
     def product_stoich_coeff(self, k_spec, int i_reaction):
         """
-        The stoichiometric coefficient of species *k_spec* as a product in
-        reaction *i_reaction*.
+        The stoichiometric coefficient of species ``k_spec`` as a product in
+        reaction ``i_reaction``.
         """
         cdef int k
         if isinstance(k_spec, (str, bytes)):
@@ -243,28 +278,75 @@ cdef class Kinetics(_SolutionBase):
         The array of reactant stoichiometric coefficients. Element *[k,i]* of
         this array is the reactant stoichiometric coefficient of species *k* in
         reaction *i*.
+
+        .. deprecated:: 2.6
+
+            Behavior to change after Cantera 2.6; for new behavior, see property
+            `Kinetics.reactant_stoich_coeffs3`.
         """
-        cdef np.ndarray[np.double_t, ndim=2] data = np.empty((self.n_total_species,
-                                                              self.n_reactions))
-        cdef int i,k
-        for i in range(self.n_reactions):
-            for k in range(self.n_total_species):
-                data[k,i] = self.kinetics.reactantStoichCoeff(k,i)
-        return data
+        warnings.warn("Behavior to change after Cantera 2.6; for new behavior, see "
+                      "property 'reactant_stoich_coeffs3'.", DeprecationWarning)
+        return self.reactant_stoich_coeffs3
+
+    property reactant_stoich_coeffs3:
+        """
+        The array of reactant stoichiometric coefficients. Element ``[k,i]`` of
+        this array is the reactant stoichiometric coefficient of species ``k`` in
+        reaction ``i``.
+
+        For sparse output, set ``ct.use_sparse(True)``.
+        """
+        def __get__(self):
+            if __use_sparse__:
+                tup = get_sparse(self, kin_reactantStoichCoeffs)
+                shape = self.n_total_species, self.n_reactions
+                return _scipy_sparse.csc_matrix(tup, shape=shape)
+            return get_dense(self, kin_reactantStoichCoeffs)
 
     def product_stoich_coeffs(self):
         """
         The array of product stoichiometric coefficients. Element *[k,i]* of
         this array is the product stoichiometric coefficient of species *k* in
         reaction *i*.
+
+        .. deprecated:: 2.6
+
+            Behavior to change after Cantera 2.6; for new behavior, see property
+            `Kinetics.reactant_stoich_coeffs3`.
         """
-        cdef np.ndarray[np.double_t, ndim=2] data = np.empty((self.n_total_species,
-                                                              self.n_reactions))
-        cdef int i,k
-        for i in range(self.n_reactions):
-            for k in range(self.n_total_species):
-                data[k,i] = self.kinetics.productStoichCoeff(k,i)
-        return data
+        warnings.warn("Behavior to change after Cantera 2.6; for new behavior, see "
+                      "property 'product_stoich_coeffs3'.", DeprecationWarning)
+        return self.product_stoich_coeffs3
+
+    property product_stoich_coeffs3:
+        """
+        The array of product stoichiometric coefficients. Element ``[k,i]`` of
+        this array is the product stoichiometric coefficient of species ``k`` in
+        reaction ``i``.
+
+        For sparse output, set ``ct.use_sparse(True)``.
+        """
+        def __get__(self):
+            if __use_sparse__:
+                tup = get_sparse(self, kin_productStoichCoeffs)
+                shape = self.n_total_species, self.n_reactions
+                return _scipy_sparse.csc_matrix(tup, shape=shape)
+            return get_dense(self, kin_productStoichCoeffs)
+
+    property product_stoich_coeffs_reversible:
+        """
+        The array of product stoichiometric coefficients of reversible reactions.
+        Element ``[k,i]`` of this array is the product stoichiometric coefficient
+        of species ``k`` in reaction ``i``.
+
+        For sparse output, set ``ct.use_sparse(True)``.
+        """
+        def __get__(self):
+            if __use_sparse__:
+                tup = get_sparse(self, kin_revProductStoichCoeffs)
+                shape = self.n_total_species, self.n_reactions
+                return _scipy_sparse.csc_matrix(tup, shape=shape)
+            return get_dense(self, kin_revProductStoichCoeffs)
 
     property forward_rates_of_progress:
         """

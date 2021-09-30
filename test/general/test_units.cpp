@@ -4,6 +4,35 @@
 
 using namespace Cantera;
 
+TEST(Units, from_string) {
+    EXPECT_EQ(Units("").str(), "1");
+    EXPECT_EQ(Units("1.").str(), "1");
+    EXPECT_EQ(Units("kg").str(), "kg");
+    EXPECT_EQ(Units("1.0 kg^0.5").str(), "kg^0.5");
+    EXPECT_EQ(Units("kg / m^3").str(), "kg / m^3");
+    EXPECT_EQ(Units("1 / s").str(), "1 / s");
+    EXPECT_EQ(Units("0.001 m^3").factor(), 0.001);
+    EXPECT_EQ(Units("0.001 m^3").str(), "0.001 m^3");
+}
+
+TEST(Units, from_string_long) {
+    EXPECT_EQ(Units("").str(false), "1.0");
+    EXPECT_EQ(Units("1.").str(false), "1.0");
+    EXPECT_EQ(Units("2").str(false), "2.0");
+    EXPECT_EQ(Units("kg").str(false), "1.0 kg");
+    EXPECT_EQ(Units("1.0 kg^0.5").str(false), "1.0 kg^0.5");
+    EXPECT_EQ(Units("kg / m^3").str(false), "1.0 kg / m^3");
+}
+
+TEST(Units, from_string_fail) {
+    EXPECT_THROW(Units("2", true), CanteraError);
+    EXPECT_THROW(Units("1 cal", true), CanteraError);
+    EXPECT_THROW(Units("1 atm", true), CanteraError);
+    EXPECT_THROW(Units("1 bar", true), CanteraError);
+    EXPECT_THROW(Units("1 kJ", true), CanteraError);
+    EXPECT_THROW(Units("0.001 m^3", true), CanteraError);
+}
+
 TEST(Units, convert_to_base_units) {
     UnitSystem U;
     EXPECT_DOUBLE_EQ(U.convert(1.0, "Pa", "kg/m/s^2"), 1.0);

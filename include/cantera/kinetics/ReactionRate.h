@@ -379,6 +379,9 @@ public:
  * Chebyshev polynomials are not defined outside the interval (-1,1), and
  * therefore extrapolation of rates outside the range of temperatures and
  * pressures for which they are defined is strongly discouraged.
+ *
+ * @TODO  rename to ChebyshevRate when the legacy ChebyshevRate class is removed
+ *      from RxnRates.h after Cantera 2.6.
  */
 class ChebyshevRate3 final : public ReactionRate<ChebyshevData>, public Chebyshev
 {
@@ -386,7 +389,7 @@ public:
     //! Default constructor.
     ChebyshevRate3() {}
 
-    //! Constructor directly from coefficient array
+    //! Constructor using coefficient array
     /*
      *  @param Tmin    Minimum temperature [K]
      *  @param Tmax    Maximum temperature [K]

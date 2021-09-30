@@ -4,9 +4,7 @@
 // at https://cantera.org/license.txt for license and copyright information.
 
 #include "cantera/kinetics/RxnRates.h"
-#include "cantera/base/Array.h"
 #include "cantera/base/AnyMap.h"
-#include "cantera/base/global.h"
 
 namespace Cantera
 {
@@ -173,7 +171,7 @@ Plog::Plog()
 Plog::Plog(const std::multimap<double, Arrhenius>& rates)
     : Plog()
 {
-    setup(rates);
+    setRates(rates);
 }
 
 void Plog::setParameters(const std::vector<AnyMap>& rates,
@@ -190,7 +188,7 @@ void Plog::setParameters(const std::vector<AnyMap>& rates,
         multi_rates.insert({1.e-7, Arrhenius(NAN, NAN, NAN)});
         multi_rates.insert({1.e14, Arrhenius(NAN, NAN, NAN)});
     }
-    setup(multi_rates);
+    setRates(multi_rates);
 }
 
 void Plog::getParameters(AnyMap& rateNode, const Units& rate_units) const
@@ -201,7 +199,7 @@ void Plog::getParameters(AnyMap& rateNode, const Units& rate_units) const
         // Return empty/unmodified AnyMap
         return;
     }
-    for (const auto& r : rates()) {
+    for (const auto& r : getRates()) {
         AnyMap rateNode_;
         rateNode_["P"].setQuantity(r.first, "Pa");
         r.second.getParameters(rateNode_, rate_units);
@@ -212,7 +210,16 @@ void Plog::getParameters(AnyMap& rateNode, const Units& rate_units) const
 
 void Plog::setup(const std::multimap<double, Arrhenius>& rates)
 {
+    warn_deprecated("Plog::setup", "Deprecated in Cantera 2.6; "
+        "renamed to setRates.");
+    setRates(rates);
+}
+
+void Plog::setRates(const std::multimap<double, Arrhenius>& rates)
+{
     size_t j = 0;
+    rates_.clear();
+    pressures_.clear();
     rates_.reserve(rates.size());
     // Insert intermediate pressures
     for (const auto& rate : rates) {
@@ -261,32 +268,31 @@ void Plog::validate(const std::string& equation)
 
 std::vector<std::pair<double, Arrhenius> > Plog::rates() const
 {
-    std::vector<std::pair<double, Arrhenius> > R;
+    warn_deprecated("Plog::rates", "Behavior to change after Cantera 2.6; "
+        "see getRates() for new behavior.");
+    auto rateMap = getRates();
+    return std::vector<std::pair<double, Arrhenius>>(rateMap.begin(), rateMap.end());
+}
+
+std::multimap<double, Arrhenius> Plog::getRates() const
+{
+    std::multimap<double, Arrhenius> rateMap;
     // initial preincrement to skip rate for P --> 0
     for (auto iter = ++pressures_.begin();
-         iter->first < 1000; // skip rates for (P --> infinity)
-         ++iter) {
-        for (size_t i = iter->second.first;
-             i < iter->second.second;
-             i++) {
-            R.emplace_back(std::exp(iter->first), rates_[i]);
+            iter->first < 1000; // skip rates for (P --> infinity)
+            ++iter) {
+        for (size_t i = iter->second.first; i < iter->second.second; i++) {
+            rateMap.insert({std::exp(iter->first), rates_[i]});
         }
     }
-    return R;
+    return rateMap;
 }
 
 Chebyshev::Chebyshev(double Tmin, double Tmax, double Pmin, double Pmax,
                      const Array2D& coeffs)
-    : Tmin_(Tmin)
-    , Tmax_(Tmax)
-    , Pmin_(Pmin)
-    , Pmax_(Pmax)
-    , nP_(coeffs.nColumns())
-    , nT_(coeffs.nRows())
-    , chebCoeffs_(coeffs.nColumns() * coeffs.nRows(), 0.0)
-    , dotProd_(coeffs.nRows())
 {
-    setup(Tmin, Tmax, Pmin, Pmax, coeffs);
+    setLimits(Tmin, Tmax, Pmin, Pmax);
+    setData(coeffs);
 }
 
 void Chebyshev::setParameters(const AnyMap& node,
@@ -307,33 +313,32 @@ void Chebyshev::setParameters(const AnyMap& node,
                 coeffs(i, j) = vcoeffs[i][j];
             }
         }
-        coeffs(0, 0) += std::log10(units.convertTo(1.0, rate_units));
-
-        Tmin_ = units.convert(T_range[0], "K");
-        Tmax_ = units.convert(T_range[1], "K");
-        Pmin_ = units.convert(P_range[0], "Pa");
-        Pmax_ = units.convert(P_range[1], "Pa");
-        nP_ = coeffs.nColumns();
-        nT_ = coeffs.nRows();
+        if (rate_units.factor()) {
+            coeffs(0, 0) += std::log10(units.convertTo(1.0, rate_units));
+        }
+        setLimits(
+            units.convert(T_range[0], "K"), units.convert(T_range[1], "K"),
+            units.convert(P_range[0], "Pa"), units.convert(P_range[1], "Pa"));
     } else {
         // ensure that reaction rate can be evaluated (but returns NaN)
         coeffs = Array2D(1, 1);
         coeffs(0, 0) = NAN;
-        Tmin_ = 290.;
-        Tmax_ = 3000.;
-        Pmin_ = 1.e-7;
-        Pmax_ = 1.e14;
-        nP_ = 1;
-        nT_ = 1;
+        setLimits(290., 3000., 1.e-7, 1.e14);
     }
 
-    chebCoeffs_.resize(nP_ * nT_);
-    dotProd_.resize(nT_);
-    setup(Tmin_, Tmax_, Pmin_, Pmax_, coeffs);
+    setData(coeffs);
 }
 
 void Chebyshev::setup(double Tmin, double Tmax, double Pmin, double Pmax,
                       const Array2D& coeffs)
+{
+    warn_deprecated("Chebyshev::setup", "Deprecated in Cantera 2.6; "
+        "replaceable with setLimits() and setData().");
+    setLimits(Tmin, Tmax, Pmin, Pmax);
+    setData(coeffs);
+}
+
+void Chebyshev::setLimits(double Tmin, double Tmax, double Pmin, double Pmax)
 {
     double logPmin = std::log10(Pmin);
     double logPmax = std::log10(Pmax);
@@ -345,29 +350,43 @@ void Chebyshev::setup(double Tmin, double Tmax, double Pmin, double Pmax,
     PrNum_ = - logPmin - logPmax;
     PrDen_ = 1.0 / (logPmax - logPmin);
 
-    for (size_t t = 0; t < nT_; t++) {
-        for (size_t p = 0; p < nP_; p++) {
-            chebCoeffs_[nP_*t + p] = coeffs(t,p);
+    Tmin_ = Tmin;
+    Tmax_ = Tmax;
+    Pmin_ = Pmin;
+    Pmax_ = Pmax;
+}
+
+void Chebyshev::setData(const Array2D& coeffs)
+{
+    m_coeffs = coeffs;
+    dotProd_.resize(coeffs.nRows());
+
+    // convert to row major for legacy output
+    // note: chebCoeffs_ is not used internally (@TODO: remove after Cantera 2.6)
+    size_t rows = m_coeffs.nRows();
+    size_t cols = m_coeffs.nColumns();
+    chebCoeffs_.resize(rows * cols);
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            chebCoeffs_[cols * i + j] = m_coeffs(i, j);
         }
     }
 }
 
 void Chebyshev::getParameters(AnyMap& rateNode, const Units& rate_units) const
 {
-    double A = chebCoeffs_[0];
-    if (std::isnan(A)) {
+    if (std::isnan(m_coeffs(0, 0))) {
         // Return empty/unmodified AnyMap
         return;
     }
     rateNode["temperature-range"].setQuantity({Tmin(), Tmax()}, "K");
     rateNode["pressure-range"].setQuantity({Pmin(), Pmax()}, "Pa");
-    const auto& coeffs1d = coeffs();
-    size_t nT = nTemperature();
-    size_t nP = nPressure();
+    size_t nT = m_coeffs.nRows();
+    size_t nP = m_coeffs.nColumns();
     std::vector<vector_fp> coeffs2d(nT, vector_fp(nP));
     for (size_t i = 0; i < nT; i++) {
         for (size_t j = 0; j < nP; j++) {
-            coeffs2d[i][j] = coeffs1d[nP*i + j];
+            coeffs2d[i][j] = m_coeffs(i, j);
         }
     }
     // Unit conversions must take place later, after the destination unit system

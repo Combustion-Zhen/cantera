@@ -154,6 +154,7 @@ class TestSolutionArrayIO(utilities.CanteraTest):
         self.assertEqual(states[0].P, gas.P)
         self.assertArrayNear(states[0].Y, gas.Y)
 
+    @utilities.unittest.skipIf(isinstance(_h5py, ImportError), "h5py is not installed")
     def test_import_no_norm_data(self):
         outfile = self.test_work_path / "solutionarray.h5"
         # In Python >= 3.8, this can be replaced by the missing_ok argument
@@ -469,6 +470,7 @@ class TestRestorePureFluid(utilities.CanteraTest):
         b.restore_data(data)
         check(a, b)
 
+    @utilities.unittest.skipIf(isinstance(_h5py, ImportError), "h5py is not installed")
     def test_import_no_norm_water(self):
         outfile = self.test_work_path / "solutionarray.h5"
         # In Python >= 3.8, this can be replaced by the missing_ok argument
@@ -580,7 +582,7 @@ class TestSolutionSerialization(utilities.CanteraTest):
                              gas2.forward_rate_constants)
         self.assertArrayNear(gas.mix_diff_coeffs, gas2.mix_diff_coeffs)
 
-    def test_yaml_outunits(self):
+    def test_yaml_outunits1(self):
         gas = ct.Solution('h2o2.yaml')
         gas.TPX = 500, ct.one_atm, 'H2: 1.0, O2: 1.0'
         gas.equilibrate('HP')
@@ -590,6 +592,30 @@ class TestSolutionSerialization(utilities.CanteraTest):
         generated = utilities.load_yaml("h2o2-generated.yaml")
         original = utilities.load_yaml(self.cantera_data_path / "h2o2.yaml")
         self.assertEqual(generated['units'], units)
+
+        for r1, r2 in zip(original['reactions'], generated['reactions']):
+            if 'rate-constant' in r1:
+                self.assertNear(r1['rate-constant']['A'], r2['rate-constant']['A'])
+                self.assertNear(r1['rate-constant']['Ea'], r2['rate-constant']['Ea'])
+
+        gas2 = ct.Solution("h2o2-generated.yaml")
+        self.assertArrayNear(gas.concentrations, gas2.concentrations)
+        self.assertArrayNear(gas.partial_molar_enthalpies,
+                             gas2.partial_molar_enthalpies)
+        self.assertArrayNear(gas.forward_rate_constants,
+                             gas2.forward_rate_constants)
+        self.assertArrayNear(gas.mix_diff_coeffs, gas2.mix_diff_coeffs)
+
+    def test_yaml_outunits2(self):
+        gas = ct.Solution('h2o2.yaml')
+        gas.TPX = 500, ct.one_atm, 'H2: 1.0, O2: 1.0'
+        gas.equilibrate('HP')
+        gas.TP = 1500, ct.one_atm
+        units = {'length': 'cm', 'quantity': 'mol', 'energy': 'cal'}
+        system = ct.UnitSystem(units)
+        gas.write_yaml('h2o2-generated.yaml', units=system)
+        generated = utilities.load_yaml("h2o2-generated.yaml")
+        original = utilities.load_yaml(self.cantera_data_path / "h2o2.yaml")
 
         for r1, r2 in zip(original['reactions'], generated['reactions']):
             if 'rate-constant' in r1:

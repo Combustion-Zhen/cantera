@@ -5,6 +5,7 @@
 
 #include "cantera/kinetics/ReactionRate.h"
 #include "cantera/kinetics/MultiRate.h"
+#include "cantera/base/Array.h"
 #include "cantera/numerics/Func1.h"
 
 namespace Cantera

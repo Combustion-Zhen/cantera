@@ -135,6 +135,9 @@ public:
         return "Kinetics";
     }
 
+    //! Finalize Kinetics object and associated objects
+    virtual void resizeReactions();
+
     //! Number of reactions in the reaction mechanism.
     size_t nReactions() const {
         return m_reactions.size();
@@ -555,6 +558,14 @@ public:
      * @param i   reaction index
      */
     virtual double reactantStoichCoeff(size_t k, size_t i) const;
+
+    /**
+     * Stoichiometric coefficient matrix for reactants.
+     */
+    Eigen::SparseMatrix<double> reactantStoichCoeffs() const {
+        return m_reactantStoich.stoichCoeffs();
+    }
+
     /**
      * Stoichiometric coefficient of species k as a product in reaction i.
      *
@@ -562,6 +573,20 @@ public:
      * @param i   reaction index
      */
     virtual double productStoichCoeff(size_t k, size_t i) const;
+
+    /**
+     * Stoichiometric coefficient matrix for products.
+     */
+    Eigen::SparseMatrix<double> productStoichCoeffs() const {
+        return m_productStoich.stoichCoeffs();
+    }
+
+    /**
+     * Stoichiometric coefficient matrix for products of reversible reactions.
+     */
+    Eigen::SparseMatrix<double> revProductStoichCoeffs() const {
+        return m_revProductStoich.stoichCoeffs();
+    }
 
     //! Reactant order of species k in reaction i.
     /*!
@@ -737,10 +762,11 @@ public:
      * Add a single reaction to the mechanism. Derived classes should call the
      * base class method in addition to handling their own specialized behavior.
      *
-     * @param r      Pointer to the Reaction object to be added.
+     * @param r       Pointer to the Reaction object to be added.
+     * @param resize  If `true`, resizeReactions is called after reaction is added.
      * @return `true` if the reaction is added or `false` if it was skipped
      */
-    virtual bool addReaction(shared_ptr<Reaction> r);
+    virtual bool addReaction(shared_ptr<Reaction> r, bool resize=true);
 
     /**
      * Modify the rate expression associated with a reaction. The
@@ -892,12 +918,15 @@ protected:
     //! Stoichiometry manager for the reactants for each reaction
     StoichManagerN m_reactantStoich;
 
+    //! Stoichiometry manager for the products for each reaction
+    StoichManagerN m_productStoich;
+
     //! Stoichiometry manager for the products of reversible reactions
     StoichManagerN m_revProductStoich;
-
-    //! Stoichiometry manager for the products of irreversible reactions
-    StoichManagerN m_irrevProductStoich;
     //@}
+
+    //! Boolean indicating whether Kinetics object is fully configured
+    bool m_ready;
 
     //! The number of species in all of the phases
     //! that participate in this kinetics mechanism.
