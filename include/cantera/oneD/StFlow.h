@@ -89,6 +89,12 @@ public:
     //! Set the Spherical coordinates
     void setSpherical();
 
+    //! Prepare to do time stepping with time step dt
+    /*!
+     * Copy the internally-stored density at the last time step
+     */
+    virtual void initTimeInteg(doublereal dt, const doublereal* x0) {}
+
     //! Print the solution.
     virtual void showSolution(const doublereal* x);
 
@@ -471,6 +477,8 @@ protected:
     // mixture thermo properties
     vector_fp m_rho;
     vector_fp m_wtm;
+
+    vector_fp m_rho_last;
 
     // species thermo properties
     vector_fp m_wt;
