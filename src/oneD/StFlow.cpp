@@ -113,6 +113,8 @@ void StFlow::resize(size_t ncomponents, size_t points)
     m_cp.resize(m_points, 0.0);
     m_visc.resize(m_points, 0.0);
     m_tcon.resize(m_points, 0.0);
+    // Zhen Lu 211005
+    m_rho_last.resize(m_points, 0.0);
 
     m_diff.resize(m_nsp*m_points);
     if (m_do_multicomponent) {
@@ -323,6 +325,12 @@ void StFlow::setSpherical()
         );
 
     m_ctype = cSpherical;
+}
+
+void StFlow::initTimeInteg(doublereal dt, const doublereal* x0) {
+    Domain1D::initTimeInteg(dt, x0);
+    updateThermo(x0, 0, m_points-1);
+    std::copy(m_rho.begin(), m_rho.end(), m_rho_last);
 }
 
 void StFlow::showSolution(const doublereal* x)

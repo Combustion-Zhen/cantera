@@ -277,7 +277,7 @@ public:
     /*!
      * Copy the internally-stored solution at the last time step to array x0.
      */
-    void initTimeInteg(doublereal dt, const doublereal* x0) {
+    virtual void initTimeInteg(doublereal dt, const doublereal* x0) {
         std::copy(x0 + loc(), x0 + loc() + size(), m_slast.begin());
         m_rdt = 1.0/dt;
     }
