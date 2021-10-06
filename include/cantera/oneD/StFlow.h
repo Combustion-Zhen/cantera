@@ -93,7 +93,7 @@ public:
     /*!
      * Copy the internally-stored density at the last time step
      */
-    virtual void initTimeInteg(doublereal dt, const doublereal* x0);
+    virtual void initTimeInteg(doublereal dt, const doublereal* x0) {}
 
     //! Print the solution.
     virtual void showSolution(const doublereal* x);
