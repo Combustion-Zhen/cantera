@@ -24,6 +24,7 @@ using namespace std;
 namespace Cantera
 {
 Kinetics::Kinetics() :
+    m_ready(false),
     m_kk(0),
     m_thermo(0),
     m_surfphase(npos),
@@ -42,6 +43,18 @@ void Kinetics::checkReactionIndex(size_t i) const
         throw IndexError("Kinetics::checkReactionIndex", "reactions", i,
                          nReactions()-1);
     }
+}
+
+void Kinetics::resizeReactions()
+{
+    size_t nRxn = nReactions();
+
+    // Stoichiometry managers
+    m_reactantStoich.resizeCoeffs(m_kk, nRxn);
+    m_productStoich.resizeCoeffs(m_kk, nRxn);
+    m_revProductStoich.resizeCoeffs(m_kk, nRxn);
+
+    m_ready = true;
 }
 
 void Kinetics::checkReactionArraySize(size_t ii) const
@@ -343,14 +356,12 @@ size_t Kinetics::speciesPhaseIndex(size_t k) const
 
 double Kinetics::reactantStoichCoeff(size_t kSpec, size_t irxn) const
 {
-    return getValue(m_reactions[irxn]->reactants, kineticsSpeciesName(kSpec),
-                    0.0);
+    return m_reactantStoich.stoichCoeffs().coeff(kSpec, irxn);
 }
 
 double Kinetics::productStoichCoeff(size_t kSpec, size_t irxn) const
 {
-    return getValue(m_reactions[irxn]->products, kineticsSpeciesName(kSpec),
-                    0.0);
+    return m_productStoich.stoichCoeffs().coeff(kSpec, irxn);
 }
 
 int Kinetics::reactionType(size_t i) const {
@@ -404,8 +415,7 @@ void Kinetics::getReactionDelta(const double* prop, double* deltaProp)
 {
     fill(deltaProp, deltaProp + nReactions(), 0.0);
     // products add
-    m_revProductStoich.incrementReactions(prop, deltaProp);
-    m_irrevProductStoich.incrementReactions(prop, deltaProp);
+    m_productStoich.incrementReactions(prop, deltaProp);
     // reactants subtract
     m_reactantStoich.decrementReactions(prop, deltaProp);
 }
@@ -427,8 +437,7 @@ void Kinetics::getCreationRates(double* cdot)
     fill(cdot, cdot + m_kk, 0.0);
 
     // the forward direction creates product species
-    m_revProductStoich.incrementSpecies(m_ropf.data(), cdot);
-    m_irrevProductStoich.incrementSpecies(m_ropf.data(), cdot);
+    m_productStoich.incrementSpecies(m_ropf.data(), cdot);
 
     // the reverse direction creates reactant species
     m_reactantStoich.incrementSpecies(m_ropr.data(), cdot);
@@ -451,8 +460,7 @@ void Kinetics::getNetProductionRates(doublereal* net)
 
     fill(net, net + m_kk, 0.0);
     // products are created for positive net rate of progress
-    m_revProductStoich.incrementSpecies(m_ropnet.data(), net);
-    m_irrevProductStoich.incrementSpecies(m_ropnet.data(), net);
+    m_productStoich.incrementSpecies(m_ropnet.data(), net);
     // reactants are destroyed for positive net rate of progress
     m_reactantStoich.decrementSpecies(m_ropnet.data(), net);
 }
@@ -501,7 +509,7 @@ void Kinetics::resizeSpecies()
     invalidateCache();
 }
 
-bool Kinetics::addReaction(shared_ptr<Reaction> r)
+bool Kinetics::addReaction(shared_ptr<Reaction> r, bool resize)
 {
     r->validate();
     if (m_kk == 0) {
@@ -563,10 +571,9 @@ bool Kinetics::addReaction(shared_ptr<Reaction> r)
 
     m_reactantStoich.add(irxn, rk, rorder, rstoich);
     // product orders = product stoichiometric coefficients
+    m_productStoich.add(irxn, pk, pstoich, pstoich);
     if (r->reversible) {
         m_revProductStoich.add(irxn, pk, pstoich, pstoich);
-    } else {
-        m_irrevProductStoich.add(irxn, pk, pstoich, pstoich);
     }
 
     m_reactions.push_back(r);
@@ -577,6 +584,13 @@ bool Kinetics::addReaction(shared_ptr<Reaction> r)
     m_ropnet.push_back(0.0);
     m_perturb.push_back(1.0);
     m_dH.push_back(0.0);
+
+    if (resize) {
+        resizeReactions();
+    } else {
+        m_ready = false;
+    }
+
     return true;
 }
 

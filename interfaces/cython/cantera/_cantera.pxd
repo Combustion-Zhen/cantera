@@ -43,11 +43,32 @@ cdef extern from "cantera/numerics/Func1.h":
         CxxTabulated1(int, double*, double*, string) except +translate_exception
         double eval(double) except +translate_exception
 
+cdef extern from "cantera/numerics/eigen_sparse.h" namespace "Eigen":
+    cdef cppclass CxxSparseMatrix "Eigen::SparseMatrix<double>":
+        CxxSparseMatrix()
+        size_t nonZeros()
+        size_t rows()
+        size_t cols()
+        size_t outerSize()
+
 cdef extern from "cantera/base/xml.h" namespace "Cantera":
     cdef cppclass XML_Node:
         XML_Node* findByName(string)
         XML_Node* findID(string)
         int nChildren()
+
+cdef extern from "cantera/base/Units.h" namespace "Cantera":
+    cdef cppclass CxxUnits "Cantera::Units":
+        CxxUnits()
+        CxxUnits(CxxUnits)
+        CxxUnits(string, cbool) except +translate_exception
+        string str()
+        double factor()
+
+    cdef cppclass CxxUnitSystem "Cantera::UnitSystem":
+        CxxUnitSystem()
+        stdmap[string, string] defaults()
+        void setDefaults(stdmap[string, string]&) except +translate_exception
 
 cdef extern from "cantera/base/AnyMap.h" namespace "Cantera":
     cdef cppclass CxxAnyValue "Cantera::AnyValue"
@@ -126,6 +147,9 @@ cdef extern from "cantera/base/Array.h" namespace "Cantera":
         CxxArray2D(size_t, size_t)
         void resize(size_t, size_t)
         double operator()(size_t, size_t)
+        vector[double]& data()
+        size_t nRows()
+        size_t nColumns()
 
 cdef extern from "cantera/thermo/SpeciesThermoInterpType.h":
     cdef cppclass CxxSpeciesThermo "Cantera::SpeciesThermoInterpType":
@@ -208,6 +232,7 @@ cdef extern from "cantera/thermo/ThermoPhase.h" namespace "Cantera":
         size_t stateSize()
         void saveState(size_t, double*) except +translate_exception
         void restoreState(size_t, double*) except +translate_exception
+        CxxUnits standardConcentrationUnits() except +translate_exception
 
         # initialization
         void addUndefinedElements() except +translate_exception
@@ -382,7 +407,7 @@ cdef extern from "cantera/kinetics/Reaction.h" namespace "Cantera":
         CxxPlogRate()
         CxxPlogRate(CxxAnyMap) except +translate_exception
         CxxPlogRate(multimap[double, CxxArrhenius])
-        vector[pair[double, CxxArrhenius]] rates()
+        multimap[double, CxxArrhenius] getRates()
 
     cdef cppclass CxxChebyshevRate3 "Cantera::ChebyshevRate3" (CxxReactionRateBase):
         CxxChebyshevRate3()
@@ -392,9 +417,9 @@ cdef extern from "cantera/kinetics/Reaction.h" namespace "Cantera":
         double Tmax()
         double Pmin()
         double Pmax()
-        size_t nPressure()
         size_t nTemperature()
-        vector[double]& coeffs()
+        size_t nPressure()
+        CxxArray2D& data()
 
     cdef cppclass CxxCustomFunc1Rate "Cantera::CustomFunc1Rate" (CxxReactionRateBase):
         CxxCustomFunc1Rate()
@@ -420,6 +445,7 @@ cdef extern from "cantera/kinetics/Reaction.h" namespace "Cantera":
         cbool allow_nonreactant_orders
         cbool allow_negative_orders
         cbool usesLegacy()
+        CxxUnits rate_units
 
     cdef cppclass CxxElementaryReaction2 "Cantera::ElementaryReaction2" (CxxReaction):
         CxxElementaryReaction2()
@@ -461,7 +487,7 @@ cdef extern from "cantera/kinetics/Reaction.h" namespace "Cantera":
 
     cdef cppclass CxxPlog "Cantera::Plog":
         CxxPlog(multimap[double,CxxArrhenius])
-        vector[pair[double,CxxArrhenius]] rates()
+        multimap[double, CxxArrhenius] getRates()
         void update_C(double*)
         double updateRC(double, double)
 
@@ -474,9 +500,9 @@ cdef extern from "cantera/kinetics/Reaction.h" namespace "Cantera":
         double Tmax()
         double Pmin()
         double Pmax()
-        size_t nPressure()
         size_t nTemperature()
-        vector[double]& coeffs()
+        size_t nPressure()
+        CxxArray2D& data()
         void update_C(double*)
         double updateRC(double, double)
 
@@ -559,8 +585,10 @@ cdef extern from "cantera/kinetics/Kinetics.h" namespace "Cantera":
         void init() except +translate_exception
         void skipUndeclaredThirdBodies(cbool)
         void addReaction(shared_ptr[CxxReaction]) except +translate_exception
+        void addReaction(shared_ptr[CxxReaction], cbool) except +translate_exception
         void modifyReaction(int, shared_ptr[CxxReaction]) except +translate_exception
         void invalidateCache() except +translate_exception
+        void resizeReactions()
 
         shared_ptr[CxxReaction] reaction(size_t) except +translate_exception
         cbool isReversible(int) except +translate_exception
@@ -632,7 +660,7 @@ cdef extern from "cantera/base/YamlWriter.h" namespace "Cantera":
         void toYamlFile(string&) except +translate_exception
         void setPrecision(int)
         void skipUserDefined(cbool)
-        void setUnits(stdmap[string, string]&) except +translate_exception
+        void setUnitSystem(CxxUnitSystem&) except +translate_exception
 
 cdef extern from "cantera/equil/MultiPhase.h" namespace "Cantera":
     cdef cppclass CxxMultiPhase "Cantera::MultiPhase":
@@ -1036,6 +1064,9 @@ cdef extern from "cantera/cython/wrappers.h":
 
     cdef void CxxSetLogger "setLogger" (CxxPythonLogger*)
 
+    cdef size_t CxxSparseTriplets "sparseTriplets" (CxxSparseMatrix, int*, int*, double*, size_t) except +translate_exception
+    cdef void CxxSparseCscData "sparseCscData" (CxxSparseMatrix, double*, int*, int*) except +translate_exception
+
     # workaround for Cython assignment limitations
     cdef void CxxArray2D_set(CxxArray2D, size_t, size_t, double)
 
@@ -1090,6 +1121,11 @@ cdef extern from "cantera/cython/wrappers.h":
     cdef void kin_getDestructionRates(CxxKinetics*, double*) except +translate_exception
     cdef void kin_getNetProductionRates(CxxKinetics*, double*) except +translate_exception
 
+    # Kinetics sparse matrices
+    cdef CxxSparseMatrix kin_reactantStoichCoeffs(CxxKinetics*) except +translate_exception
+    cdef CxxSparseMatrix kin_productStoichCoeffs(CxxKinetics*) except +translate_exception
+    cdef CxxSparseMatrix kin_revProductStoichCoeffs(CxxKinetics*) except +translate_exception
+
     # Transport properties
     cdef void tran_getMixDiffCoeffs(CxxTransport*, double*) except +translate_exception
     cdef void tran_getMixDiffCoeffsMass(CxxTransport*, double*) except +translate_exception
@@ -1106,8 +1142,17 @@ ctypedef void (*thermoMethod1d)(CxxThermoPhase*, double*) except +translate_exce
 ctypedef void (*transportMethod1d)(CxxTransport*, double*) except +translate_exception
 ctypedef void (*transportMethod2d)(CxxTransport*, size_t, double*) except +translate_exception
 ctypedef void (*kineticsMethod1d)(CxxKinetics*, double*) except +translate_exception
+ctypedef CxxSparseMatrix (*kineticsMethodSparse)(CxxKinetics*) except +translate_exception
 
 # classes
+cdef class Units:
+    cdef CxxUnits units
+    @staticmethod
+    cdef copy(CxxUnits)
+
+cdef class UnitSystem:
+    cdef CxxUnitSystem unitsystem
+
 cdef class SpeciesThermo:
     cdef shared_ptr[CxxSpeciesThermo] _spthermo
     cdef CxxSpeciesThermo* spthermo
@@ -1199,6 +1244,8 @@ cdef class DustyGasTransport(Transport):
 cdef class YamlWriter:
     cdef shared_ptr[CxxYamlWriter] _writer
     cdef CxxYamlWriter* writer
+    @staticmethod
+    cdef CxxUnitSystem _get_unitsystem(UnitSystem units)
 
 cdef class Mixture:
     cdef CxxMultiPhase* mix
@@ -1353,6 +1400,8 @@ cdef string stringify(x) except *
 cdef pystr(string x)
 cdef np.ndarray get_species_array(Kinetics kin, kineticsMethod1d method)
 cdef np.ndarray get_reaction_array(Kinetics kin, kineticsMethod1d method)
+cdef np.ndarray get_dense(Kinetics kin, kineticsMethodSparse method)
+cdef tuple get_sparse(Kinetics kin, kineticsMethodSparse method)
 cdef np.ndarray get_transport_1d(Transport tran, transportMethod1d method)
 cdef np.ndarray get_transport_2d(Transport tran, transportMethod2d method)
 cdef CxxIdealGasPhase* getIdealGasPhase(ThermoPhase phase) except *

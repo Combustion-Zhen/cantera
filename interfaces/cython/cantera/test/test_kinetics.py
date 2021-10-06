@@ -1,9 +1,18 @@
 import numpy as np
 import re
 import itertools
+import pkg_resources
 
 import cantera as ct
 from . import utilities
+
+# avoid explicit dependence of cantera on scipy
+try:
+    pkg_resources.get_distribution('scipy')
+except pkg_resources.DistributionNotFound:
+    _scipy_sparse = ImportError('Method requires a working scipy installation.')
+else:
+    from scipy import sparse as _scipy_sparse
 
 
 class TestKinetics(utilities.CanteraTest):
@@ -98,8 +107,8 @@ class TestKinetics(utilities.CanteraTest):
                     self.assertIn(self.phase.species_name(k), P)
 
     def test_stoich_coeffs(self):
-        nu_r = self.phase.reactant_stoich_coeffs()
-        nu_p = self.phase.product_stoich_coeffs()
+        nu_r = self.phase.reactant_stoich_coeffs3
+        nu_p = self.phase.product_stoich_coeffs3
 
         def check_reactant(s, i, value):
             k = self.phase.kinetics_species_index(s)
@@ -130,6 +139,20 @@ class TestKinetics(utilities.CanteraTest):
         check_product('O', 0, 0)
         check_product('O2', 0, 1)
 
+    @utilities.unittest.skipIf(isinstance(_scipy_sparse, ImportError), "scipy is not installed")
+    def test_stoich_coeffs_sparse(self):
+        nu_r_dense = self.phase.reactant_stoich_coeffs3
+        nu_p_dense = self.phase.product_stoich_coeffs3
+
+        ct.use_sparse(True)
+        nu_r_sparse = self.phase.reactant_stoich_coeffs3
+        nu_p_sparse = self.phase.product_stoich_coeffs3
+
+        self.assertTrue((nu_r_sparse.toarray() == nu_r_dense).all())
+        self.assertTrue((nu_p_sparse.toarray() == nu_p_dense).all())
+
+        ct.use_sparse(False)
+
     def test_rates_of_progress(self):
         self.assertEqual(len(self.phase.net_rates_of_progress),
                          self.phase.n_reactions)
@@ -143,12 +166,14 @@ class TestKinetics(utilities.CanteraTest):
 
     def test_rate_constants(self):
         self.assertEqual(len(self.phase.forward_rate_constants), self.phase.n_reactions)
-        self.assertArrayNear(self.phase.forward_rate_constants / self.phase.reverse_rate_constants,
-                             self.phase.equilibrium_constants)
+        ix = self.phase.reverse_rate_constants != 0.
+        self.assertArrayNear(
+            self.phase.forward_rate_constants[ix] / self.phase.reverse_rate_constants[ix],
+            self.phase.equilibrium_constants[ix])
 
     def test_species_rates(self):
-        nu_p = self.phase.product_stoich_coeffs()
-        nu_r = self.phase.reactant_stoich_coeffs()
+        nu_p = self.phase.product_stoich_coeffs3
+        nu_r = self.phase.reactant_stoich_coeffs3
         creation = (np.dot(nu_p, self.phase.forward_rates_of_progress) +
                     np.dot(nu_r, self.phase.reverse_rates_of_progress))
         destruction = (np.dot(nu_r, self.phase.forward_rates_of_progress) +
@@ -185,10 +210,10 @@ class KineticsFromReactions(utilities.CanteraTest):
         gas1.TPY = 800, 2*ct.one_atm, 'H2:0.3, O2:0.7, OH:2e-4, O:1e-3, H:5e-5'
         gas2.TPY = gas1.TPY
 
-        self.assertTrue((gas1.reactant_stoich_coeffs() ==
-                         gas2.reactant_stoich_coeffs()).all())
-        self.assertTrue((gas1.product_stoich_coeffs() ==
-                         gas2.product_stoich_coeffs()).all())
+        self.assertTrue((gas1.reactant_stoich_coeffs3 ==
+                         gas2.reactant_stoich_coeffs3).all())
+        self.assertTrue((gas1.product_stoich_coeffs3 ==
+                         gas2.product_stoich_coeffs3).all())
 
         self.assertArrayNear(gas1.delta_gibbs,
                              gas2.delta_gibbs)
@@ -263,10 +288,10 @@ class KineticsFromReactions(utilities.CanteraTest):
 
         self.assertEqual(gas1.n_reactions, gas2.n_reactions)
 
-        self.assertTrue((gas1.reactant_stoich_coeffs() ==
-                         gas2.reactant_stoich_coeffs()).all())
-        self.assertTrue((gas1.product_stoich_coeffs() ==
-                         gas2.product_stoich_coeffs()).all())
+        self.assertTrue((gas1.reactant_stoich_coeffs3 ==
+                         gas2.reactant_stoich_coeffs3).all())
+        self.assertTrue((gas1.product_stoich_coeffs3 ==
+                         gas2.product_stoich_coeffs3).all())
 
         self.assertArrayNear(gas1.delta_gibbs,
                              gas2.delta_gibbs)
@@ -1129,7 +1154,9 @@ class TestReaction(utilities.CanteraTest):
         r = ct.ChebyshevReaction()
         r.reactants = 'R5:1, H:1'
         r.products = 'P5A:1, P5B:1'
-        r.rate = ct.ChebyshevRate(Tmin=300.0, Tmax=2000.0, Pmin=1000, Pmax=10000000,
+        r.rate = ct.ChebyshevRate(
+            temperature_range=(300.0, 2000.0),
+            pressure_range=(1000, 10000000),
             data=[[ 5.28830e+00, -1.13970e+00, -1.20590e-01,  1.60340e-02],
                   [ 1.97640e+00,  1.00370e+00,  7.28650e-03, -3.04320e-02],
                   [ 3.17700e-01,  2.68890e-01,  9.48060e-02, -7.63850e-03],
@@ -1152,7 +1179,9 @@ class TestReaction(utilities.CanteraTest):
         r = ct.ChebyshevReaction()
         r.reactants = 'R5:1, H:1'
         r.products = 'P5A:1, P5B:1'
-        r.rate = ct.ChebyshevRate(Tmin=300.0, Tmax=2000.0, Pmin=1000, Pmax=10000000,
+        r.rate = ct.ChebyshevRate(
+            temperature_range=(300.0, 2000.0),
+            pressure_range=(1000, 10000000),
             data=[[ 5.28830e+00],
                   [ 1.97640e+00],
                   [ 3.17700e-01],
@@ -1174,7 +1203,9 @@ class TestReaction(utilities.CanteraTest):
         r = ct.ChebyshevReaction()
         r.reactants = 'R5:1, H:1'
         r.products = 'P5A:1, P5B:1'
-        r.rate = ct.ChebyshevRate(Tmin=300.0, Tmax=2000.0, Pmin=1000, Pmax=10000000,
+        r.rate = ct.ChebyshevRate(
+            temperature_range=(300.0, 2000.0),
+            pressure_range=(1000, 10000000),
             data=[[ 5.28830e+00, -1.13970e+00, -1.20590e-01,  1.60340e-02]])
 
         gas = ct.Solution(thermo='IdealGas', kinetics='GasKinetics',
@@ -1449,8 +1480,8 @@ class TestReaction(utilities.CanteraTest):
 
         r1 = gas.reaction(4)
         r2 = gas.reaction(5)
-        r1.rate = ct.ChebyshevRate(r2.rate.Tmin, r2.rate.Tmax,
-                                   r2.rate.Pmin, r2.rate.Pmax, r2.rate.coeffs)
+        r1.rate = ct.ChebyshevRate(
+            r2.rate.temperature_range, r2.rate.pressure_range, r2.rate.data)
 
         # rates should be different before calling 'modify_reaction'
         kf = gas.forward_rate_constants

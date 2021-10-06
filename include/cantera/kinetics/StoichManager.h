@@ -8,6 +8,7 @@
 #ifndef CT_STOICH_MGR_H
 #define CT_STOICH_MGR_H
 
+#include "cantera/numerics/eigen_sparse.h"
 #include "cantera/base/ctexceptions.h"
 
 namespace Cantera
@@ -16,11 +17,8 @@ namespace Cantera
 /**
  * @defgroup Stoichiometry Stoichiometry
  *
- * Note: these classes are designed for internal use in class
- * ReactionStoichManager.
- *
  * The classes defined here implement simple operations that are used by class
- * ReactionStoichManager to compute things like rates of progress, species
+ * Kinetics to compute things like rates of progress, species
  * production rates, etc. In general, a reaction mechanism may involve many
  * species and many reactions, but any given reaction typically only involves
  * a few species as reactants, and a few as products. Therefore, the matrix of
@@ -62,17 +60,17 @@ namespace Cantera
  * They are designed to explicitly unroll loops over species or reactions for
  * operations on reactions that require knowing the reaction stoichiometry.
  *
- * This module consists of class StoichManager, and classes C1, C2, and C3.
+ * This module consists of class StoichManagerN, and classes C1, C2, and C3.
  * Classes C1, C2, and C3 handle operations involving one, two, or three
  * species, respectively, in a reaction. Instances are instantiated with a
  * reaction number, and n species numbers (n = 1 for C1, etc.). All three
  * classes have the same interface.
  *
- * These classes are designed for use by StoichManager, and the operations
+ * These classes are designed for use by StoichManagerN, and the operations
  * implemented are those needed to efficiently compute quantities such as
  * rates of progress, species production rates, reaction thermochemistry, etc.
  * The compiler will inline these methods into the body of the corresponding
- * StoichManager method, and so there is no performance penalty (unless
+ * StoichManagerN method, and so there is no performance penalty (unless
  * inlining is turned off).
  *
  * To describe the methods, consider class C3 and suppose an instance is
@@ -80,9 +78,6 @@ namespace Cantera
  *
  *  - multiply(in, out) : out[irxn] is multiplied by
  *    in[k0] * in[k1] * in[k2]
- *
- *  - power(in, out) : out[irxn] is multiplied by
- *     (in[k0]^order0) * (in[k1]^order1) * (in[k2]^order2)
  *
  *  - incrementReaction(in, out) : out[irxn] is incremented by
  *    in[k0] + in[k1] + in[k2]
@@ -133,12 +128,6 @@ public:
         m_ic0(ic0) {
     }
 
-    size_t data(std::vector<size_t>& ic) {
-        ic.resize(1);
-        ic[0] = m_ic0;
-        return m_rxn;
-    }
-
     void incrementSpecies(const doublereal* R, doublereal* S) const {
         S[m_ic0] += R[m_rxn];
     }
@@ -159,16 +148,6 @@ public:
         R[m_rxn] -= S[m_ic0];
     }
 
-    size_t rxnNumber() const {
-        return m_rxn;
-    }
-    size_t speciesIndex(size_t n) const {
-        return m_ic0;
-    }
-    size_t nSpecies() {
-        return 1;
-    }
-
 private:
     //! Reaction number
     size_t m_rxn;
@@ -186,13 +165,6 @@ class C2
 public:
     C2(size_t rxn = 0, size_t ic0 = 0, size_t ic1 = 0)
         : m_rxn(rxn), m_ic0(ic0), m_ic1(ic1) {}
-
-    size_t data(std::vector<size_t>& ic) {
-        ic.resize(2);
-        ic[0] = m_ic0;
-        ic[1] = m_ic1;
-        return m_rxn;
-    }
 
     void incrementSpecies(const doublereal* R, doublereal* S) const {
         S[m_ic0] += R[m_rxn];
@@ -220,16 +192,6 @@ public:
         R[m_rxn] -= (S[m_ic0] + S[m_ic1]);
     }
 
-    size_t rxnNumber() const {
-        return m_rxn;
-    }
-    size_t speciesIndex(size_t n) const {
-        return (n == 0 ? m_ic0 : m_ic1);
-    }
-    size_t nSpecies() {
-        return 2;
-    }
-
 private:
     //! Reaction index -> index into the ROP vector
     size_t m_rxn;
@@ -248,14 +210,6 @@ class C3
 public:
     C3(size_t rxn = 0, size_t ic0 = 0, size_t ic1 = 0, size_t ic2 = 0)
         : m_rxn(rxn), m_ic0(ic0), m_ic1(ic1), m_ic2(ic2) {}
-
-    size_t data(std::vector<size_t>& ic) {
-        ic.resize(3);
-        ic[0] = m_ic0;
-        ic[1] = m_ic1;
-        ic[2] = m_ic2;
-        return m_rxn;
-    }
 
     void incrementSpecies(const doublereal* R, doublereal* S) const {
         S[m_ic0] += R[m_rxn];
@@ -284,16 +238,6 @@ public:
 
     void decrementReaction(const doublereal* S, doublereal* R) const {
         R[m_rxn] -= (S[m_ic0] + S[m_ic1] + S[m_ic2]);
-    }
-
-    size_t rxnNumber() const {
-        return m_rxn;
-    }
-    size_t speciesIndex(size_t n) const {
-        return (n == 0 ? m_ic0 : (n == 1 ? m_ic1 : m_ic2));
-    }
-    size_t nSpecies() {
-        return 3;
     }
 
 private:
@@ -329,24 +273,6 @@ public:
             m_order[n] = order_[n];
             m_stoich[n] = stoich_[n];
         }
-    }
-
-    size_t data(std::vector<size_t>& ic) {
-        ic.resize(m_n);
-        for (size_t n = 0; n < m_n; n++) {
-            ic[n] = m_ic[n];
-        }
-        return m_rxn;
-    }
-
-    doublereal order(size_t n) const {
-        return m_order[n];
-    }
-    doublereal stoich(size_t n) const {
-        return m_stoich[n];
-    }
-    size_t speciesIndex(size_t n) const {
-        return m_ic[n];
     }
 
     void multiply(const doublereal* input, doublereal* output) const {
@@ -533,7 +459,22 @@ public:
      * DGG - the problem is that the number of reactions and species are not
      * known initially.
      */
-    StoichManagerN() {
+    StoichManagerN() : m_ready(true) {
+        m_stoichCoeffs.setZero();
+        m_stoichCoeffs.resize(0, 0);
+    }
+
+    //! Resize the sparse coefficient matrix)
+    void resizeCoeffs(size_t nSpc, size_t nRxn)
+    {
+        size_t nCoeffs = m_coeffList.size();
+
+        // Stoichiometric coefficient matrix
+        m_stoichCoeffs.resize(nSpc, nRxn);
+        m_stoichCoeffs.reserve(nCoeffs);
+        m_stoichCoeffs.setFromTriplets(m_coeffList.begin(), m_coeffList.end());
+
+        m_ready = true;
     }
 
     /**
@@ -580,9 +521,9 @@ public:
         }
         bool frac = false;
         for (size_t n = 0; n < stoich.size(); n++) {
+            m_coeffList.emplace_back(k[n], rxn, stoich[n]);
             if (fmod(stoich[n], 1.0) || stoich[n] != order[n]) {
                 frac = true;
-                break;
             }
         }
         if (frac || k.size() > 3) {
@@ -613,6 +554,7 @@ public:
                 m_cn_list.emplace_back(rxn, k, order, stoich);
             }
         }
+        m_ready = false;
     }
 
     void multiply(const doublereal* input, doublereal* output) const {
@@ -650,11 +592,30 @@ public:
         _decrementReactions(m_cn_list.begin(), m_cn_list.end(), input, output);
     }
 
+    //! Return matrix containing stoichiometric coefficients
+    const Eigen::SparseMatrix<double>& stoichCoeffs() const
+    {
+        if (!m_ready) {
+            // This can happen if a user overrides default behavior:
+            // Kinetics::resizeReactions is not called after adding reactions via
+            // Kinetics::addReaction with the 'resize' flag set to 'false'
+            throw CanteraError("StoichManagerN::stoichCoeffs", "The object "
+                "is not fully configured; make sure to call resizeCoeffs().");
+        }
+        return m_stoichCoeffs;
+    }
+
 private:
+    bool m_ready; //!< Boolean flag indicating whether object is fully configured
+
     std::vector<C1> m_c1_list;
     std::vector<C2> m_c2_list;
     std::vector<C3> m_c3_list;
     std::vector<C_AnyN> m_cn_list;
+
+    //! Sparse matrices for stoichiometric coefficients
+    SparseTriplets m_coeffList;
+    Eigen::SparseMatrix<double> m_stoichCoeffs;
 };
 
 }
