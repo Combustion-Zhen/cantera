@@ -241,6 +241,15 @@ public:
     void setTransient() {
         m_ttype = cTransient;
     }
+    
+    void setScheme(size_t scheme=0) {
+        m_stype = scheme;
+    }
+
+    //! Set coefficient for the gradient scheme
+    void setBeta(doublereal b) {
+        m_beta = b;
+    }
 
     //! Turn radiation on / off.
     /*!
@@ -380,6 +389,15 @@ protected:
     doublereal dYdz(const doublereal* x, size_t k, size_t j) const;
 
     doublereal dTdz(const doublereal* x, size_t j) const;
+
+    double scalarGradient(
+        const vector_fp& s, const double v, size_t j) const;
+
+    double scalarGradientUpwind(
+        const vector_fp& s, const double v, size_t j) const;
+
+    double scalarGradientGamma(
+        const vector_fp& s, const double v, size_t j) const;
     //! @}
 
     //! Write the net production rates at point `j` into array `m_wdot`
@@ -517,6 +535,10 @@ public:
 
 private:
     vector_fp m_ybar;
+
+    size_t m_stype;
+
+    doublereal m_beta;
 };
 
 }

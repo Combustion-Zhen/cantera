@@ -34,7 +34,9 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     m_kExcessLeft(0),
     m_kExcessRight(0),
     m_zfixed(Undef),
-    m_tfixed(-1.)
+    m_tfixed(-1.),
+    m_stype(0),
+    m_beta(0.1)
 {
     if (ph->type() == "IdealGas") {
         m_thermo = static_cast<IdealGasPhase*>(ph);
@@ -1303,20 +1305,79 @@ doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 
 doublereal StFlow::dVdz(const doublereal* x, size_t j) const 
 {
-    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    return (V(x,jloc) - V(x,jloc-1))/dz(jloc-1);
+    vector_fp s(3); 
+    s[0] = V(x,j-1);
+    s[1] = V(x,j);
+    s[2] = V(x,j+1);
+    return scalarGradient(s, u(x,j), j);
+    //size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    //return (V(x,jloc) - V(x,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dYdz(const doublereal* x, size_t k, size_t j) const 
 {
-    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    return (Y(x,k,jloc) - Y(x,k,jloc-1))/dz(jloc-1);
+    vector_fp s(3); 
+    s[0] = Y(x,k,j-1);
+    s[1] = Y(x,k,j);
+    s[2] = Y(x,k,j+1);
+    return scalarGradient(s, u(x,j), j);
+    //size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    //return (Y(x,k,jloc) - Y(x,k,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dTdz(const doublereal* x, size_t j) const 
 {
-    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
+    vector_fp s(3); 
+    s[0] = T(x,j-1);
+    s[1] = T(x,j);
+    s[2] = T(x,j+1);
+    return scalarGradient(s, u(x,j), j);
+    //size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    //return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
+}
+
+double StFlow::scalarGradient
+(
+    const vector_fp& s, const double v, size_t j
+) const
+{
+    switch (m_stype)
+    {
+    case 1:
+        return scalarGradientGamma(s, v, j);
+    default:
+        return scalarGradientUpwind(s, v, j);
+    }
+}
+
+double StFlow::scalarGradientUpwind
+(
+    const vector_fp& s, const double v, size_t j
+) const
+{
+    int k = (v > 0.0 ? 0 : 1);
+    return (s[k+1] - s[k])/dz(j+k-1);
+}
+
+double StFlow::scalarGradientGamma
+(
+    const vector_fp& s, const double v, size_t j
+) const
+{
+        int k = (v > 0.0 ? 0 : 1);
+
+        double grad_CD = (s[2] - s[0])/d2z(j);
+        double grad_UD = (s[k+1] - s[k])/dz(j+k-1);
+
+        double phi = (s[1] - s[2*k])/(s[2-2*k] - s[2*k]);
+
+        if (phi <= 0.0 || phi >= 1.0) {
+            return grad_UD;
+        } else if ( phi <= m_beta ) {
+            return phi / m_beta * grad_CD + (1 - phi / m_beta) * grad_UD;
+        } else {
+            return grad_CD;
+        }
 }
 
 } // namespace
