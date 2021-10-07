@@ -343,10 +343,11 @@ void StFlow::setSpherical()
     m_ctype = cSpherical;
 }
 
-void StFlow::initTimeInteg(doublereal dt, const doublereal* x0) {
+void StFlow::initTimeInteg(doublereal dt, const doublereal* x0)
+{
     Domain1D::initTimeInteg(dt, x0);
     updateThermo(x0, 0, m_points-1);
-    std::copy(m_rho.begin(), m_rho.end(), m_rho_last);
+    std::copy(m_rho.begin(), m_rho.end(), m_rho_last.begin());
 }
 
 void StFlow::showSolution(const doublereal* x)
@@ -953,9 +954,14 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     size_t m = coordinatesType();
     rsd[index(c_offset_U,0)]
     = 
-    rho_u(x,0) * pow(z(0), m)
-    -
-    rho_u(x,1) * pow(z(1), m);
+    (
+        rho_u(x,1) * pow(z(1), m)
+        -
+        rho_u(x,0) * pow(z(0), m)
+    ) / dz(0) / pow(z(0), m);
+    //rho_u(x,0) * pow(z(0), m)
+    //-
+    //rho_u(x,1) * pow(z(1), m);
 
     if (domainType() == cAxisymmetricStagnationFlow) {
         rsd[index(c_offset_U,0)] 
@@ -1004,9 +1010,14 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     if (domainType() == cFreeFlow) {
         rsd[index(c_offset_U,j)] 
         = 
-        rho_u(x,j) * pow(z(j), m)
-        -
-        rho_u(x,j-1) * pow(z(j-1), m);
+        (
+            rho_u(x,j) * pow(z(j), m)
+            -
+            rho_u(x,j-1) * pow(z(j-1), m)
+        ) / dz(j-1) / pow(z(j), m);
+        //rho_u(x,j) * pow(z(j), m)
+        //-
+        //rho_u(x,j-1) * pow(z(j-1), m);
     }
 
     rsd[index(c_offset_V,j)] = V(x,j);
@@ -1058,25 +1069,35 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             if (z(j) > m_zfixed) {
                 rsd[index(c_offset_U,j)] 
                 = 
-                rho_u(x,j-1) * pow(z(j-1), m)
-                -
-                rho_u(x,j) * pow(z(j), m);
+                (
+                    rho_u(x,j) * pow(z(j), m)
+                    -
+                    rho_u(x,j-1) * pow(z(j-1), m)
+                ) / dz(j-1) / pow(z(j), m);
+                //rho_u(x,j-1) * pow(z(j-1), m)
+                //-
+                //rho_u(x,j) * pow(z(j), m);
             } else if (z(j) < m_zfixed) {
                 rsd[index(c_offset_U,j)] 
                 = 
-                rho_u(x,j) * pow(z(j), m)
-                -
-                rho_u(x,j+1) * pow(z(j+1), m);
+                (
+                    rho_u(x,j+1) * pow(z(j+1), m)
+                    -
+                    rho_u(x,j) * pow(z(j), m)
+                ) / dz(j) / pow(z(j), m);
+                //rho_u(x,j) * pow(z(j), m)
+                //-
+                //rho_u(x,j+1) * pow(z(j+1), m);
             }
         } 
     } else {
-        // use upwind differencing as default
-        size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
         rsd[index(c_offset_U,j)] 
         = 
-        rho_u(x,jloc-1) * pow(z(jloc-1), m)
-        -
-        rho_u(x,jloc) * pow(z(jloc), m);
+        (
+            rho_u(x,j+1) * pow(z(j+1), m)
+            -
+            rho_u(x,j) * pow(z(j), m)
+        ) / dz(j) / pow(z(j), m);
     }
 }
 
