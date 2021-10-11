@@ -29,103 +29,28 @@ public:
 
     //! Construct a OneDim container for the domains in the list *domains*.
     OneDim(std::vector<Domain1D*> domains);
+
     virtual ~OneDim();
+
     OneDim(const OneDim&) = delete;
+
     OneDim& operator=(const OneDim&) = delete;
 
     /// Add a domain. Domains are added left-to-right.
     void addDomain(Domain1D* d);
 
-    //! Return a reference to the Jacobian evaluator.
-    MultiJac& jacobian();
-
-    /// Return a reference to the Newton iterator.
-    MultiNewton& newton();
-
-    /**
-     * Solve F(x) = 0, where F(x) is the multi-domain residual function.
-     * @param x0         Starting estimate of solution.
-     * @param x1         Final solution satisfying F(x1) = 0.
-     * @param loglevel   Controls amount of diagnostic output.
-     */
-    int solve(doublereal* x0, doublereal* x1, int loglevel);
-
-    /// Number of domains.
-    size_t nDomains() const {
-        return m_dom.size();
-    }
-
-    /// Return a reference to domain i.
-    Domain1D& domain(size_t i) const {
-        return *m_dom[i];
-    }
-
     size_t domainIndex(const std::string& name);
 
-    //! Check that the specified domain index is in range.
-    //! Throws an exception if n is greater than nDomains()-1
-    void checkDomainIndex(size_t n) const {
-        if (n >= m_dom.size()) {
-            throw IndexError("OneDim::checkDomainIndex", "domains", n,
-                             m_dom.size()-1);
-        }
-    }
-
-    //! Check that an array size is at least nDomains().
-    //! Throws an exception if nn is less than nDomains(). Used before calls
-    //! which take an array pointer.
-    void checkDomainArraySize(size_t nn) const {
-        if (m_dom.size() > nn) {
-            throw ArraySizeError("OneDim::checkDomainArraySize", nn,
-                                 m_dom.size());
-        }
-    }
-
-    /// The index of the start of domain i in the solution vector.
-    size_t start(size_t i) const {
-        if (m_dom[i]->nComponents()) {
-            return m_dom[i]->loc();
-        } else {
-            // Special case for domains with no solution components to avoid
-            // spurious out-of-bounds memory access
-            return 0;
-        }
-    }
-
-    /// Total solution vector length;
-    size_t size() const {
-        return m_size;
-    }
-
-    /// Pointer to left-most domain (first added).
-    Domain1D* left() {
-        return m_dom[0];
-    }
-
-    /// Pointer to right-most domain (last added).
-    Domain1D* right() {
-        return m_dom.back();
-    }
-
-    /// Number of solution components at global point jg.
-    size_t nVars(size_t jg) {
-        return m_nvars[jg];
-    }
-
-    //! Location in the solution vector of the first component of global point
-    //! jg.
-    size_t loc(size_t jg) {
-        return m_loc[jg];
-    }
+    //! Return a pointer to the domain global point *i* belongs to.
+    /*!
+     * The domains are scanned right-to-left, and the first one with starting
+     * location less or equal to i is returned.
+     */
+    Domain1D* pointDomain(size_t i);
 
     //! Return the domain, local point index, and component name for the i-th
     //! component of the global solution vector
     std::tuple<std::string, size_t, std::string> component(size_t i);
-
-    /// Jacobian bandwidth.
-    size_t bandwidth() const {
-        return m_bw;
-    }
 
     /*!
      * Initialize all domains. On the first call, this methods calls the init
@@ -134,35 +59,8 @@ public:
      */
     void init();
 
-    /// Total number of points.
-    size_t points() {
-        return m_pts;
-    }
-
-    /**
-     * Steady-state max norm (infinity norm) of the residual evaluated using
-     * solution x. On return, array r contains the steady-state residual
-     * values. Used only for diagnostic output.
-     */
-    doublereal ssnorm(doublereal* x, doublereal* r);
-
-    /// Reciprocal of the time step.
-    doublereal rdt() const {
-        return m_rdt;
-    }
-
-    //! Prepare for time stepping beginning with solution *x* and timestep *dt*.
-    void initTimeInteg(doublereal dt, doublereal* x);
-
-    /// True if transient mode.
-    bool transient() const {
-        return (m_rdt != 0.0);
-    }
-
-    /// True if steady mode.
-    bool steady() const {
-        return (m_rdt == 0.0);
-    }
+    //! Call after one or more grids has changed size, e.g. after being refined.
+    virtual void resize();
 
     /*!
      * Prepare to solve the steady-state problem. After invoking this method,
@@ -171,6 +69,14 @@ public:
      * zero, signals that a new Jacobian will be needed.
      */
     void setSteadyMode();
+
+    /**
+     * Solve F(x) = 0, where F(x) is the multi-domain residual function.
+     * @param x0         Starting estimate of solution.
+     * @param x1         Final solution satisfying F(x1) = 0.
+     * @param loglevel   Controls amount of diagnostic output.
+     */
+    int solve(doublereal* x0, doublereal* x1, int loglevel);
 
     /**
      * Evaluate the multi-domain residual function
@@ -186,19 +92,15 @@ public:
     void eval(size_t j, double* x, double* r, doublereal rdt=-1.0,
               int count = 1);
 
-    //! Return a pointer to the domain global point *i* belongs to.
-    /*!
-     * The domains are scanned right-to-left, and the first one with starting
-     * location less or equal to i is returned.
+    /**
+     * Steady-state max norm (infinity norm) of the residual evaluated using
+     * solution x. On return, array r contains the steady-state residual
+     * values. Used only for diagnostic output.
      */
-    Domain1D* pointDomain(size_t i);
+    doublereal ssnorm(doublereal* x, doublereal* r);
 
-    //! Call after one or more grids has changed size, e.g. after being refined.
-    virtual void resize();
-
-    vector_int& transientMask() {
-        return m_mask;
-    }
+    //! Prepare for time stepping beginning with solution *x* and timestep *dt*.
+    void initTimeInteg(doublereal dt, doublereal* x);
 
     /*!
      * Take time steps using Backward Euler.
@@ -226,29 +128,6 @@ public:
 
     void save(const std::string& fname, std::string id,
               const std::string& desc, doublereal* sol, int loglevel);
-
-    // options
-    void setMinTimeStep(doublereal tmin) {
-        m_tmin = tmin;
-    }
-    void setMaxTimeStep(doublereal tmax) {
-        m_tmax = tmax;
-    }
-    void setTimeStepFactor(doublereal tfactor) {
-        m_tfactor = tfactor;
-    }
-
-    //! Set the maximum number of timeteps allowed before successful
-    //! steady-state solve
-    void setMaxTimeStepCount(int nmax) {
-        m_nsteps_max = nmax;
-    }
-
-    //! Return the maximum number of timeteps allowed before successful
-    //! steady-state solve
-    int maxTimeStepCount() const {
-        return m_nsteps_max;
-    }
 
     void setJacAge(int ss_age, int ts_age=-1);
 
@@ -307,11 +186,61 @@ public:
         return m_timeSteps;
     }
 
+    //! Check that the specified domain index is in range.
+    //! Throws an exception if n is greater than nDomains()-1
+    void checkDomainIndex(size_t n) const {
+        if (n >= m_dom.size()) {
+            throw IndexError("OneDim::checkDomainIndex", "domains", n,
+                             m_dom.size()-1);
+        }
+    }
+
+    //! Check that an array size is at least nDomains().
+    //! Throws an exception if nn is less than nDomains(). Used before calls
+    //! which take an array pointer.
+    void checkDomainArraySize(size_t nn) const {
+        if (m_dom.size() > nn) {
+            throw ArraySizeError("OneDim::checkDomainArraySize", nn,
+                                 m_dom.size());
+        }
+    }
+
+    /// The index of the start of domain i in the solution vector.
+    size_t start(size_t i) const {
+        if (m_dom[i]->nComponents()) {
+            return m_dom[i]->loc();
+        } else {
+            // Special case for domains with no solution components to avoid
+            // spurious out-of-bounds memory access
+            return 0;
+        }
+    }
+
     //! Set a function that will be called every time #eval is called.
     //! Can be used to provide keyboard interrupt support in the high-level
     //! language interfaces.
     void setInterrupt(Func1* interrupt) {
         m_interrupt = interrupt;
+    }
+
+    //! Return a reference to the Jacobian evaluator.
+    MultiJac& jacobian() {
+        return *m_jac;
+    }
+
+    /// Return a reference to the Newton iterator.
+    MultiNewton& newton() {
+        return *m_newt;
+    }
+
+    /// True if transient mode.
+    bool transient() const {
+        return (m_rdt != 0.0);
+    }
+
+    /// True if steady mode.
+    bool steady() const {
+        return (m_rdt == 0.0);
     }
 
     //! Set a function that will be called after each successful timestep. The
@@ -322,7 +251,86 @@ public:
         m_time_step_callback = callback;
     }
 
+    // options
+    void setMinTimeStep(doublereal tmin) {
+        m_tmin = tmin;
+    }
+    void setMaxTimeStep(doublereal tmax) {
+        m_tmax = tmax;
+    }
+    void setTimeStepFactor(doublereal tfactor) {
+        m_tfactor = tfactor;
+    }
+
+    //! Set the maximum number of timeteps allowed before successful
+    //! steady-state solve
+    void setMaxTimeStepCount(int nmax) {
+        m_nsteps_max = nmax;
+    }
+
+    //! Return the maximum number of timeteps allowed before successful
+    //! steady-state solve
+    int maxTimeStepCount() const {
+        return m_nsteps_max;
+    }
+
+    inline vector_int& transientMask() {
+        return m_mask;
+    }
+
+    /// Number of domains.
+    inline size_t nDomains() const {
+        return m_dom.size();
+    }
+
+    /// Return a reference to domain i.
+    inline Domain1D& domain(size_t i) const {
+        return *m_dom[i];
+    }
+
+    /// Total solution vector length;
+    inline size_t size() const {
+        return m_size;
+    }
+
+    /// Pointer to left-most domain (first added).
+    inline Domain1D* left() {
+        return m_dom[0];
+    }
+
+    /// Pointer to right-most domain (last added).
+    inline Domain1D* right() {
+        return m_dom.back();
+    }
+
+    /// Number of solution components at global point jg.
+    inline size_t nVars(size_t jg) {
+        return m_nvars[jg];
+    }
+
+    //! Location in the solution vector of the first component of global point
+    //! jg.
+    inline size_t loc(size_t jg) {
+        return m_loc[jg];
+    }
+
+    /// Jacobian bandwidth.
+    inline size_t bandwidth() const {
+        return m_bw;
+    }
+
+    /// Total number of points.
+    inline size_t points() {
+        return m_pts;
+    }
+
+    /// Reciprocal of the time step.
+    inline doublereal rdt() const {
+        return m_rdt;
+    }
+
 protected:
+
     void evalSSJacobian(doublereal* x, doublereal* xnew);
 
     doublereal m_tmin; //!< minimum timestep size
