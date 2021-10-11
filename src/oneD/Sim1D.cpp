@@ -22,6 +22,8 @@ using namespace std;
 namespace Cantera
 {
 
+// public
+
 Sim1D::Sim1D(vector<Domain1D*>& domains) :
     OneDim(domains),
     m_steady_callback(0)
@@ -94,6 +96,14 @@ void Sim1D::setProfile(size_t dom, size_t comp,
     }
 }
 
+void Sim1D::setFlatProfile(size_t dom, size_t comp, doublereal v)
+{
+    size_t np = domain(dom).nPoints();
+    for (size_t n = 0; n < np; n++) {
+        setValue(dom, comp, n, v);
+    }
+}
+
 void Sim1D::save(const std::string& fname, const std::string& id,
                  const std::string& desc, int loglevel)
 {
@@ -155,6 +165,26 @@ void Sim1D::saveResidual(const std::string& fname, const std::string& id,
     OneDim::save(fname, id, desc, &res[0], loglevel);
 }
 
+void Sim1D::showSolution(ostream& s)
+{
+    for (size_t n = 0; n < nDomains(); n++) {
+        if (domain(n).domainType() != cEmptyType) {
+            domain(n).showSolution_s(s, &m_x[start(n)]);
+        }
+    }
+}
+
+void Sim1D::showSolution()
+{
+    for (size_t n = 0; n < nDomains(); n++) {
+        if (domain(n).domainType() != cEmptyType) {
+            writelog("\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+domain(n).id()
+                     +" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
+            domain(n).showSolution(&m_x[start(n)]);
+        }
+    }
+}
+
 void Sim1D::restore(const std::string& fname, const std::string& id,
                     int loglevel)
 {
@@ -214,34 +244,6 @@ void Sim1D::restore(const std::string& fname, const std::string& id,
     finalize();
 }
 
-void Sim1D::setFlatProfile(size_t dom, size_t comp, doublereal v)
-{
-    size_t np = domain(dom).nPoints();
-    for (size_t n = 0; n < np; n++) {
-        setValue(dom, comp, n, v);
-    }
-}
-
-void Sim1D::showSolution(ostream& s)
-{
-    for (size_t n = 0; n < nDomains(); n++) {
-        if (domain(n).domainType() != cEmptyType) {
-            domain(n).showSolution_s(s, &m_x[start(n)]);
-        }
-    }
-}
-
-void Sim1D::showSolution()
-{
-    for (size_t n = 0; n < nDomains(); n++) {
-        if (domain(n).domainType() != cEmptyType) {
-            writelog("\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+domain(n).id()
-                     +" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
-            domain(n).showSolution(&m_x[start(n)]);
-        }
-    }
-}
-
 void Sim1D::restoreTimeSteppingSolution()
 {
     if (m_xlast_ts.empty()) {
@@ -271,33 +273,12 @@ void Sim1D::getInitialSoln()
     }
 }
 
-void Sim1D::finalize()
-{
-    for (size_t n = 0; n < nDomains(); n++) {
-        domain(n)._finalize(&m_x[start(n)]);
-    }
-}
-
 void Sim1D::setTimeStep(double stepsize, size_t n, const int* tsteps)
 {
     m_tstep = stepsize;
     m_steps.resize(n);
     for (size_t i = 0; i < n; i++) {
         m_steps[i] = tsteps[i];
-    }
-}
-
-int Sim1D::newtonSolve(int loglevel)
-{
-    int m = OneDim::solve(m_x.data(), m_xnew.data(), loglevel);
-    if (m >= 0) {
-        m_x = m_xnew;
-        return 0;
-    } else if (m > -10) {
-        return -1;
-    } else {
-        throw CanteraError("Sim1D::newtonSolve",
-                           "ERROR: OneDim::solve returned m = {}", m);
     }
 }
 
@@ -680,19 +661,6 @@ vector_fp Sim1D::getRefineCriteria(int dom)
    }
 }
 
-void Sim1D::setGridMin(int dom, double gridmin)
-{
-    if (dom >= 0) {
-        Refiner& r = domain(dom).refiner();
-        r.setGridMin(gridmin);
-    } else {
-        for (size_t n = 0; n < nDomains(); n++) {
-            Refiner& r = domain(n).refiner();
-            r.setGridMin(gridmin);
-        }
-    }
-}
-
 void Sim1D::setMaxGridPoints(int dom, int npoints)
 {
     if (dom >= 0) {
@@ -710,6 +678,19 @@ size_t Sim1D::maxGridPoints(size_t dom)
 {
     Refiner& r = domain(dom).refiner();
     return r.maxPoints();
+}
+
+void Sim1D::setGridMin(int dom, double gridmin)
+{
+    if (dom >= 0) {
+        Refiner& r = domain(dom).refiner();
+        r.setGridMin(gridmin);
+    } else {
+        for (size_t n = 0; n < nDomains(); n++) {
+            Refiner& r = domain(n).refiner();
+            r.setGridMin(gridmin);
+        }
+    }
 }
 
 doublereal Sim1D::jacobian(int i, int j)
@@ -751,6 +732,29 @@ void Sim1D::resize()
     OneDim::resize();
     m_x.resize(size(), 0.0);
     m_xnew.resize(size(), 0.0);
+}
+
+// private
+
+void Sim1D::finalize()
+{
+    for (size_t n = 0; n < nDomains(); n++) {
+        domain(n)._finalize(&m_x[start(n)]);
+    }
+}
+
+int Sim1D::newtonSolve(int loglevel)
+{
+    int m = OneDim::solve(m_x.data(), m_xnew.data(), loglevel);
+    if (m >= 0) {
+        m_x = m_xnew;
+        return 0;
+    } else if (m > -10) {
+        return -1;
+    } else {
+        throw CanteraError("Sim1D::newtonSolve",
+                           "ERROR: OneDim::solve returned m = {}", m);
+    }
 }
 
 }
