@@ -53,30 +53,6 @@ OneDim::~OneDim()
 {
 }
 
-size_t OneDim::domainIndex(const std::string& name)
-{
-    for (size_t n = 0; n < m_dom.size(); n++) {
-        if (domain(n).id() == name) {
-            return n;
-        }
-    }
-    throw CanteraError("OneDim::domainIndex","no domain named >>"+name+"<<");
-}
-
-std::tuple<std::string, size_t, std::string> OneDim::component(size_t i) {
-    size_t n;
-    for (n = nDomains()-1; n != npos; n--) {
-        if (i >= start(n)) {
-            break;
-        }
-    }
-    Domain1D& dom = domain(n);
-    size_t offset = i - start(n);
-    size_t pt = offset / dom.nComponents();
-    size_t comp = offset - pt*dom.nComponents();
-    return make_tuple(dom.id(), pt, dom.componentName(comp));
-}
-
 void OneDim::addDomain(Domain1D* d)
 {
     // if 'd' is not the first domain, link it to the last domain
@@ -99,71 +75,52 @@ void OneDim::addDomain(Domain1D* d)
     resize();
 }
 
-MultiJac& OneDim::jacobian()
+size_t OneDim::domainIndex(const std::string& name)
 {
-    return *m_jac;
-}
-MultiNewton& OneDim::newton()
-{
-    return *m_newt;
-}
-
-void OneDim::setJacAge(int ss_age, int ts_age)
-{
-    m_ss_jac_age = ss_age;
-    if (ts_age > 0) {
-        m_ts_jac_age = ts_age;
-    } else {
-        m_ts_jac_age = m_ss_jac_age;
-    }
-}
-
-void OneDim::writeStats(int printTime)
-{
-    saveStats();
-    writelog("\nStatistics:\n\n Grid   Timesteps  Functions      Time  Jacobians      Time\n");
-    size_t n = m_gridpts.size();
-    for (size_t i = 0; i < n; i++) {
-        if (printTime) {
-            writelog("{:5d}       {:5d}     {:6d} {:9.4f}      {:5d} {:9.4f}\n",
-                     m_gridpts[i], m_timeSteps[i], m_funcEvals[i], m_funcElapsed[i],
-                     m_jacEvals[i], m_jacElapsed[i]);
-        } else {
-            writelog("{:5d}       {:5d}     {:6d}        NA      {:5d}        NA\n",
-                     m_gridpts[i], m_timeSteps[i], m_funcEvals[i], m_jacEvals[i]);
+    for (size_t n = 0; n < m_dom.size(); n++) {
+        if (domain(n).id() == name) {
+            return n;
         }
     }
+    throw CanteraError("OneDim::domainIndex","no domain named >>"+name+"<<");
 }
 
-void OneDim::saveStats()
+Domain1D* OneDim::pointDomain(size_t i)
 {
-    if (m_jac) {
-        int nev = m_jac->nEvals();
-        if (nev > 0 && m_nevals > 0) {
-            m_gridpts.push_back(m_pts);
-            m_jacEvals.push_back(m_jac->nEvals());
-            m_jacElapsed.push_back(m_jac->elapsedTime());
-            m_funcEvals.push_back(m_nevals);
-            m_nevals = 0;
-            m_funcElapsed.push_back(m_evaltime);
-            m_evaltime = 0.0;
-            m_timeSteps.push_back(m_nsteps);
-            m_nsteps = 0;
+    Domain1D* d = right();
+    while (d) {
+        if (d->loc() <= i) {
+            return d;
+        }
+        d = d->left();
+    }
+    return 0;
+}
+
+std::tuple<std::string, size_t, std::string> OneDim::component(size_t i) {
+    size_t n;
+    for (n = nDomains()-1; n != npos; n--) {
+        if (i >= start(n)) {
+            break;
         }
     }
+    Domain1D& dom = domain(n);
+    size_t offset = i - start(n);
+    size_t pt = offset / dom.nComponents();
+    size_t comp = offset - pt*dom.nComponents();
+    return make_tuple(dom.id(), pt, dom.componentName(comp));
 }
 
-void OneDim::clearStats()
+void OneDim::init()
 {
-    m_gridpts.clear();
-    m_jacEvals.clear();
-    m_jacElapsed.clear();
-    m_funcEvals.clear();
-    m_funcElapsed.clear();
-    m_timeSteps.clear();
-    m_nevals = 0;
-    m_evaltime = 0.0;
-    m_nsteps = 0;
+    if (!m_init) {
+        Domain1D* d = left();
+        while (d) {
+            d->init();
+            d = d->right();
+        }
+    }
+    m_init = true;
 }
 
 void OneDim::resize()
@@ -222,6 +179,23 @@ void OneDim::resize()
     }
 }
 
+void OneDim::setSteadyMode()
+{
+    if (m_rdt == 0) {
+        return;
+    }
+
+    m_rdt = 0.0;
+    m_jac->updateTransient(m_rdt, m_mask.data());
+
+    // iterate over all domains, preparing them for steady-state solution
+    Domain1D* d = left();
+    while (d) {
+        d->setSteadyMode();
+        d = d->right();
+    }
+}
+
 int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
 {
     if (!m_jac_ok) {
@@ -232,28 +206,6 @@ int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
     }
 
     return m_newt->solve(x, xnew, *this, *m_jac, loglevel);
-}
-
-void OneDim::evalSSJacobian(doublereal* x, doublereal* xnew)
-{
-    doublereal rdt_save = m_rdt;
-    m_jac_ok = false;
-    setSteadyMode();
-    eval(npos, x, xnew, 0.0, 0);
-    m_jac->eval(x, xnew, 0.0);
-    m_rdt = rdt_save;
-}
-
-Domain1D* OneDim::pointDomain(size_t i)
-{
-    Domain1D* d = right();
-    while (d) {
-        if (d->loc() <= i) {
-            return d;
-        }
-        d = d->left();
-    }
-    return 0;
 }
 
 void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
@@ -315,35 +267,6 @@ void OneDim::initTimeInteg(doublereal dt, doublereal* x)
         d->initTimeInteg(dt, x);
         d = d->right();
     }
-}
-
-void OneDim::setSteadyMode()
-{
-    if (m_rdt == 0) {
-        return;
-    }
-
-    m_rdt = 0.0;
-    m_jac->updateTransient(m_rdt, m_mask.data());
-
-    // iterate over all domains, preparing them for steady-state solution
-    Domain1D* d = left();
-    while (d) {
-        d->setSteadyMode();
-        d = d->right();
-    }
-}
-
-void OneDim::init()
-{
-    if (!m_init) {
-        Domain1D* d = left();
-        while (d) {
-            d->init();
-            d = d->right();
-        }
-    }
-    m_init = true;
 }
 
 doublereal OneDim::timeStep(int nsteps, doublereal dt, doublereal* x,
@@ -421,6 +344,23 @@ void OneDim::resetBadValues(double* x)
     }
 }
 
+void OneDim::writeStats(int printTime)
+{
+    saveStats();
+    writelog("\nStatistics:\n\n Grid   Timesteps  Functions      Time  Jacobians      Time\n");
+    size_t n = m_gridpts.size();
+    for (size_t i = 0; i < n; i++) {
+        if (printTime) {
+            writelog("{:5d}       {:5d}     {:6d} {:9.4f}      {:5d} {:9.4f}\n",
+                     m_gridpts[i], m_timeSteps[i], m_funcEvals[i], m_funcElapsed[i],
+                     m_jacEvals[i], m_jacElapsed[i]);
+        } else {
+            writelog("{:5d}       {:5d}     {:6d}        NA      {:5d}        NA\n",
+                     m_gridpts[i], m_timeSteps[i], m_funcEvals[i], m_jacEvals[i]);
+        }
+    }
+}
+
 void OneDim::save(const std::string& fname, std::string id,
                   const std::string& desc, doublereal* sol,
                   int loglevel)
@@ -468,6 +408,59 @@ AnyMap OneDim::serialize(const double* soln) const
         state[m_dom[i]->id()] = m_dom[i]->serialize(soln + start(i));
     }
     return state;
+}
+
+void OneDim::setJacAge(int ss_age, int ts_age)
+{
+    m_ss_jac_age = ss_age;
+    if (ts_age > 0) {
+        m_ts_jac_age = ts_age;
+    } else {
+        m_ts_jac_age = m_ss_jac_age;
+    }
+}
+
+void OneDim::saveStats()
+{
+    if (m_jac) {
+        int nev = m_jac->nEvals();
+        if (nev > 0 && m_nevals > 0) {
+            m_gridpts.push_back(m_pts);
+            m_jacEvals.push_back(m_jac->nEvals());
+            m_jacElapsed.push_back(m_jac->elapsedTime());
+            m_funcEvals.push_back(m_nevals);
+            m_nevals = 0;
+            m_funcElapsed.push_back(m_evaltime);
+            m_evaltime = 0.0;
+            m_timeSteps.push_back(m_nsteps);
+            m_nsteps = 0;
+        }
+    }
+}
+
+void OneDim::clearStats()
+{
+    m_gridpts.clear();
+    m_jacEvals.clear();
+    m_jacElapsed.clear();
+    m_funcEvals.clear();
+    m_funcElapsed.clear();
+    m_timeSteps.clear();
+    m_nevals = 0;
+    m_evaltime = 0.0;
+    m_nsteps = 0;
+}
+
+// protected
+
+void OneDim::evalSSJacobian(doublereal* x, doublereal* xnew)
+{
+    doublereal rdt_save = m_rdt;
+    m_jac_ok = false;
+    setSteadyMode();
+    eval(npos, x, xnew, 0.0, 0);
+    m_jac->eval(x, xnew, 0.0);
+    m_rdt = rdt_save;
 }
 
 }
