@@ -1097,7 +1097,9 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             rho_u(x,j+1) * pow(z(j+1), m)
             -
             rho_u(x,j) * pow(z(j), m)
-        ) / dz(j) / pow(z(j), m);
+        ) / dz(j) / pow(z(j), m)
+        +
+        rdt * (m_rho[j] - m_rho_last[j]);
     }
 }
 
