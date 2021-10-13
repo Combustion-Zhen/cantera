@@ -110,12 +110,22 @@ void sparseCscData(const Eigen::SparseMatrix<double>& mat,
     void PREFIX ## _ ## FUNC_NAME(Cantera::CLASS_NAME* object, size_t dim, double* data) \
     { object->FUNC_NAME(dim, data); }
 
+// Function which populates a 1D array, extra arguments
+#define ARRAY_POLY(PREFIX, CLASS_NAME, FUNC_NAME) \
+    void PREFIX ## _ ## FUNC_NAME(Cantera::CLASS_NAME* object, size_t i, double* data) \
+    { object->FUNC_NAME(i, data); }
+    
+#define ARRAY_POLY_BINARY(PREFIX, CLASS_NAME, FUNC_NAME) \
+    void PREFIX ## _ ## FUNC_NAME(Cantera::CLASS_NAME* object, size_t i, size_t j, double* data) \
+    { object->FUNC_NAME(i, j, data); }
 
 #define THERMO_1D(FUNC_NAME) ARRAY_FUNC(thermo, ThermoPhase, FUNC_NAME)
 #define KIN_1D(FUNC_NAME) ARRAY_FUNC(kin, Kinetics, FUNC_NAME)
 #define KIN_SPARSE_MATRIX(FUNC_NAME) SPARSE_MATRIX(kin, Kinetics, FUNC_NAME)
 #define TRANSPORT_1D(FUNC_NAME) ARRAY_FUNC(tran, Transport, FUNC_NAME)
 #define TRANSPORT_2D(FUNC_NAME) ARRAY_FUNC2(tran, Transport, FUNC_NAME)
+#define TRANSPORT_POLY(FUNC_NAME) ARRAY_POLY(tran, Transport, FUNC_NAME)
+#define TRANSPORT_POLY_BINARY(FUNC_NAME) ARRAY_POLY_BINARY(tran, Transport, FUNC_NAME)
 
 THERMO_1D(getMassFractions)
 THERMO_1D(setMassFractions)
@@ -173,3 +183,10 @@ TRANSPORT_1D(getMobilities)
 
 TRANSPORT_2D(getMultiDiffCoeffs)
 TRANSPORT_2D(getBinaryDiffCoeffs)
+
+TRANSPORT_POLY(getViscosityPolynomial)
+TRANSPORT_POLY(setViscosityPolynomial)
+TRANSPORT_POLY(getConductivityPolynomial)
+TRANSPORT_POLY(setConductivityPolynomial)
+TRANSPORT_POLY_BINARY(getBinDiffusivityPolynomial)
+TRANSPORT_POLY_BINARY(setBinDiffusivityPolynomial)
