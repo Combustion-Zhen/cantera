@@ -58,8 +58,167 @@ public:
     Domain1D(size_t nv=1, size_t points=1, double time=0.0);
 
     virtual ~Domain1D();
+
     Domain1D(const Domain1D&) = delete;
+
     Domain1D& operator=(const Domain1D&) = delete;
+
+    /*!
+     * Resize the domain to have nv components and np grid points. This method
+     * is virtual so that subclasses can perform other actions required to
+     * resize the domain.
+     */
+    virtual void resize(size_t nv, size_t np);
+
+    //! Name of the nth component. May be overloaded.
+    virtual std::string componentName(size_t n) const;
+
+    //! index of component with name \a name.
+    virtual size_t componentIndex(const std::string& name) const;
+
+    //! Set tolerances for time-stepping mode
+    /*!
+     * @param rtol Relative tolerance
+     * @param atol Absolute tolerance
+     * @param n    component index these tolerances apply to. If set to -1 (the
+     *      default), these tolerances will be applied to all solution
+     *      components.
+     */
+    void setTransientTolerances(doublereal rtol, doublereal atol, size_t n=npos);
+
+    //! Set tolerances for steady-state mode
+    /*!
+     * @param rtol Relative tolerance
+     * @param atol Absolute tolerance
+     * @param n    component index these tolerances apply to. If set to -1 (the
+     *     default), these tolerances will be applied to all solution
+     *     components.
+     */
+    void setSteadyTolerances(doublereal rtol, doublereal atol, size_t n=npos);
+
+    /*!
+     * Set this if something has changed in the governing
+     * equations (e.g. the value of a constant has been changed,
+     * so that the last-computed Jacobian is no longer valid.
+     */
+    void needJacUpdate();
+
+    /**
+     * Find the index of the first grid point in this domain, and
+     * the start of its variables in the global solution vector.
+     */
+    void locate();
+
+    void setProfile(const std::string& name, double* values, double* soln);
+
+    //! called to set up initial grid, and after grid refinement
+    virtual void setupGrid(size_t n, const doublereal* z);
+
+    /**
+     * Writes some or all initial solution values into the global solution
+     * array, beginning at the location pointed to by x. This method is called
+     * by the Sim1D constructor, and allows default values or ones that have
+     * been set locally prior to installing this domain into the container to be
+     * written to the global solution vector.
+     */
+    virtual void _getInitialSoln(doublereal* x);
+
+    //! Initial value of solution component \a n at grid point \a j.
+    virtual doublereal initialValue(size_t n, size_t j);
+
+    //! Save the current solution for this domain into an XML_Node
+    /*!
+     * Base class version of the general domain1D save function. Derived classes
+     * should call the base class method in addition to saving their own data.
+     *
+     * @param o    XML_Node to save the solution to.
+     * @param sol  Current value of the solution vector. The object will pick
+     *             out which part of the solution vector pertains to this
+     *             object.
+     * @return     XML_Node created to represent this domain
+     *
+     * @deprecated The XML output format is deprecated and will be removed in
+     *     Cantera 3.0.
+     */
+    virtual XML_Node& save(XML_Node& o, const doublereal* const sol);
+
+    //! Restore the solution for this domain from an XML_Node
+    /*!
+     * Base class version of the general Domain1D restore function. Derived
+     * classes should call the base class method in addition to restoring
+     * their own data.
+     *
+     * @param dom XML_Node for this domain
+     * @param soln Current value of the solution vector, local to this object.
+     * @param loglevel 0 to suppress all output; 1 to show warnings; 2 for
+     *      verbose output
+     *
+     * @deprecated The XML input format is deprecated and will be removed in
+     *     Cantera 3.0.
+     */
+    virtual void restore(const XML_Node& dom, doublereal* soln, int loglevel);
+
+    //! Print the solution.
+    virtual void showSolution(const doublereal* x);
+
+    /*!
+     * Initialize. This method is called by OneDim::init() for each domain once
+     * at the beginning of a simulation. Base class method does nothing, but may
+     * be overloaded.
+     */
+    virtual void init() {}
+
+    virtual void setInitialState(doublereal* xlocal = 0) {}
+
+    virtual void setState(size_t point, const doublereal* state, doublereal* x) {}
+
+    /*!
+     * When called, this function should reset "bad" values in the state vector
+     * such as negative species concentrations. This function may be called
+     * after a failed solution attempt.
+     */
+    virtual void resetBadValues(double* xg) {}
+
+    /**
+     * In some cases, a domain may need to set parameters that depend on the
+     * initial solution estimate. In such cases, the parameters may be set in
+     * method _finalize. This method is called just before the Newton solver is
+     * called, and the x array is guaranteed to be the local solution vector for
+     * this domain that will be used as the initial guess. If no such parameters
+     * need to be set, then method _finalize does not need to be overloaded.
+     */
+    virtual void _finalize(const doublereal* x) {}
+
+    virtual void setJac(MultiJac* jac) {}
+
+    virtual void showSolution_s(std::ostream& s, const doublereal* x) {}
+
+    //! Evaluate the residual function at point j. If j == npos,
+    //! evaluate the residual function at all points.
+    /*!
+     *  This function must be implemented in classes derived from Domain1D.
+     *
+     *  @param j  Grid point at which to update the residual
+     *  @param[in] x  State vector
+     *  @param[out] r  residual vector
+     *  @param[out] mask  Boolean mask indicating whether each solution
+     *      component has a time derivative (1) or not (0).
+     *  @param[in] rdt Reciprocal of the timestep (`rdt=0` implies steady-
+     *  state.)
+     */
+    virtual void eval(size_t j, doublereal* x, doublereal* r,
+                      integer* mask, doublereal rdt=0.0) {
+        throw NotImplementedError("Domain1D::eval");
+    }
+
+    //! Prepare to do time stepping with time step dt
+    /*!
+     * Copy the internally-stored solution at the last time step to array x0.
+     */
+    virtual void initTimeInteg(doublereal dt, const doublereal* x0) {
+        std::copy(x0 + loc(), x0 + loc() + size(), m_slast.begin());
+        m_rdt = 1.0/dt;
+    }
 
     //! Domain type flag.
     inline int domainType() const {
@@ -70,11 +229,6 @@ public:
     //! Coordinates type flag.
     inline int coordinatesType() const {
         return m_ctype;
-    }
-
-    //! Temporal type flag.
-    inline int temporalType() const {
-        return m_ttype;
     }
 
     //! The left-to-right location of this domain.
@@ -125,30 +279,6 @@ public:
         return m_bw;
     }
 
-    /*!
-     * Initialize. This method is called by OneDim::init() for each domain once
-     * at the beginning of a simulation. Base class method does nothing, but may
-     * be overloaded.
-     */
-    virtual void init() {}
-
-    virtual void setInitialState(doublereal* xlocal = 0) {}
-    virtual void setState(size_t point, const doublereal* state, doublereal* x) {}
-
-    /*!
-     * When called, this function should reset "bad" values in the state vector
-     * such as negative species concentrations. This function may be called
-     * after a failed solution attempt.
-     */
-    virtual void resetBadValues(double* xg) {}
-
-    /*!
-     * Resize the domain to have nv components and np grid points. This method
-     * is virtual so that subclasses can perform other actions required to
-     * resize the domain.
-     */
-    virtual void resize(size_t nv, size_t np);
-
     //! Return a reference to the grid refiner.
     inline Refiner& refiner() const {
         return *m_refiner;
@@ -198,40 +328,14 @@ public:
         }
     }
 
-    //! Name of the nth component. May be overloaded.
-    virtual std::string componentName(size_t n) const;
-
     inline void setComponentName(size_t n, const std::string& name) {
         m_name[n] = name;
     }
-
-    //! index of component with name \a name.
-    virtual size_t componentIndex(const std::string& name) const;
 
     inline void setBounds(size_t n, doublereal lower, doublereal upper) {
         m_min[n] = lower;
         m_max[n] = upper;
     }
-
-    //! Set tolerances for time-stepping mode
-    /*!
-     * @param rtol Relative tolerance
-     * @param atol Absolute tolerance
-     * @param n    component index these tolerances apply to. If set to -1 (the
-     *      default), these tolerances will be applied to all solution
-     *      components.
-     */
-    void setTransientTolerances(doublereal rtol, doublereal atol, size_t n=npos);
-
-    //! Set tolerances for steady-state mode
-    /*!
-     * @param rtol Relative tolerance
-     * @param atol Absolute tolerance
-     * @param n    component index these tolerances apply to. If set to -1 (the
-     *     default), these tolerances will be applied to all solution
-     *     components.
-     */
-    void setSteadyTolerances(doublereal rtol, doublereal atol, size_t n=npos);
 
     //! Relative tolerance of the nth component.
     inline doublereal rtol(size_t n) {
@@ -273,15 +377,6 @@ public:
         return m_min[n];
     }
 
-    //! Prepare to do time stepping with time step dt
-    /*!
-     * Copy the internally-stored solution at the last time step to array x0.
-     */
-    virtual void initTimeInteg(doublereal dt, const doublereal* x0) {
-        std::copy(x0 + loc(), x0 + loc() + size(), m_slast.begin());
-        m_rdt = 1.0/dt;
-    }
-
     //! Prepare to solve the steady-state problem
     /*!
      * Set the internally-stored reciprocal of the time step to 0.0
@@ -300,31 +395,6 @@ public:
         return (m_rdt != 0.0);
     }
 
-    /*!
-     * Set this if something has changed in the governing
-     * equations (e.g. the value of a constant has been changed,
-     * so that the last-computed Jacobian is no longer valid.
-     */
-    void needJacUpdate();
-
-    //! Evaluate the residual function at point j. If j == npos,
-    //! evaluate the residual function at all points.
-    /*!
-     *  This function must be implemented in classes derived from Domain1D.
-     *
-     *  @param j  Grid point at which to update the residual
-     *  @param[in] x  State vector
-     *  @param[out] r  residual vector
-     *  @param[out] mask  Boolean mask indicating whether each solution
-     *      component has a time derivative (1) or not (0).
-     *  @param[in] rdt Reciprocal of the timestep (`rdt=0` implies steady-
-     *  state.)
-     */
-    virtual void eval(size_t j, doublereal* x, doublereal* r,
-                      integer* mask, doublereal rdt=0.0) {
-        throw NotImplementedError("Domain1D::eval");
-    }
-
     inline size_t index(size_t n, size_t j) const {
         return m_nv*j + n;
     }
@@ -332,49 +402,9 @@ public:
         return x[index(n,j)];
     }
 
-    virtual void setJac(MultiJac* jac) {}
-
-    //! Save the current solution for this domain into an XML_Node
-    /*!
-     * Base class version of the general domain1D save function. Derived classes
-     * should call the base class method in addition to saving their own data.
-     *
-     * @param o    XML_Node to save the solution to.
-     * @param sol  Current value of the solution vector. The object will pick
-     *             out which part of the solution vector pertains to this
-     *             object.
-     * @return     XML_Node created to represent this domain
-     *
-     * @deprecated The XML output format is deprecated and will be removed in
-     *     Cantera 3.0.
-     */
-    virtual XML_Node& save(XML_Node& o, const doublereal* const sol);
-
-    //! Restore the solution for this domain from an XML_Node
-    /*!
-     * Base class version of the general Domain1D restore function. Derived
-     * classes should call the base class method in addition to restoring
-     * their own data.
-     *
-     * @param dom XML_Node for this domain
-     * @param soln Current value of the solution vector, local to this object.
-     * @param loglevel 0 to suppress all output; 1 to show warnings; 2 for
-     *      verbose output
-     *
-     * @deprecated The XML input format is deprecated and will be removed in
-     *     Cantera 3.0.
-     */
-    virtual void restore(const XML_Node& dom, doublereal* soln, int loglevel);
-
     inline size_t size() const {
         return m_nv*m_points;
     }
-
-    /**
-     * Find the index of the first grid point in this domain, and
-     * the start of its variables in the global solution vector.
-     */
-    void locate();
 
     /**
      * Location of the start of the local solution vector in the global
@@ -449,10 +479,15 @@ public:
         }
     }
 
-    virtual void showSolution_s(std::ostream& s, const doublereal* x) {}
-
-    //! Print the solution.
-    virtual void showSolution(const doublereal* x);
+    /**
+     * In some cases, for computational efficiency some properties (e.g.
+     * transport coefficients) may not be updated during Jacobian evaluations.
+     * Set this to `true` to force these properties to be udpated even while
+     * calculating Jacobian elements.
+     */
+    inline void forceFullUpdate(bool update) {
+        m_force_full_update = update;
+    }
 
     inline doublereal z(size_t j) const {
         return m_z[j];
@@ -470,8 +505,6 @@ public:
         return m_z[m_points - 1];
     }
 
-    void setProfile(const std::string& name, double* values, double* soln);
-
     inline vector_fp& grid() {
         return m_z;
     }
@@ -480,41 +513,6 @@ public:
     }
     inline doublereal grid(size_t j) const {
         return m_z[j];
-    }
-
-    //! called to set up initial grid, and after grid refinement
-    virtual void setupGrid(size_t n, const doublereal* z);
-
-    /**
-     * Writes some or all initial solution values into the global solution
-     * array, beginning at the location pointed to by x. This method is called
-     * by the Sim1D constructor, and allows default values or ones that have
-     * been set locally prior to installing this domain into the container to be
-     * written to the global solution vector.
-     */
-    virtual void _getInitialSoln(doublereal* x);
-
-    //! Initial value of solution component \a n at grid point \a j.
-    virtual doublereal initialValue(size_t n, size_t j);
-
-    /**
-     * In some cases, a domain may need to set parameters that depend on the
-     * initial solution estimate. In such cases, the parameters may be set in
-     * method _finalize. This method is called just before the Newton solver is
-     * called, and the x array is guaranteed to be the local solution vector for
-     * this domain that will be used as the initial guess. If no such parameters
-     * need to be set, then method _finalize does not need to be overloaded.
-     */
-    virtual void _finalize(const doublereal* x) {}
-
-    /**
-     * In some cases, for computational efficiency some properties (e.g.
-     * transport coefficients) may not be updated during Jacobian evaluations.
-     * Set this to `true` to force these properties to be udpated even while
-     * calculating Jacobian elements.
-     */
-    inline void forceFullUpdate(bool update) {
-        m_force_full_update = update;
     }
 
 protected:
@@ -531,7 +529,7 @@ protected:
     size_t m_index;
     int m_type;
     // Zhen Lu 210916
-    int m_ctype, m_ttype;
+    int m_ctype;
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain

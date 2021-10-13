@@ -227,16 +227,6 @@ public:
         m_dovisc = true;
     }
 
-    //! Set steady state
-    void setSteady() {
-        m_ttype = cSteady;
-    }
-
-    //! Set transient state
-    void setTransient() {
-        m_ttype = cTransient;
-    }
-    
     void setScheme(size_t scheme=0) {
         m_stype = scheme;
     }
