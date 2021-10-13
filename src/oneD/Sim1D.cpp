@@ -287,7 +287,6 @@ void Sim1D::solve(int loglevel, bool refine_grid)
     int new_points = 1;
     doublereal dt = m_tstep;
     m_nsteps = 0;
-    int soln_number = -1;
     finalize();
 
     while (new_points > 0) {
@@ -330,7 +329,6 @@ void Sim1D::solve(int loglevel, bool refine_grid)
                                  "After successful Newton solve");
                 }
                 ok = true;
-                soln_number++;
             } else {
                 debuglog("    failure. \n", loglevel);
                 if (loglevel > 6) {
@@ -394,6 +392,57 @@ void Sim1D::solve(int loglevel, bool refine_grid)
             new_points = 0;
         }
     }
+}
+
+void Sim1D::advance(double t, int loglevel, bool refine_grid)
+{
+    double dt = m_tstep;
+
+    finalize();
+
+    while (time() < t) {
+
+        // grid refinement
+        if (refine_grid) {
+            int new_points = refine(loglevel);
+            if (new_points) {
+                // If the grid has changed, preemptively reduce the timestep
+                // to avoid multiple successive failed time steps.
+                dt = m_tstep;
+            }
+            if (new_points && loglevel > 6) {
+                save("debug_sim1d.xml", "debug", "After regridding");
+            }
+            if (new_points && loglevel > 7) {
+                saveResidual("debug_sim1d.xml", "residual",
+                             "After regridding");
+            }
+        } else {
+            debuglog("grid refinement disabled.\n", loglevel);
+        }
+
+        // time step
+        dt = std::min(dt, t - time());
+        dt = singleTimeStep(dt, m_x.data(), m_xnew.data(), loglevel-1);
+
+        m_xlast_ts = m_x;
+
+        if (loglevel == 1) {
+            writelog("{:10.4g} {:10.4g} {:10.4g}\n", time(), dt,
+                     log10(ssnorm(m_x.data(), m_xnew.data())));
+        }
+        if (loglevel > 6) {
+            save("debug_sim1d.xml", "debug", "After timestepping");
+        }
+        if (loglevel > 7) {
+            saveResidual("debug_sim1d.xml", "residual",
+                         "After timestepping");
+        }
+
+    }
+
+    m_tstep = dt;
+
 }
 
 int Sim1D::refine(int loglevel)

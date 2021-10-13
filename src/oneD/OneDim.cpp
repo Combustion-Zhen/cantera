@@ -17,15 +17,16 @@ using namespace std;
 namespace Cantera
 {
 
-OneDim::OneDim()
-    : m_tmin(1.0e-16), m_tmax(1e8), m_tfactor(0.5),
-      m_rdt(0.0), m_jac_ok(false),
-      m_bw(0), m_size(0),
-      m_init(false), m_pts(0), m_solve_time(0.0),
-      m_ss_jac_age(20), m_ts_jac_age(20),
-      m_interrupt(0), m_time_step_callback(0),
-      m_nsteps(0), m_nsteps_max(500),
-      m_nevals(0), m_evaltime(0.0)
+OneDim::OneDim() : 
+    m_tmin(1.0e-16), m_tmax(1e8), m_tfactor(0.5),
+    m_rdt(0.0), m_jac_ok(false),
+    m_bw(0), m_size(0),
+    m_init(false), m_pts(0), m_solve_time(0.0),
+    m_ss_jac_age(20), m_ts_jac_age(20),
+    m_interrupt(0), m_time_step_callback(0),
+    m_nsteps(0), m_nsteps_max(500),
+    m_time(0.0),
+    m_nevals(0), m_evaltime(0.0)
 {
     m_newt.reset(new MultiNewton(1));
 }
@@ -38,6 +39,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
+    m_time(0.0),
     m_nevals(0), m_evaltime(0.0)
 {
     // create a Newton iterator, and add each domain.
@@ -269,8 +271,8 @@ void OneDim::initTimeInteg(doublereal dt, doublereal* x)
     }
 }
 
-doublereal OneDim::timeStep(int nsteps, doublereal dt, doublereal* x,
-                            doublereal* r, int loglevel)
+doublereal OneDim::timeStep(int nsteps, double dt, double* x,
+                            double* r, int loglevel)
 {
     // set the Jacobian age parameter to the transient value
     newton().setOptions(m_ts_jac_age);
@@ -334,6 +336,73 @@ doublereal OneDim::timeStep(int nsteps, doublereal dt, doublereal* x,
 
     // return the value of the last stepsize, which may be smaller
     // than the initial stepsize
+    return dt;
+}
+
+doublereal OneDim::singleTimeStep(double dt, double* x, 
+                                  double* r, int loglevel)
+{
+    // set the Jacobian age parameter to the transient value
+    newton().setOptions(m_ts_jac_age);
+
+    debuglog("\n\n time(s)    size (s)    log10(ss) \n", loglevel);
+    debuglog("===============================\n", loglevel);
+
+    int successiveFailures = 0;
+
+    if (loglevel > 0) {
+        double ss = ssnorm(x, r);
+        writelog("{:10.4g}  {:10.4g}  {:10.4g}", m_time, dt, log10(ss));
+    }
+
+    // set up for time stepping with stepsize dt
+    initTimeInteg(dt,x);
+
+    // solve the transient problem
+    int m = solve(x, r, loglevel-1);
+
+    // successful time step. Copy the new solution in r to
+    // the current solution in x.
+    if (m >= 0) {
+
+        successiveFailures = 0;
+        m_time += dt;
+
+        debuglog("\n", loglevel);
+        copy(r, r + m_size, x);
+
+        if (m == 100) {
+            dt *= 1.5;
+        }
+        if (m_time_step_callback) {
+            m_time_step_callback->eval(dt);
+        }
+
+        dt = std::min(dt, m_tmax);
+
+    } else {
+
+        successiveFailures++;
+
+        // No solution could be found with this time step.
+        // Decrease the stepsize and try again.
+        debuglog("...failure.\n", loglevel);
+
+        if (successiveFailures > 2) {
+            //debuglog("Resetting negative species concentrations.\n", loglevel);
+            resetBadValues(x);
+            successiveFailures = 0;
+        } else {
+            dt *= m_tfactor;
+            if (dt < m_tmin) {
+                throw CanteraError("OneDim::timeStep",
+                                    "Time integration failed.");
+            }
+        }
+
+    }
+
+    // return the value of the stepsize
     return dt;
 }
 

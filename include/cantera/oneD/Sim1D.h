@@ -109,10 +109,6 @@ public:
 
     void showSolution();
 
-    const doublereal* solution() {
-        return m_x.data();
-    }
-
     //! Initialize the solution with a previously-saved solution.
     void restore(const std::string& fname, const std::string& id, int loglevel=2);
 
@@ -128,22 +124,11 @@ public:
 
     void getInitialSoln();
 
-    void setSolution(const doublereal* soln) {
-        std::copy(soln, soln + m_x.size(), m_x.data());
-    }
-
     void setTimeStep(double stepsize, size_t n, const int* tsteps);
 
     void solve(int loglevel = 0, bool refine_grid = true);
 
-    void eval(doublereal rdt=-1.0, int count = 1) {
-        OneDim::eval(npos, m_x.data(), m_xnew.data(), rdt, count);
-    }
-
-    // Evaluate the governing equations and return the vector of residuals
-    void getResidual(double rdt, double* resid) {
-        OneDim::eval(npos, m_x.data(), resid, rdt, 0);
-    }
+    void advance(double t, int loglevel = 0, bool refine_grid = true);
 
     /// Refine the grid in all domains.
     int refine(int loglevel=0);
@@ -215,6 +200,23 @@ public:
     void solveAdjoint(const double* b, double* lambda);
 
     virtual void resize();
+
+    void setSolution(const doublereal* soln) {
+        std::copy(soln, soln + m_x.size(), m_x.data());
+    }
+
+    const doublereal* solution() {
+        return m_x.data();
+    }
+
+    void eval(doublereal rdt=-1.0, int count = 1) {
+        OneDim::eval(npos, m_x.data(), m_xnew.data(), rdt, count);
+    }
+
+    // Evaluate the governing equations and return the vector of residuals
+    void getResidual(double rdt, double* resid) {
+        OneDim::eval(npos, m_x.data(), resid, rdt, 0);
+    }
 
     //! Set a function that will be called after each successful steady-state
     //! solve, before regridding. Intended to be used for observing solver
