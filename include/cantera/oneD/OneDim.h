@@ -116,6 +116,9 @@ public:
     double timeStep(int nsteps, double dt, double* x,
                     double* r, int loglevel);
 
+    // Zhen Lu 211013
+    double singleTimeStep(double st, double* x, double*r, int loglevel);
+
     void resetBadValues(double* x);
 
     //! Write statistics about the number of iterations and Jacobians at each
@@ -332,6 +335,11 @@ public:
         return m_rdt;
     }
 
+    /// current time
+    inline double time() const {
+        return m_time;
+    }
+
 protected:
 
     void evalSSJacobian(doublereal* x, doublereal* xnew);
@@ -372,6 +380,9 @@ protected:
 
     //! Maximum number of timesteps allowed per call to solve()
     int m_nsteps_max;
+
+    //! Physical time for the transient solution
+    double m_time;
 
 private:
     // statistics
