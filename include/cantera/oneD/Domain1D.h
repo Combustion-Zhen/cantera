@@ -409,6 +409,7 @@ public:
         return x[index(n,j)];
     }
 
+<<<<<<< HEAD
     //! Save the state of this domain as an AnyMap
     /*!
      * @param soln local solution vector for this domain
@@ -424,6 +425,8 @@ public:
      */
     virtual void restore(const AnyMap& state, double* soln, int loglevel);
 
+=======
+>>>>>>> c9b8ada95 (Domain1D)
     inline size_t size() const {
         return m_nv*m_points;
     }
@@ -552,8 +555,11 @@ protected:
     int m_type;
     // Zhen Lu 210916
     int m_ctype;
+<<<<<<< HEAD
 
     double m_time;
+=======
+>>>>>>> c9b8ada95 (Domain1D)
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain
