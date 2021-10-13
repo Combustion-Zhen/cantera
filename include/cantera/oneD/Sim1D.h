@@ -124,25 +124,6 @@ public:
 
     void getInitialSoln();
 
-    //! Initialize the solution with a previously-saved solution.
-    void restore(const std::string& fname, const std::string& id, int loglevel=2);
-
-    //! Set the current solution vector to the last successful time-stepping
-    //! solution. This can be used to examine the solver progress after a failed
-    //! integration.
-    void restoreTimeSteppingSolution();
-
-    //! Set the current solution vector and grid to the last successful steady-
-    //! state solution. This can be used to examine the solver progress after a
-    //! failure during grid refinement.
-    void restoreSteadySolution();
-
-    void getInitialSoln();
-
-    void setSolution(const doublereal* soln) {
-        std::copy(soln, soln + m_x.size(), m_x.data());
-    }
-
     void setTimeStep(double stepsize, size_t n, const int* tsteps);
 
     void solve(int loglevel = 0, bool refine_grid = true);
