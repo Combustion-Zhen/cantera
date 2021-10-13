@@ -26,7 +26,6 @@ Domain1D::Domain1D(size_t nv, size_t points, double time) :
     m_type(0),
     // Zhen Lu 210916
     m_ctype(0),
-    m_ttype(0),
     m_iloc(0),
     m_jstart(0),
     m_left(0),
@@ -116,6 +115,63 @@ void Domain1D::needJacUpdate()
         m_container->jacobian().setAge(10000);
         m_container->saveStats();
     }
+}
+
+void Domain1D::locate()
+{
+    if (m_left) {
+        // there is a domain on the left, so the first grid point in this domain
+        // is one more than the last one on the left
+        m_jstart = m_left->lastPoint() + 1;
+
+        // the starting location in the solution vector
+        m_iloc = m_left->loc() + m_left->size();
+    } else {
+        // this is the left-most domain
+        m_jstart = 0;
+        m_iloc = 0;
+    }
+    // if there is a domain to the right of this one, then repeat this for it
+    if (m_right) {
+        m_right->locate();
+    }
+}
+
+void Domain1D::setProfile(const std::string& name, double* values, double* soln)
+{
+    for (size_t n = 0; n < m_nv; n++) {
+        if (name == componentName(n)) {
+            for (size_t j = 0; j < m_points; j++) {
+                soln[index(n, j) + m_iloc] = values[j];
+            }
+            return;
+        }
+    }
+    throw CanteraError("Domain1D::setProfile", "unknown component: "+name);
+}
+
+void Domain1D::setupGrid(size_t n, const doublereal* z)
+{
+    if (n > 1) {
+        resize(m_nv, n);
+        for (size_t j = 0; j < m_points; j++) {
+            m_z[j] = z[j];
+        }
+    }
+}
+
+void Domain1D::_getInitialSoln(doublereal* x)
+{
+    for (size_t j = 0; j < m_points; j++) {
+        for (size_t n = 0; n < m_nv; n++) {
+            x[index(n,j)] = initialValue(n,j);
+        }
+    }
+}
+
+doublereal Domain1D::initialValue(size_t n, size_t j)
+{
+    throw NotImplementedError("Domain1D::initialValue");
 }
 
 XML_Node& Domain1D::save(XML_Node& o, const doublereal* const sol)
@@ -231,36 +287,6 @@ void Domain1D::restore(const AnyMap& state, double* soln, int loglevel)
     }
 }
 
-void Domain1D::locate()
-{
-    if (m_left) {
-        // there is a domain on the left, so the first grid point in this domain
-        // is one more than the last one on the left
-        m_jstart = m_left->lastPoint() + 1;
-
-        // the starting location in the solution vector
-        m_iloc = m_left->loc() + m_left->size();
-    } else {
-        // this is the left-most domain
-        m_jstart = 0;
-        m_iloc = 0;
-    }
-    // if there is a domain to the right of this one, then repeat this for it
-    if (m_right) {
-        m_right->locate();
-    }
-}
-
-void Domain1D::setupGrid(size_t n, const doublereal* z)
-{
-    if (n > 1) {
-        resize(m_nv, n);
-        for (size_t j = 0; j < m_points; j++) {
-            m_z[j] = z[j];
-        }
-    }
-}
-
 void Domain1D::showSolution(const doublereal* x)
 {
     size_t nn = m_nv/5;
@@ -295,33 +321,6 @@ void Domain1D::showSolution(const doublereal* x)
         }
     }
     writelog("\n");
-}
-
-void Domain1D::setProfile(const std::string& name, double* values, double* soln)
-{
-    for (size_t n = 0; n < m_nv; n++) {
-        if (name == componentName(n)) {
-            for (size_t j = 0; j < m_points; j++) {
-                soln[index(n, j) + m_iloc] = values[j];
-            }
-            return;
-        }
-    }
-    throw CanteraError("Domain1D::setProfile", "unknown component: "+name);
-}
-
-void Domain1D::_getInitialSoln(doublereal* x)
-{
-    for (size_t j = 0; j < m_points; j++) {
-        for (size_t n = 0; n < m_nv; n++) {
-            x[index(n,j)] = initialValue(n,j);
-        }
-    }
-}
-
-doublereal Domain1D::initialValue(size_t n, size_t j)
-{
-    throw NotImplementedError("Domain1D::initialValue");
 }
 
 } // namespace
