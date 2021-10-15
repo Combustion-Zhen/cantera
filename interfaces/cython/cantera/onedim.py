@@ -740,7 +740,7 @@ class FreeFlame(FlameBase):
     __slots__ = ('inlet', 'flame', 'outlet')
     _other = ('grid', 'velocity')
 
-    def __init__(self, gas, grid=None, width=None):
+    def __init__(self, gas, grid=None, width=None, direct='left'):
         """
         A domain of type IdealGasFlow named 'flame' will be created to represent
         the flame and set to free flow. The three domains comprising the stack
@@ -764,13 +764,18 @@ class FreeFlame(FlameBase):
         if width is not None:
             grid = np.array([0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]) * width
 
-        super().__init__((self.inlet, self.flame, self.outlet), gas, grid)
+        #super().__init__((self.inlet, self.flame, self.outlet), gas, grid)
+
+        if direct == 'left':
+            super().__init__((self.inlet, self.flame, self.outlet), gas, grid)
+        elif direct == 'right':
+            super().__init__((self.outlet, self.flame, self.inlet), gas, grid)
 
         # Setting X needs to be deferred until linked to the flow domain
         self.inlet.T = gas.T
         self.inlet.X = gas.X
 
-    def set_initial_guess(self, locs=[0.0, 0.3, 0.5, 1.0], data=None, group=None):
+    def set_initial_guess(self, locs=[0.0, 0.3, 0.7, 1.0], data=None, group=None):
         """
         Set the initial guess for the solution. By default, the adiabatic flame
         temperature and equilibrium composition are computed for the inlet gas
@@ -786,9 +791,13 @@ class FreeFlame(FlameBase):
         super().set_initial_guess(data=data, group=group)
         if data:
             # set fixed temperature
+            """
             Tmid = .75 * self.T[0] + .25 * self.T[-1]
             i = np.flatnonzero(data.T < Tmid)[-1]
             self.fixed_temperature = data.T[i]
+            """
+            Tmid = .5 * self.T[0] + .5 * self.T[-1]
+            self.fixed_temperature = Tmid
 
             return
 
@@ -808,9 +817,7 @@ class FreeFlame(FlameBase):
         Yeq = self.gas.Y
         u1 = self.inlet.mdot / self.gas.density
 
-        self.set_profile('velocity', locs, [u0, u0, u1, u1])
-        self.set_profile('T', locs, [T0, T0, Teq, Teq])
-
+        """
         # Pick the location of the fixed temperature point, using an existing
         # point if a reasonable choice exists
         T = self.T
@@ -823,9 +830,33 @@ class FreeFlame(FlameBase):
         else:
             self.fixed_temperature = Tmid
 
+        self.set_profile('velocity', locs, [u0, u0, u1, u1])
+        self.set_profile('T', locs, [T0, T0, Teq, Teq])
+
         for n in range(self.gas.n_species):
             self.set_profile(self.gas.species_name(n),
-                             locs, [Y0[n], Y0[n], Yeq[n], Yeq[n]])
+                            locs, [Y0[n], Y0[n], Yeq[n], Yeq[n]])
+        """
+
+        if self.domains[0].name == 'reactants':
+            # propagate towards left
+            self.set_profile('velocity', locs, [u0, u0, u1, u1])
+            self.set_profile('T', locs, [T0, T0, Teq, Teq])
+
+            for n in range(self.gas.n_species):
+                self.set_profile(self.gas.species_name(n),
+                                locs, [Y0[n], Y0[n], Yeq[n], Yeq[n]])
+        elif self.domains[0].name == 'products':
+            # propagate towards right
+            self.set_profile('velocity', locs, [-u1, -u1, -u0, -u0])
+            self.set_profile('T', locs, [Teq, Teq, T0, T0])
+
+            for n in range(self.gas.n_species):
+                self.set_profile(self.gas.species_name(n),
+                                locs, [Yeq[n], Yeq[n], Y0[n], Y0[n]])
+
+        Tmid = 0.5 * T0 + 0.5 * Teq
+        self.fixed_temperature = Tmid
 
     def solve(self, loglevel=1, refine_grid=True, auto=False):
         """
