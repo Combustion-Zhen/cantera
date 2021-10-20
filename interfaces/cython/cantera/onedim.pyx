@@ -610,6 +610,31 @@ cdef class _FlowBase(Domain1D):
         """
         self.flow.setAxisymmetricFlow()
 
+    def set_radial_flow(self):
+        """
+        Set flow configuration for one-dimensional radial propagating flames, 
+        using specific inlet mass fluxes
+        """
+        self.flow.setRadialFlow()
+
+    def set_Cartesian(self):
+        """
+        Set the Cartesian coordinates
+        """
+        self.flow.setCartesian()
+
+    def set_cylindrical(self):
+        """
+        Set the cylindrical coordinates
+        """
+        self.flow.setCylindrical()
+
+    def set_spherical(self):
+        """
+        Set the spherical coordinates
+        """
+        self.flow.setSpherical()
+
     property flow_type:
         """
         Return the type of flow domain being represented, either "Free Flame" or

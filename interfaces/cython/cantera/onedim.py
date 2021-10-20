@@ -10,7 +10,6 @@ from ._cantera import *
 from .composite import Solution, SolutionArray
 from . import __version__, __git_commit__
 
-
 class FlameBase(Sim1D):
     """ Base class for flames with a single flow domain """
     __slots__ = ('gas',)
@@ -653,7 +652,6 @@ class FlameBase(Sim1D):
         if refine:
             self.set_refine_criteria(**refine)
 
-
 def _trim(docstring):
     """Remove block indentation from a docstring."""
     if not docstring:
@@ -673,7 +671,6 @@ def _trim(docstring):
 
     # Return a single string, with trailing and leading blank lines stripped
     return '\n'.join(trimmed).strip('\n')
-
 
 def _array_property(attr, size=None):
     """
@@ -712,6 +709,7 @@ for _attr in ['density', 'density_mass', 'density_mole', 'volume_mass',
               'isothermal_compressibility', 'thermal_expansion_coeff',
               'viscosity', 'thermal_conductivity', 'heat_release_rate']:
     setattr(FlameBase, _attr, _array_property(_attr))
+
 FlameBase.volume = _array_property('v') # avoid confusion with velocity gradient 'V'
 FlameBase.int_energy = _array_property('u') # avoid collision with velocity 'u'
 
@@ -734,17 +732,20 @@ for _attr in ['forward_rates_of_progress', 'reverse_rates_of_progress', 'net_rat
               'delta_standard_entropy', 'heat_production_rates']:
     setattr(FlameBase, _attr, _array_property(_attr, 'n_reactions'))
 
-
 class FreeFlame(FlameBase):
     """A freely-propagating flat flame."""
     __slots__ = ('inlet', 'flame', 'outlet')
     _other = ('grid', 'velocity')
 
-    def __init__(self, gas, grid=None, width=None, direct='left'):
+    def __init__(self, gas, grid=None, width=None, direct='inward'):
         """
         A domain of type IdealGasFlow named 'flame' will be created to represent
         the flame and set to free flow. The three domains comprising the stack
-        are stored as ``self.inlet``, ``self.flame``, and ``self.outlet``.
+        are stored as:
+        inward ( flame propagate towards z = 0 )
+            ``self.inlet``, ``self.flame``, and ``self.outlet``;
+        outward ( flame propagate towards z = infty )
+            ``self.outlet``, ``self.flame``, and ``self.inlet``.
 
         :param grid:
             A list of points to be used as the initial grid. Not recommended
@@ -753,6 +754,8 @@ class FreeFlame(FlameBase):
         :param width:
             Defines a grid on the interval [0, width] with internal points
             determined automatically by the solver.
+        :param direct
+            Direction of the flame propagation.
         """
         self.inlet = Inlet1D(name='reactants', phase=gas)
         self.outlet = Outlet1D(name='products', phase=gas)
@@ -766,10 +769,12 @@ class FreeFlame(FlameBase):
 
         #super().__init__((self.inlet, self.flame, self.outlet), gas, grid)
 
-        if direct == 'left':
+        if direct == 'inward':
             super().__init__((self.inlet, self.flame, self.outlet), gas, grid)
-        elif direct == 'right':
+        elif direct == 'outward':
             super().__init__((self.outlet, self.flame, self.inlet), gas, grid)
+        else:
+            raise Exception("Invalid flame propagation direction")
 
         # Setting X needs to be deferred until linked to the flow domain
         self.inlet.T = gas.T
@@ -950,6 +955,203 @@ class FreeFlame(FlameBase):
 
         return self.solve_adjoint(perturb, self.gas.n_reactions, dgdx) / Su0
 
+class ForcedPolarFlame(FlameBase):
+    """
+    A one-dimensional flame in spherical/cylindrical/Cartesian coordinates,
+    propagating inward/outward.
+    """
+    __slots__ = ('inlet', 'flame', 'outlet', 'radius', 'state')
+    _other = ('grid', 'velocity')
+
+    def __init__(self, gas, radius=0.05, width=0.1,
+                 direct='inward', coordinates='spherical', state='steady',
+                 inlet='steady'):
+        """
+        A domain of type IdealGasFlow named 'flame' will be created to represent
+        the flame and set to forced flow. The three domains comprising the stack
+        are stored as:
+        inward ( flame propagate towards z = 0 )
+            ``self.inlet``, ``self.flame``, and ``self.outlet``;
+        outward ( flame propagate towards z = infty )
+            ``self.outlet``, ``self.flame``, and ``self.inlet``.
+
+        :param radius:
+            Radius of the flame, take the location of the Tmid = (T0 + Teq)/2
+        :param width:
+            Defines a grid on the interval of width with internal points
+            determined automatically by the solver.
+        :param direct:
+            Direction of the flame propagation.
+        :param coordinates:
+            Type of the coordinates
+        """
+
+        if ( inlet == 'steady' ) or ( inlet == 0 ):
+            self.inlet = Inlet1D(name='reactants', phase=gas)
+        else :
+            raise Exception("ForcedPolarFlame init: Invalid inlet")
+
+        self.outlet = Outlet1D(name='products', phase=gas)
+
+        if not hasattr(self, 'flame'):
+            # Create flame domain if not already instantiated by a child class
+            self.flame = IdealGasFlow(gas, name='flame')
+
+            if ( state == 'transient' ) or ( state == 1 ) :
+                self.flame.set_radial_flow()
+            elif ( state == 'steady' ) or ( state == 0 ) :
+                self.flame.set_free_flow()
+            else :
+                raise Exception("ForcedPolarFlame init: Invalid state")
+
+            if ( coordinates == 'spherical' ) or ( coordinates == 2 ) :
+                self.flame.set_spherical()
+            elif ( coordinates == 'cylindrical' ) or ( coordinates == 1 ) :
+                self.flame.set_cylindrical()
+            elif ( coordinates == 'Cartesian' ) or ( coordinates == 0 ) :
+                self.flame.set_Cartesian()
+            else :
+                raise Exception("ForcedPolarFlame init: Invalid coordinates")
+
+        self.state = state
+        self.radius = radius
+
+        r_end = radius + width / 2.0
+        c = 2.0 / width * ( 1.0 - 1.0/5.0 )
+        r_start = radius - 0.5 * width * ( 1.0 - np.exp( -c*radius ) )
+
+        r_loc = (radius - r_start) / (r_end - r_start)
+        if r_loc <= 0.1 :
+            raise Exception("ForcedPolarFlame init: Radius too small, "+ 
+                            "increase radius or reduce width.")
+
+        grid = np.array([0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0])
+        grid = grid * (r_end - r_start) + r_start
+
+        if direct == 'inward':
+            super().__init__((self.inlet, self.flame, self.outlet), gas, grid)
+        elif direct == 'outward':
+            super().__init__((self.outlet, self.flame, self.inlet), gas, grid)
+        else:
+            raise Exception("Invalid flame propagation direction")
+
+        # Setting X needs to be deferred until linked to the flow domain
+        self.inlet.T = gas.T
+        self.inlet.X = gas.X
+
+    def set_initial_guess(self, data=None, group=None):
+        """
+        Set the initial guess for the solution. By default, the adiabatic flame
+        temperature and equilibrium composition are computed for the inlet gas
+        composition. Alternatively, a previously calculated result can be
+        supplied as an initial guess via 'data' and 'key' inputs (see
+        `FlameBase.set_initial_guess`).
+
+        :param locs:
+            A list of four locations to define the temperature and mass fraction
+            profiles. Profiles rise linearly between the second and third
+            location. Locations are given as a fraction of the entire domain
+        """
+        super().set_initial_guess(data=data, group=group)
+        if data:
+            # set fixed temperature
+            Tmid = .5 * self.T[0] + .5 * self.T[-1]
+            self.fixed_temperature = Tmid
+            return
+
+        self.gas.TPY = self.inlet.T, self.P, self.inlet.Y
+
+        if not self.inlet.mdot:
+            # nonzero initial guess increases likelihood of convergence
+            self.inlet.mdot = 1.0 * self.gas.density
+
+        Y0 = self.inlet.Y
+        u0 = self.inlet.mdot / self.gas.density
+        T0 = self.inlet.T
+
+        # get adiabatic flame temperature and composition
+        self.gas.equilibrate('HP')
+        Teq = self.gas.T
+        Yeq = self.gas.Y
+        u1 = self.inlet.mdot / self.gas.density
+
+        r_start = self.flame.grid[0]
+        r_end = self.flame.grid[-1]
+        r_loc = (self.radius - r_start) / (r_end - r_start)
+        locs = [0.0, r_loc-0.1, r_loc+0.1, 1.0]
+
+        if self.domains[0].name == 'reactants':
+            # propagate towards left
+            self.set_profile('velocity', locs, [u0, u0, u1, u1])
+            self.set_profile('T', locs, [T0, T0, Teq, Teq])
+
+            for n in range(self.gas.n_species):
+                self.set_profile(self.gas.species_name(n),
+                                locs, [Y0[n], Y0[n], Yeq[n], Yeq[n]])
+        elif self.domains[0].name == 'products':
+            # propagate towards right
+            self.set_profile('velocity', locs, [-u1, -u1, -u0, -u0])
+            self.set_profile('T', locs, [Teq, Teq, T0, T0])
+
+            for n in range(self.gas.n_species):
+                self.set_profile(self.gas.species_name(n),
+                                locs, [Yeq[n], Yeq[n], Y0[n], Y0[n]])
+
+        Tmid = 0.5 * T0 + 0.5 * Teq
+        self.fixed_temperature = Tmid
+
+    def solve(self, loglevel=1, refine_grid=True, auto=False):
+        """
+        Solve the problem.
+
+        :param loglevel:
+            integer flag controlling the amount of diagnostic output. Zero
+            suppresses all output, and 5 produces very verbose output.
+        :param refine_grid:
+            if True, enable grid refinement.
+        :param auto: if True, sequentially execute the different solution stages
+            and attempt to automatically recover from errors. Attempts to first
+            solve on the initial grid with energy enabled. If that does not
+            succeed, a fixed-temperature solution will be tried followed by
+            enabling the energy equation, and then with grid refinement enabled.
+            If non-default tolerances have been specified or multicomponent
+            transport is enabled, an additional solution using these options
+            will be calculated.
+        """
+
+        if ( self.state == 'transient' ) or ( self.state == 1 ) :
+            raise Exception("ForcedPolarFlame solve: " +
+                            "transient state does not have steady solution")
+        else :
+            return super().solve(loglevel, refine_grid, auto)
+
+    def get_flame_speed_reaction_sensitivities(self):
+        r"""
+        Compute the normalized sensitivities of the laminar flame speed
+        :math:`S_u` with respect to the reaction rate constants :math:`k_i`:
+
+        .. math::
+
+            s_i = \frac{k_i}{S_u} \frac{dS_u}{dk_i}
+        """
+
+        def g(sim):
+            return sim.velocity[0]
+
+        Nvars = sum(D.n_components * D.n_points for D in self.domains)
+
+        # Index of u[0] in the global solution vector
+        i_Su = self.inlet.n_components + self.flame.component_index('velocity')
+
+        dgdx = np.zeros(Nvars)
+        dgdx[i_Su] = 1
+
+        Su0 = g(self)
+
+        def perturb(sim, i, dp):
+            sim.gas.set_multiplier(1+dp, i)
+
+        return self.solve_adjoint(perturb, self.gas.n_reactions, dgdx) / Su0
 
 class IonFlameBase(FlameBase):
 
@@ -977,7 +1179,6 @@ class IonFlameBase(FlameBase):
             self.poisson_enabled = True
             super().solve(loglevel, refine_grid, auto)
 
-
 class IonFreeFlame(IonFlameBase, FreeFlame):
     """A freely-propagating flame with ionized gas."""
     __slots__ = ('inlet', 'flame', 'outlet')
@@ -990,7 +1191,6 @@ class IonFreeFlame(IonFlameBase, FreeFlame):
             self.flame.set_free_flow()
 
         super().__init__(gas, grid, width)
-
 
 class BurnerFlame(FlameBase):
     """A burner-stabilized flat flame."""
@@ -1121,7 +1321,6 @@ class BurnerFlame(FlameBase):
 
         self.set_steady_callback(original_callback)
 
-
 class IonBurnerFlame(IonFlameBase, BurnerFlame):
     """A burner-stabilized flat flame with ionized gas."""
     __slots__ = ('burner', 'flame', 'outlet')
@@ -1134,7 +1333,6 @@ class IonBurnerFlame(IonFlameBase, BurnerFlame):
             self.flame.set_axisymmetric_flow()
 
         super().__init__(gas, grid, width)
-
 
 class CounterflowDiffusionFlame(FlameBase):
     """ A counterflow diffusion flame """
@@ -1526,7 +1724,6 @@ class ImpingingJet(FlameBase):
         self.set_profile('velocity', locs, [u0, 0.0])
         self.set_profile('spread_rate', locs, [0.0, 0.0])
 
-
 class CounterflowPremixedFlame(FlameBase):
     """ A premixed counterflow flame """
     __slots__ = ('reactants', 'flame', 'products')
@@ -1622,7 +1819,6 @@ class CounterflowPremixedFlame(FlameBase):
         self.set_profile('velocity', [0.0, 1.0], [uu, -ub])
         self.set_profile('spread_rate', [0.0, x0/dz, 1.0], [0.0, a, 0.0])
         self.set_profile("lambda", [0.0, 1.0], [L, L])
-
 
 class CounterflowTwinPremixedFlame(FlameBase):
     """
