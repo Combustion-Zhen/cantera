@@ -960,6 +960,10 @@ cdef extern from "cantera/oneD/StFlow.h":
         cbool withSoret()
         void setFreeFlow()
         void setAxisymmetricFlow()
+        void setRadialFlow()
+        void setCartesian()
+        void setCylindrical()
+        void setSpherical()
         string flowType()
 
 
