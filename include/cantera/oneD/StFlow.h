@@ -220,6 +220,13 @@ public:
         m_dovisc = false;
     }
 
+    //! Set flow configuration for radial propagating flames
+    //! in symmetric polar coordinates
+    void setPolarFlow() {
+        m_type = cPolarFlow;
+        m_dovisc = false;
+    }
+
     //! Set flow configuration for radial stagnation flames, 
     //! using specific inlet mass fluxes
     void setTubularFlow() {

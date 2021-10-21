@@ -612,6 +612,13 @@ cdef class _FlowBase(Domain1D):
         using specific inlet mass fluxes
         """
         self.flow.setRadialFlow()
+    
+    def set_polar_flow(self):
+        """
+        Set flow configuration for one-dimensional propagating flames, 
+        using symmetric polar coordinates
+        """
+        self.flow.setPolarFlow()
 
     def set_Cartesian(self):
         """
