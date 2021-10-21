@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../pyutils"
+		},
+		{
+			"path": "../../Documents/sphericalFlame"
+		}
+	],
+    "settings": {}
+}

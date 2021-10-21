@@ -468,6 +468,10 @@ void Outlet1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
                 db[k] = 0;
             }
         }
+        // Zhen Lu 211022
+        //for (size_t k = c_offset_Y; k < nc; k++) {
+        //    rb[k] = xb[k] - xb[k - nc]; // zero mass fraction gradient
+        //}
     }
 }
 

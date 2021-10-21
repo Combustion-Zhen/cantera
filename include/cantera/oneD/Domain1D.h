@@ -15,9 +15,10 @@ namespace Cantera
 const int cFlowType = 50;
 const int cFreeFlow = 51;
 const int cAxisymmetricStagnationFlow = 52;
-//  Zhen Lu 210917
+//  Zhen Lu
 const int cRadialFlow = 53;
-const int cTubularFlow = 54;
+const int cPolarFlow = 54;
+const int cTubularFlow = 55;
 
 const int cConnectorType = 100;
 const int cSurfType = 102;
@@ -234,6 +235,11 @@ public:
     virtual void initTimeInteg(doublereal dt, const doublereal* x0) {
         std::copy(x0 + loc(), x0 + loc() + size(), m_slast.begin());
         m_rdt = 1.0/dt;
+    }
+
+    //! update simulation time in the domain
+    inline void updateTime(double t) {
+        m_time = t;
     }
 
     //! Domain type flag.
@@ -546,6 +552,8 @@ protected:
     int m_type;
     // Zhen Lu 210916
     int m_ctype;
+
+    double m_time;
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain

@@ -616,6 +616,13 @@ cdef class _FlowBase(Domain1D):
         using specific inlet mass fluxes
         """
         self.flow.setRadialFlow()
+    
+    def set_polar_flow(self):
+        """
+        Set flow configuration for one-dimensional propagating flames, 
+        using symmetric polar coordinates
+        """
+        self.flow.setPolarFlow()
 
     def set_Cartesian(self):
         """
@@ -634,6 +641,12 @@ cdef class _FlowBase(Domain1D):
         Set the spherical coordinates
         """
         self.flow.setSpherical()
+
+    def set_ignition(self, energy=2e-4, radius=2e-4, time=2e-4):
+        """
+        Set the ignition parameter
+        """
+        self.flow.setIgnition(energy, radius, time)
 
     property flow_type:
         """
@@ -808,6 +821,9 @@ cdef class Sim1D:
             f = Func1(f)
         self._steady_callback = f
         self.sim.setSteadyCallback(self._steady_callback.func)
+
+    def time(self):
+        return self.sim.time()
 
     def domain_index(self, dom):
         """
@@ -1323,6 +1339,10 @@ cdef class Sim1D:
         # Final call with expensive options enabled
         if have_user_tolerances or solve_multi or soret_doms:
             self.sim.solve(loglevel, <cbool>refine_grid)
+    
+    def advance(self, time, loglevel=1, refine_grid=True):
+        self.sim.advance(time, loglevel, <cbool>refine_grid)
+        return
 
     def refine(self, loglevel=1):
         """

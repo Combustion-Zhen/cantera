@@ -227,6 +227,13 @@ public:
         m_dovisc = false;
     }
 
+    //! Set flow configuration for radial propagating flames
+    //! in symmetric polar coordinates
+    void setPolarFlow() {
+        m_type = cPolarFlow;
+        m_dovisc = false;
+    }
+
     //! Set flow configuration for radial stagnation flames, 
     //! using specific inlet mass fluxes
     void setTubularFlow() {
@@ -241,6 +248,14 @@ public:
     //! Set coefficient for the gradient scheme
     void setBeta(doublereal b) {
         m_beta = b;
+    }
+
+    //! Set energy deposition for ignition at r = 0
+    void setIgnition(double e=2.0e-4, double r=2.0e-4, double t=2.0e-4) {
+        m_do_ignition = true;
+        m_ign_energy = e;
+        m_ign_radius = r;
+        m_ign_time = t;
     }
 
     //! Turn radiation on / off.
@@ -392,6 +407,8 @@ protected:
         const vector_fp& s, const double v, size_t j) const;
     //! @}
 
+    double ignEnergy(size_t j) const;
+
     //! Write the net production rates at point `j` into array `m_wdot`
     void getWdot(doublereal* x, size_t j) {
         setGas(x,j);
@@ -532,7 +549,16 @@ private:
 
     size_t m_stype;
 
-    doublereal m_beta;
+    double m_beta;
+
+    //! Ignition parameters
+    bool m_do_ignition;
+
+    double m_ign_energy;
+
+    double m_ign_radius;
+
+    double m_ign_time;
 };
 
 }

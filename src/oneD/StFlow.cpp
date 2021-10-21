@@ -23,20 +23,16 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     Domain1D(nsp+c_offset_Y, points),
     m_press(-1.0),
     m_nsp(nsp),
-    m_thermo(0),
-    m_kin(0),
-    m_trans(0),
-    m_epsilon_left(0.0),
-    m_epsilon_right(0.0),
+    m_thermo(0), m_kin(0), m_trans(0),
+    m_epsilon_left(0.0), m_epsilon_right(0.0),
     m_do_soret(false),
     m_do_multicomponent(false),
     m_do_radiation(false),
-    m_kExcessLeft(0),
-    m_kExcessRight(0),
-    m_zfixed(Undef),
-    m_tfixed(-1.),
-    m_stype(0),
-    m_beta(0.1)
+    m_kExcessLeft(0), m_kExcessRight(0),
+    m_zfixed(Undef), m_tfixed(-1.),
+    m_stype(0), m_beta(0.1),
+    m_do_ignition(false),
+    m_ign_energy(0.0), m_ign_radius(0.0), m_ign_time(0.0)
 {
     if (ph->type() == "IdealGas") {
         m_thermo = static_cast<IdealGasPhase*>(ph);
@@ -951,22 +947,30 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     // Continuity. This propagates information right-to-left, since
     // rho_u at point 0 is dependent on rho_u at point 1, but not on
     // mdot from the inlet.
-    size_t m = coordinatesType();
-    rsd[index(c_offset_U,0)]
-    = 
-    (
-        rho_u(x,1) * pow(z(1), m)
-        -
-        rho_u(x,0) * pow(z(0), m)
-    ) / dz(0) / pow(z(0), m);
-    //rho_u(x,0) * pow(z(0), m)
-    //-
-    //rho_u(x,1) * pow(z(1), m);
 
-    if (domainType() == cAxisymmetricStagnationFlow) {
-        rsd[index(c_offset_U,0)] 
-        -= 
-        (density(1)*V(x,1) + density(0)*V(x,0));
+    if (domainType() == cPolarFlow) {
+        // symmetric at r=0
+        rsd[index(c_offset_U,0)]
+        =
+        rho_u(x, 1) / dz(0)
+        +
+        rdt * (m_rho[0] - m_rho_last[0]);
+    } else {
+        size_t m = coordinatesType();
+
+        rsd[index(c_offset_U,0)]
+        = 
+        (
+            rho_u(x,1) * pow(z(1), m)
+            -
+            rho_u(x,0) * pow(z(0), m)
+        ) / dz(0) / pow(z(0), m);
+
+        if (domainType() == cAxisymmetricStagnationFlow) {
+            rsd[index(c_offset_U,0)] 
+            -= 
+            (density(1)*V(x,1) + density(0)*V(x,0));
+        } 
     }
 
     // the inlet (or other) object connected to this one will modify
@@ -1005,8 +1009,10 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     // and T, and zero diffusive flux for all species.
 
     rsd[index(c_offset_U,j)] = rho_u(x,j);
+
     // continuity for the stationary flame
     size_t m = coordinatesType();
+
     if (domainType() == cFreeFlow) {
         rsd[index(c_offset_U,j)] 
         = 
@@ -1015,9 +1021,6 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
             -
             rho_u(x,j-1) * pow(z(j-1), m)
         ) / dz(j-1) / pow(z(j), m);
-        //rho_u(x,j) * pow(z(j), m)
-        //-
-        //rho_u(x,j-1) * pow(z(j-1), m);
     }
 
     rsd[index(c_offset_V,j)] = V(x,j);
@@ -1090,7 +1093,19 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
                 //rho_u(x,j+1) * pow(z(j+1), m);
             }
         } 
-    } else {
+    } 
+//    else if (domainType() == cPolarFlow) 
+//    {
+//        rsd[index(c_offset_U,j)] 
+//        = 
+//        (rho_u(x,j+1)-rho_u(x,j-1))/d2z(j)
+//        + 
+//        m * rho_u(x,j) / z(j)
+//        +
+//        rdt * (m_rho[j] - m_rho_last[j]);
+//    } 
+    else 
+    {
         rsd[index(c_offset_U,j)] 
         = 
         (
@@ -1168,25 +1183,36 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
         // heat release term
         const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
         const vector_fp& cp_R = m_thermo->cp_R_ref();
-        double sum = 0.0;
-        double sum2 = 0.0;
+
+        double hrr = 0.0;
+        double sum_flux = 0.0;
+
         for (size_t k = 0; k < m_nsp; k++) {
-            // Zhen Lu 210928
+            hrr += wdot(k,j) * h_RT[k];
+
             //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
             double flxk = (
                 m_flux(k,j) * dz(j-1)
                 +
                 m_flux(k,j-1) * dz(j)
             ) / d2z(j);
-            sum += wdot(k,j) * h_RT[k];
-            sum2 += flxk * cp_R[k] / m_wt[k];
+            sum_flux += flxk * cp_R[k] / m_wt[k];
         }
-        sum *= GasConstant * T(x,j);
-        double dtdzj = dTdz(x,j);
-        sum2 *= GasConstant * dtdzj;
 
+        hrr *= GasConstant * T(x,j);
+
+        double dtdzj = dTdz(x,j);
+        sum_flux *= GasConstant * dtdzj;
+
+        // convection and diffusion
         rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
-                                    - divHeatFlux(x,j) - sum - sum2;
+                                    - divHeatFlux(x,j) - sum_flux;
+        // heat release
+        rsd[index(c_offset_T, j)] -= hrr;
+        // Zhen Lu 211027 ignition
+        if ( m_do_ignition ) {
+            rsd[index(c_offset_T, j)] += ignEnergy(j);
+        }
         rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
         rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
         rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
@@ -1395,20 +1421,38 @@ double StFlow::scalarGradientGamma
     const vector_fp& s, const double v, size_t j
 ) const
 {
-        int k = (v > 0.0 ? 0 : 1);
+    int k = (v > 0.0 ? 0 : 1);
 
-        double grad_CD = (s[2] - s[0])/d2z(j);
-        double grad_UD = (s[k+1] - s[k])/dz(j+k-1);
+    double grad_CD = (s[2] - s[0])/d2z(j);
+    double grad_UD = (s[k+1] - s[k])/dz(j+k-1);
 
-        double phi = (s[1] - s[2*k])/(s[2-2*k] - s[2*k]);
+    double phi = (s[1] - s[2*k])/(s[2-2*k] - s[2*k]);
 
-        if (phi <= 0.0 || phi >= 1.0) {
-            return grad_UD;
-        } else if ( phi <= m_beta ) {
-            return phi / m_beta * grad_CD + (1 - phi / m_beta) * grad_UD;
-        } else {
-            return grad_CD;
-        }
+    if (phi <= 0.0 || phi >= 1.0) {
+        return grad_UD;
+    } else if ( phi <= m_beta ) {
+        return phi / m_beta * grad_CD + (1 - phi / m_beta) * grad_UD;
+    } else {
+        return grad_CD;
+    }
+}
+
+double StFlow::ignEnergy(size_t j) const
+{
+
+    if (m_time >= m_ign_time) return 0.0;
+
+    if (z(j) >= 4.0*m_ign_radius)
+    {
+        return 0.0;
+    }
+    else
+    {
+        double q = m_ign_energy 
+                  *exp(-pow(z(j)/m_ign_radius, 2.0))
+                  /(pow(Pi, 1.5)*pow(m_ign_radius, 3.0)*m_ign_time);
+        return q;
+    }
 }
 
 } // namespace
