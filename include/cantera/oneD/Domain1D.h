@@ -15,9 +15,10 @@ namespace Cantera
 const int cFlowType = 50;
 const int cFreeFlow = 51;
 const int cAxisymmetricStagnationFlow = 52;
-//  Zhen Lu 210917
+//  Zhen Lu
 const int cRadialFlow = 53;
-const int cTubularFlow = 54;
+const int cPolarFlow = 54;
+const int cTubularFlow = 55;
 
 const int cConnectorType = 100;
 const int cSurfType = 102;

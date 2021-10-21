@@ -803,21 +803,28 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     // rho_u at point 0 is dependent on rho_u at point 1, but not on
     // mdot from the inlet.
     size_t m = coordinatesType();
-    rsd[index(c_offset_U,0)]
-    = 
-    (
-        rho_u(x,1) * pow(z(1), m)
-        -
-        rho_u(x,0) * pow(z(0), m)
-    ) / dz(0) / pow(z(0), m);
-    //rho_u(x,0) * pow(z(0), m)
-    //-
-    //rho_u(x,1) * pow(z(1), m);
 
-    if (domainType() == cAxisymmetricStagnationFlow) {
-        rsd[index(c_offset_U,0)] 
-        -= 
-        (density(1)*V(x,1) + density(0)*V(x,0));
+    if (domainType() == cPolarFlow) {
+        // symmetric at r=0
+        rsd[index(c_offset_U,0)]
+        =
+        rho_u(x, 1) / dz(0)
+        +
+        rdt * (m_rho[0] - m_rho_last[0]);
+    } else {
+        rsd[index(c_offset_U,0)]
+        = 
+        (
+            rho_u(x,1) * pow(z(1), m)
+            -
+            rho_u(x,0) * pow(z(0), m)
+        ) / dz(0) / pow(z(0), m);
+
+        if (domainType() == cAxisymmetricStagnationFlow) {
+            rsd[index(c_offset_U,0)] 
+            -= 
+            (density(1)*V(x,1) + density(0)*V(x,0));
+        } 
     }
 
     // the inlet (or other) object connected to this one will modify
