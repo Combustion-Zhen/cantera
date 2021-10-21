@@ -812,6 +812,9 @@ cdef class Sim1D:
         self._steady_callback = f
         self.sim.setSteadyCallback(self._steady_callback.func)
 
+    def time(self):
+        return self.sim.time()
+
     def domain_index(self, dom):
         """
         Get the index of a domain, specified either by name or as a Domain1D
@@ -1326,6 +1329,10 @@ cdef class Sim1D:
         # Final call with expensive options enabled
         if have_user_tolerances or solve_multi or soret_doms:
             self.sim.solve(loglevel, <cbool>refine_grid)
+    
+    def advance(self, time, loglevel=1, refine_grid=True):
+        self.sim.advance(time, loglevel, <cbool>refine_grid)
+        return
 
     def refine(self, loglevel=1):
         """

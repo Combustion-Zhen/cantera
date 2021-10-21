@@ -1126,6 +1126,19 @@ class ForcedPolarFlame(FlameBase):
         else :
             return super().solve(loglevel, refine_grid, auto)
 
+    def advance(self, time, loglevel=1, refine_grid=True):
+        """
+        Solve the problem.
+
+        :param loglevel:
+            integer flag controlling the amount of diagnostic output. Zero
+            suppresses all output, and 5 produces very verbose output.
+        :param refine_grid:
+            if True, enable grid refinement.
+        """
+
+        return super().advance(time, loglevel, refine_grid)
+
     def get_flame_speed_reaction_sensitivities(self):
         r"""
         Compute the normalized sensitivities of the laminar flame speed
@@ -1204,7 +1217,7 @@ class FreePolarFlame(FlameBase):
 
         super().__init__((self.pole, self.flame, self.boundary), gas, grid)
 
-    def set_initial_guess(self, data=None, group=None, num=51,
+    def set_initial_guess(self, data=None, group=None, num=11,
                           direct='outward', radius=0.002, thickness=0.0004):
         """
         Set the initial guess for the solution. By default, the adiabatic flame
@@ -1217,6 +1230,8 @@ class FreePolarFlame(FlameBase):
         if data:
             return
 
+        self.gas.TPY = self.gas.T, self.P, self.gas.Y
+
         T0 = self.gas.T
         Y0 = self.gas.Y
 
@@ -1225,11 +1240,13 @@ class FreePolarFlame(FlameBase):
         Teq = self.gas.T
         Yeq = self.gas.Y
 
-        width = self.grid[-1]
+        width = self.flame.grid[-1]
 
         # calculate grid
         if radius / thickness <= 4 or (width-radius)/thickness <=4 :
-            raise Exception("FreePolarFlame init: Flame too close to the boundary")
+            raise Exception("FreePolarFlame init: "+
+                            "Flame too close to the boundary")
+
         b_erf = 0.5 + 0.5 * special.erf(-4)
         weight = np.linspace(b_erf, 1-b_erf, num=num-2, endpoint=True)
         locs = radius + thickness * special.erfinv(2*weight-1)
@@ -1255,9 +1272,23 @@ class FreePolarFlame(FlameBase):
 
         profile = (1-weight) * T_l + weight * T_r
         self.set_profile('T', locs, profile)
+
         for n in range(self.gas.n_species):
             profile = (1-weight) * Y_l[n] + weight * Y_r[n]
             self.set_profile(self.gas.species_name(n), locs, profile)
+
+    def advance(self, time, loglevel=1, refine_grid=True):
+        """
+        Solve the problem.
+
+        :param loglevel:
+            integer flag controlling the amount of diagnostic output. Zero
+            suppresses all output, and 5 produces very verbose output.
+        :param refine_grid:
+            if True, enable grid refinement.
+        """
+
+        return super().advance(time, loglevel, refine_grid)
 
 class IonFlameBase(FlameBase):
 
