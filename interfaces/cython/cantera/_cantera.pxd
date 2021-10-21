@@ -961,6 +961,7 @@ cdef extern from "cantera/oneD/StFlow.h":
         void setFreeFlow()
         void setAxisymmetricFlow()
         void setRadialFlow()
+        void setPolarFlow()
         void setCartesian()
         void setCylindrical()
         void setSpherical()

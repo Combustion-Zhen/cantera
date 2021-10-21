@@ -5,6 +5,7 @@ from math import erf
 from email.utils import formatdate
 import warnings
 import numpy as np
+from scipy import special
 
 from ._cantera import *
 from .composite import Solution, SolutionArray
@@ -1152,6 +1153,111 @@ class ForcedPolarFlame(FlameBase):
             sim.gas.set_multiplier(1+dp, i)
 
         return self.solve_adjoint(perturb, self.gas.n_reactions, dgdx) / Su0
+
+class FreePolarFlame(FlameBase):
+    """A freely propagating one-dimensional flame, symmetric with respect to r=0."""
+    __slots__ = ('pole', 'flame', 'boundary')
+    _other = ('grid', 'velocity')
+
+    def __init__(self, gas, width=0.2, coordinates='spherical', const='P'):
+        """
+        A domain of type IdealGasFlow named 'flame' will be created to represent
+        the flame and set to forced flow. The three domains comprising the stack
+        are stored as: ``self.pole``, ``self.flame``, and ``self.boundary``.
+
+        :param width:
+            Defines a grid on the interval of [0, width] with internal points
+            determined automatically by the solver.
+        :param direct:
+            Direction of the flame propagation.
+        :param coordinates:
+            Type of the coordinates
+        :param const:
+            Type of the combustor, const 'P' or const 'V'
+        """
+
+        self.pole = SymmetryPlane1D(name='pole', phase=gas)
+
+        if ( const == 'P' ) or ( const == '0' ) :
+            self.boundary = Outlet1D(name='boundary', phase=gas)
+        elif ( const == 'V' ) or ( const == '1' ) :
+            self.boundary = Surface1D(name='boundary', phase=gas)
+        else :
+            raise Exception("FreePolarFlame init: Invalid const")
+
+        if not hasattr(self, 'flame'):
+            # Create flame domain if not already instantiated by a child class
+            self.flame = IdealGasFlow(gas, name='flame')
+            self.flame.set_polar_flow()
+
+            if ( coordinates == 'spherical' ) or ( coordinates == 2 ) :
+                self.flame.set_spherical()
+            elif ( coordinates == 'cylindrical' ) or ( coordinates == 1 ) :
+                self.flame.set_cylindrical()
+            elif ( coordinates == 'Cartesian' ) or ( coordinates == 0 ) :
+                self.flame.set_Cartesian()
+            else :
+                raise Exception("FreePolarFlame init: Invalid coordinates")
+
+        grid = np.array([0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0])
+        grid = grid * width
+
+        super().__init__((self.pole, self.flame, self.boundary), gas, grid)
+
+    def set_initial_guess(self, data=None, group=None, num=51,
+                          direct='outward', radius=0.002, thickness=0.0004):
+        """
+        Set the initial guess for the solution. By default, the adiabatic flame
+        temperature and equilibrium composition are computed for the inlet gas
+        composition. Alternatively, a previously calculated result can be
+        supplied as an initial guess via 'data' and 'key' inputs (see
+        `FlameBase.set_initial_guess`).
+        """
+        super().set_initial_guess(data=data, group=group)
+        if data:
+            return
+
+        T0 = self.gas.T
+        Y0 = self.gas.Y
+
+        # get adiabatic flame temperature and composition
+        self.gas.equilibrate('HP')
+        Teq = self.gas.T
+        Yeq = self.gas.Y
+
+        width = self.grid[-1]
+
+        # calculate grid
+        if radius / thickness <= 4 or (width-radius)/thickness <=4 :
+            raise Exception("FreePolarFlame init: Flame too close to the boundary")
+        b_erf = 0.5 + 0.5 * special.erf(-4)
+        weight = np.linspace(b_erf, 1-b_erf, num=num-2, endpoint=True)
+        locs = radius + thickness * special.erfinv(2*weight-1)
+
+        locs = np.insert(locs, 0, 0)
+        locs = np.append(locs, width)
+        weight = np.insert(weight, 0, 0)
+        weight = np.append(weight, 1)
+
+        if direct == 'inward':
+            T_l = T0
+            T_r = Teq
+            Y_l = Y0
+            Y_r = Yeq
+        elif direct == 'outward':
+            T_l = Teq
+            T_r = T0
+            Y_l = Yeq
+            Y_r = Y0
+
+        self.flame.grid = locs
+        locs = locs / width
+
+        profile = (1-weight) * T_l + weight * T_r
+        self.set_profile('T', locs, profile)
+        for n in range(self.gas.n_species):
+            profile = (1-weight) * Y_l[n] + weight * Y_r[n]
+            self.set_profile(self.gas.species_name(n), locs, profile)
 
 class IonFlameBase(FlameBase):
 
