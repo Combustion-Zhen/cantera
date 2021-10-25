@@ -396,7 +396,7 @@ doublereal OneDim::singleTimeStep(double dt, double* x,
             dt *= m_tfactor;
             if (dt < m_tmin) {
                 throw CanteraError("OneDim::singleTimeStep",
-                                    "Time integration failed.");
+                                   "Time integration failed.");
             }
         }
 

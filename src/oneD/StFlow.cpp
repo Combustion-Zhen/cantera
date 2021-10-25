@@ -951,7 +951,6 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     // Continuity. This propagates information right-to-left, since
     // rho_u at point 0 is dependent on rho_u at point 1, but not on
     // mdot from the inlet.
-    size_t m = coordinatesType();
 
     if (domainType() == cPolarFlow) {
         // symmetric at r=0
@@ -961,6 +960,8 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
         +
         rdt * (m_rho[0] - m_rho_last[0]);
     } else {
+        size_t m = coordinatesType();
+
         rsd[index(c_offset_U,0)]
         = 
         (
@@ -1012,8 +1013,10 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     // and T, and zero diffusive flux for all species.
 
     rsd[index(c_offset_U,j)] = rho_u(x,j);
+
     // continuity for the stationary flame
     size_t m = coordinatesType();
+
     if (domainType() == cFreeFlow) {
         rsd[index(c_offset_U,j)] 
         = 
@@ -1022,9 +1025,6 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
             -
             rho_u(x,j-1) * pow(z(j-1), m)
         ) / dz(j-1) / pow(z(j), m);
-        //rho_u(x,j) * pow(z(j), m)
-        //-
-        //rho_u(x,j-1) * pow(z(j-1), m);
     }
 
     rsd[index(c_offset_V,j)] = V(x,j);
@@ -1097,7 +1097,19 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
                 //rho_u(x,j+1) * pow(z(j+1), m);
             }
         } 
-    } else {
+    } 
+//    else if (domainType() == cPolarFlow) 
+//    {
+//        rsd[index(c_offset_U,j)] 
+//        = 
+//        (rho_u(x,j+1)-rho_u(x,j-1))/d2z(j)
+//        + 
+//        m * rho_u(x,j) / z(j)
+//        +
+//        rdt * (m_rho[j] - m_rho_last[j]);
+//    } 
+    else 
+    {
         rsd[index(c_offset_U,j)] 
         = 
         (
