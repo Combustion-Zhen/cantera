@@ -638,6 +638,12 @@ cdef class _FlowBase(Domain1D):
         """
         self.flow.setSpherical()
 
+    def set_ignition(self, energy=2e-4, radius=2e-4, time=2e-4):
+        """
+        Set the ignition parameter
+        """
+        self.flow.setIgnition(energy, radius, time)
+
     property flow_type:
         """
         Return the type of flow domain being represented, either "Free Flame" or
