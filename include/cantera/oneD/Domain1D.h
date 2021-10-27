@@ -561,6 +561,8 @@ protected:
 =======
 >>>>>>> c9b8ada95 (Domain1D)
 
+    double m_time;
+
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain
     /*!
