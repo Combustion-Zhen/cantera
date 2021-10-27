@@ -404,7 +404,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
         // grid refinement
         if (refine_grid) {
-            int new_points = refine(loglevel);
+            int new_points = refine(loglevel-1);
             if (new_points) {
                 // If the grid has changed, preemptively reduce the timestep
                 // to avoid multiple successive failed time steps.
