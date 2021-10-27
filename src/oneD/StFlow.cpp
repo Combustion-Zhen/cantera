@@ -23,20 +23,16 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     Domain1D(nsp+c_offset_Y, points),
     m_press(-1.0),
     m_nsp(nsp),
-    m_thermo(0),
-    m_kin(0),
-    m_trans(0),
-    m_epsilon_left(0.0),
-    m_epsilon_right(0.0),
+    m_thermo(0), m_kin(0), m_trans(0),
+    m_epsilon_left(0.0), m_epsilon_right(0.0),
     m_do_soret(false),
     m_do_multicomponent(false),
     m_do_radiation(false),
-    m_kExcessLeft(0),
-    m_kExcessRight(0),
-    m_zfixed(Undef),
-    m_tfixed(-1.),
-    m_stype(0),
-    m_beta(0.1)
+    m_kExcessLeft(0), m_kExcessRight(0),
+    m_zfixed(Undef), m_tfixed(-1.),
+    m_stype(0), m_beta(0.1),
+    m_do_ignition(false),
+    m_ign_energy(0.0), m_ign_radius(0.0), m_ign_time(0.0)
 {
     if (ph->type() == "IdealGas") {
         m_thermo = static_cast<IdealGasPhase*>(ph);
@@ -1206,6 +1202,8 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
 
         rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
                                     - divHeatFlux(x,j) - sum - sum2;
+        // Zhen Lu 211027 ignition
+        rsd[index(c_offset_T, j)] += ignEnergy(j);
         rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
         rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
         rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
@@ -1414,20 +1412,39 @@ double StFlow::scalarGradientGamma
     const vector_fp& s, const double v, size_t j
 ) const
 {
-        int k = (v > 0.0 ? 0 : 1);
+    int k = (v > 0.0 ? 0 : 1);
 
-        double grad_CD = (s[2] - s[0])/d2z(j);
-        double grad_UD = (s[k+1] - s[k])/dz(j+k-1);
+    double grad_CD = (s[2] - s[0])/d2z(j);
+    double grad_UD = (s[k+1] - s[k])/dz(j+k-1);
 
-        double phi = (s[1] - s[2*k])/(s[2-2*k] - s[2*k]);
+    double phi = (s[1] - s[2*k])/(s[2-2*k] - s[2*k]);
 
-        if (phi <= 0.0 || phi >= 1.0) {
-            return grad_UD;
-        } else if ( phi <= m_beta ) {
-            return phi / m_beta * grad_CD + (1 - phi / m_beta) * grad_UD;
-        } else {
-            return grad_CD;
-        }
+    if (phi <= 0.0 || phi >= 1.0) {
+        return grad_UD;
+    } else if ( phi <= m_beta ) {
+        return phi / m_beta * grad_CD + (1 - phi / m_beta) * grad_UD;
+    } else {
+        return grad_CD;
+    }
+}
+
+double StFlow::ignEnergy(size_t j) const
+{
+    if (!m_do_ignition) return 0.0;
+
+    if (m_time >= m_ign_time) return 0.0;
+
+    if (z(j) >= 4.0*m_ign_radius)
+    {
+        return 0.0;
+    }
+    else
+    {
+        double q = m_ign_energy 
+                  *exp(-pow(z(j)/m_ign_radius, 2.0))
+                  /(pow(Pi, 1.5)*pow(m_ign_radius, 3.0)*m_ign_time);
+        return q;
+    }
 }
 
 } // namespace

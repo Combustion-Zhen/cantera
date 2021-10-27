@@ -222,6 +222,11 @@ public:
         m_rdt = 1.0/dt;
     }
 
+    //! update simulation time in the domain
+    inline void updateTime(double t) {
+        m_time = t;
+    }
+
     //! Domain type flag.
     inline int domainType() const {
         return m_type;
@@ -547,6 +552,8 @@ protected:
     int m_type;
     // Zhen Lu 210916
     int m_ctype;
+
+    double m_time;
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain

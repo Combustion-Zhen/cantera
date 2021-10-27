@@ -355,6 +355,13 @@ doublereal OneDim::singleTimeStep(double dt, double* x,
         writelog("{:10.4g}  {:10.4g}  {:10.4g}", m_time, dt, log10(ss));
     }
 
+    // iterate over all domains to update time
+    Domain1D* d = left();
+    while (d) {
+        d->updateTime(m_time);
+        d = d->right();
+    }
+
     // set up for time stepping with stepsize dt
     initTimeInteg(dt,x);
 

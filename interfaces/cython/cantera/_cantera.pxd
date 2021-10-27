@@ -965,6 +965,7 @@ cdef extern from "cantera/oneD/StFlow.h":
         void setCartesian()
         void setCylindrical()
         void setSpherical()
+        void setIgnition(double, double, double)
         string flowType()
 
 
