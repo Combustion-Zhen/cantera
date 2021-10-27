@@ -1226,6 +1226,7 @@ class FreePolarFlame(FlameBase):
         supplied as an initial guess via 'data' and 'key' inputs (see
         `FlameBase.set_initial_guess`).
         """
+
         super().set_initial_guess(data=data, group=group)
         if data:
             return
