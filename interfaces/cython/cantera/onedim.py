@@ -1172,7 +1172,7 @@ class FreePolarFlame(FlameBase):
     __slots__ = ('pole', 'flame', 'boundary')
     _other = ('grid', 'velocity')
 
-    def __init__(self, gas, width=0.2, coordinates='spherical', const='P'):
+    def __init__(self, gas, grid=None, width=0.2, coordinates='spherical', const='P'):
         """
         A domain of type IdealGasFlow named 'flame' will be created to represent
         the flame and set to forced flow. The three domains comprising the stack
@@ -1212,12 +1212,12 @@ class FreePolarFlame(FlameBase):
             else :
                 raise Exception("FreePolarFlame init: Invalid coordinates")
 
-        grid = np.array([0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0])
-        grid = grid * width
+        if grid is None:
+            grid = np.linspace(0,1,num=101) * width
 
         super().__init__((self.pole, self.flame, self.boundary), gas, grid)
 
-    def set_initial_guess(self, data=None, group=None, num=11,
+    def set_initial_guess(self, data=None, group=None, locs=[0.0, 0.3, 0.7, 1.0],
                           direct='outward', radius=0.002, thickness=0.0004):
         """
         Set the initial guess for the solution. By default, the adiabatic flame
@@ -1226,69 +1226,10 @@ class FreePolarFlame(FlameBase):
         supplied as an initial guess via 'data' and 'key' inputs (see
         `FlameBase.set_initial_guess`).
         """
+
         super().set_initial_guess(data=data, group=group)
         if data:
             return
-
-        self.gas.TPY = self.gas.T, self.P, self.gas.Y
-
-        # nonzero initial guess increases likelihood of convergence
-        sl = 0.5
-
-        T0 = self.gas.T
-        Y0 = self.gas.Y
-        rho0 = self.gas.density
-
-        # get adiabatic flame temperature and composition
-        self.gas.equilibrate('HP')
-        Teq = self.gas.T
-        Yeq = self.gas.Y
-        rhoeq = self.gas.density
-
-        u = sl * rho0 / rhoeq
-
-        width = self.flame.grid[-1]
-
-        # calculate grid
-        if radius / thickness <= 4 or (width-radius)/thickness <=4 :
-            raise Exception("FreePolarFlame init: "+
-                            "Flame too close to the boundary")
-
-        b_erf = 0.5 + 0.5 * special.erf(-4)
-        weight = np.linspace(b_erf, 1-b_erf, num=num-2, endpoint=True)
-        grid = radius + thickness * special.erfinv(2*weight-1)
-
-        grid = np.insert(grid, 0, 0)
-        grid = np.append(grid, width)
-        weight = np.insert(weight, 0, 0)
-        weight = np.append(weight, 1)
-
-        if direct == 'inward':
-            T_l = T0
-            T_r = Teq
-            Y_l = Y0
-            Y_r = Yeq
-        elif direct == 'outward':
-            T_l = Teq
-            T_r = T0
-            Y_l = Yeq
-            Y_r = Y0
-
-        self.flame.grid = grid
-        locs = grid / width
-
-        profile = (1-weight) * T_l + weight * T_r
-        self.set_profile('T', locs, profile)
-
-        for n in range(self.gas.n_species):
-            profile = (1-weight) * Y_l[n] + weight * Y_r[n]
-            self.set_profile(self.gas.species_name(n), locs, profile)
-
-        profile = np.zeros(locs.size)
-        for i, r in enumerate(grid):
-            if r >= radius :
-                profile[i] = np.square(radius/r) * u
-        self.set_profile('velocity', locs, profile)
 
     def advance(self, time, loglevel=1, refine_grid=True):
         """
