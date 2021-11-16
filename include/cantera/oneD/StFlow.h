@@ -545,7 +545,7 @@ private:
     double m_beta;
 
     //! Ignition parameters
-    double m_do_ignition;
+    bool m_do_ignition;
 
     double m_ign_energy;
 
