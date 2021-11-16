@@ -197,10 +197,6 @@ public:
 
     // @}
 
-    virtual std::string componentName(size_t n) const;
-
-    virtual size_t componentIndex(const std::string& name) const;
-
     //! Returns true if the specified component is an active part of the solver state
     virtual bool componentActive(size_t n) const;
 
