@@ -1244,6 +1244,12 @@ class FreePolarFlame(FlameBase):
 
         return super().advance(time, loglevel, refine_grid)
 
+    def set_ignition(self, energy=2.0e-4, radius=2.0e-4, time=2.0e-4):
+
+        self.flame.set_ignition(energy, radius, time)
+
+        return
+
 class IonFlameBase(FlameBase):
 
     @property

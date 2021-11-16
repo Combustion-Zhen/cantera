@@ -1183,27 +1183,36 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
         // heat release term
         const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
         const vector_fp& cp_R = m_thermo->cp_R_ref();
-        double sum = 0.0;
-        double sum2 = 0.0;
+
+        double hrr = 0.0;
+        double sum_flux = 0.0;
+
         for (size_t k = 0; k < m_nsp; k++) {
-            // Zhen Lu 210928
+            hrr += wdot(k,j) * h_RT[k];
+
             //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
             double flxk = (
                 m_flux(k,j) * dz(j-1)
                 +
                 m_flux(k,j-1) * dz(j)
             ) / d2z(j);
-            sum += wdot(k,j) * h_RT[k];
-            sum2 += flxk * cp_R[k] / m_wt[k];
+            sum_flux += flxk * cp_R[k] / m_wt[k];
         }
-        sum *= GasConstant * T(x,j);
-        double dtdzj = dTdz(x,j);
-        sum2 *= GasConstant * dtdzj;
 
+        hrr *= GasConstant * T(x,j);
+
+        double dtdzj = dTdz(x,j);
+        sum_flux *= GasConstant * dtdzj;
+
+        // convection and diffusion
         rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
-                                    - divHeatFlux(x,j) - sum - sum2;
+                                    - divHeatFlux(x,j) - sum_flux;
+        // heat release
+        rsd[index(c_offset_T, j)] -= hrr;
         // Zhen Lu 211027 ignition
-        rsd[index(c_offset_T, j)] += ignEnergy(j);
+        if ( m_do_ignition ) {
+            rsd[index(c_offset_T, j)] += ignEnergy(j);
+        }
         rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
         rsd[index(c_offset_T, j)] -= rdt*(T(x,j) - T_prev(j));
         rsd[index(c_offset_T, j)] -= (m_qdotRadiation[j] / (m_rho[j] * m_cp[j]));
@@ -1430,7 +1439,6 @@ double StFlow::scalarGradientGamma
 
 double StFlow::ignEnergy(size_t j) const
 {
-    if (!m_do_ignition) return 0.0;
 
     if (m_time >= m_ign_time) return 0.0;
 
