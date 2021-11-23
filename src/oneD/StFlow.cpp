@@ -952,14 +952,16 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
         // symmetric at r=0
         rsd[index(c_offset_U,0)]
         =
+        -
         rho_u(x, 1) / dz(0)
-        +
+        -
         rdt * (m_rho[0] - m_rho_last[0]);
     } else {
         size_t m = coordinatesType();
 
         rsd[index(c_offset_U,0)]
         = 
+        -
         (
             rho_u(x,1) * pow(z(1), m)
             -
@@ -1016,6 +1018,7 @@ void StFlow::evalRightBoundary(double* x, double* rsd, int* diag, double rdt)
     if (domainType() == cFreeFlow) {
         rsd[index(c_offset_U,j)] 
         = 
+        -
         (
             rho_u(x,j) * pow(z(j), m)
             -
@@ -1072,25 +1075,21 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             if (z(j) > m_zfixed) {
                 rsd[index(c_offset_U,j)] 
                 = 
+                -
                 (
                     rho_u(x,j) * pow(z(j), m)
                     -
                     rho_u(x,j-1) * pow(z(j-1), m)
                 ) / dz(j-1) / pow(z(j), m);
-                //rho_u(x,j-1) * pow(z(j-1), m)
-                //-
-                //rho_u(x,j) * pow(z(j), m);
             } else if (z(j) < m_zfixed) {
                 rsd[index(c_offset_U,j)] 
                 = 
+                -
                 (
                     rho_u(x,j+1) * pow(z(j+1), m)
                     -
                     rho_u(x,j) * pow(z(j), m)
                 ) / dz(j) / pow(z(j), m);
-                //rho_u(x,j) * pow(z(j), m)
-                //-
-                //rho_u(x,j+1) * pow(z(j+1), m);
             }
         } 
     } 
@@ -1108,12 +1107,13 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
     {
         rsd[index(c_offset_U,j)] 
         = 
+        -
         (
             rho_u(x,j+1) * pow(z(j+1), m)
             -
             rho_u(x,j) * pow(z(j), m)
         ) / dz(j) / pow(z(j), m)
-        +
+        -
         rdt * (m_rho[j] - m_rho_last[j]);
     }
 }
