@@ -181,6 +181,17 @@ void OneDim::resize()
     }
 }
 
+void OneDim::showResidual(const double* r) const
+{
+    for (size_t n = 0; n < nDomains(); n++) {
+        if (domain(n).domainType() != cEmptyType) {
+            writelog("\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+domain(n).id()
+                     +" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
+            domain(n).showSolution(&r[start(n)]);
+        }
+    }
+}
+
 void OneDim::setSteadyMode()
 {
     if (m_rdt == 0) {
@@ -206,6 +217,8 @@ int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
         m_jac->updateTransient(m_rdt, m_mask.data());
         m_jac_ok = true;
     }
+
+    //showResidual(xnew);
 
     return m_newt->solve(x, xnew, *this, *m_jac, loglevel);
 }
@@ -409,6 +422,7 @@ doublereal OneDim::singleTimeStep(double dt, double* x,
 
     }
 
+    //throw CanteraError("OneDim::eval", "Debug");
     // return the value of the stepsize
     return dt;
 }

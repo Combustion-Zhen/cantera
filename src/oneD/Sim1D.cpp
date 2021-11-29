@@ -441,7 +441,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
     }
 
-    m_tstep = dt;
+    //m_tstep = dt;
 
 }
 

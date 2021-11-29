@@ -289,6 +289,8 @@ string StFlow::flowType() const
         return "Axisymmetric Stagnation";
     case cRadialFlow:
         return "Radial Flame";
+    case cPolarFlow:
+        return "Free Polar Flame";
     case cTubularFlow:
         return "Tubular Flame";
     default:
