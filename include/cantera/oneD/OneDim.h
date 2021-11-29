@@ -63,6 +63,8 @@ public:
     //! Call after one or more grids has changed size, e.g. after being refined.
     virtual void resize();
 
+    void showResidual(const double* r) const;
+
     /*!
      * Prepare to solve the steady-state problem. After invoking this method,
      * subsequent calls to solve() will solve the steady-state problem. Sets
