@@ -1095,16 +1095,6 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             }
         } 
     } 
-//    else if (domainType() == cPolarFlow) 
-//    {
-//        rsd[index(c_offset_U,j)] 
-//        = 
-//        (rho_u(x,j+1)-rho_u(x,j-1))/d2z(j)
-//        + 
-//        m * rho_u(x,j) / z(j)
-//        +
-//        rdt * (m_rho[j] - m_rho_last[j]);
-//    } 
     else 
     {
         rsd[index(c_offset_U,j)] 
