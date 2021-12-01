@@ -328,13 +328,13 @@ void StFlow::setSpherical()
     if (m_type == cTubularFlow)
         throw CanteraError
         (
-            "StFlow::setCartesian",
+            "StFlow::setSpherical",
             "TubularFlow works in the Cylindrical coordinates"
         );
     else if (m_type == cAxisymmetricStagnationFlow)
         throw CanteraError
         (
-            "StFlow::setCylindrical",
+            "StFlow::setSpherical",
             "AxisymmetricStagnationFlow works in the Cartesian coordinates"
         );
 
