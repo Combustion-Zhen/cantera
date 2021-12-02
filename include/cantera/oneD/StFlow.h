@@ -379,6 +379,12 @@ protected:
     //! Update the diffusive mass fluxes.
     virtual void updateDiffFluxes(const doublereal* x, size_t j0, size_t j1);
 
+    //! Update the radiative heat loss
+    void updateRadiation(const double* x, size_t j0, size_t j1);
+
+    //! Update the reaction source term
+    void updateReaction(const double* x, size_t j0, size_t j1);
+
     //! Calculate divergence of the stress
     doublereal shear(const doublereal* x, size_t j) const;
 
@@ -410,7 +416,7 @@ protected:
     double ignEnergy(size_t j) const;
 
     //! Write the net production rates at point `j` into array `m_wdot`
-    void getWdot(doublereal* x, size_t j) {
+    void getWdot(double* x, size_t j) {
         setGas(x,j);
         m_kin->getNetProductionRates(&m_wdot(0,j));
     }
