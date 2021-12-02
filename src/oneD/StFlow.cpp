@@ -1407,10 +1407,7 @@ doublereal StFlow::dTdz(const doublereal* x, size_t j) const
     //return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
 }
 
-double StFlow::scalarGradient
-(
-    const vector_fp& s, const double v, size_t j
-) const
+double StFlow::scalarGradient(const vector_fp& s, const double v, size_t j) const
 {
     switch (m_stype)
     {
@@ -1421,19 +1418,13 @@ double StFlow::scalarGradient
     }
 }
 
-double StFlow::scalarGradientUpwind
-(
-    const vector_fp& s, const double v, size_t j
-) const
+double StFlow::scalarGradientUpwind(const vector_fp& s, const double v, size_t j) const
 {
     int k = (v > 0.0 ? 0 : 1);
     return (s[k+1] - s[k])/dz(j+k-1);
 }
 
-double StFlow::scalarGradientGamma
-(
-    const vector_fp& s, const double v, size_t j
-) const
+double StFlow::scalarGradientGamma(const vector_fp& s, const double v, size_t j) const
 {
     int k = (v > 0.0 ? 0 : 1);
 
