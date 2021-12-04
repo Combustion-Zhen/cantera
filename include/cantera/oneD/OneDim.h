@@ -119,7 +119,7 @@ public:
                     double* r, int loglevel);
 
     // Zhen Lu 211013
-    double singleTimeStep(double st, double* x, double*r, int loglevel);
+    double timeStepIteration(double dt, double* x, double*r, int loglevel);
 
     void resetBadValues(double* x);
 
@@ -383,8 +383,11 @@ protected:
     //! Maximum number of timesteps allowed per call to solve()
     int m_nsteps_max;
 
+    //! Zhen Lu for transient solution
     //! Physical time for the transient solution
     double m_time;
+
+    int m_niter; //!< maximum iteration for each time step
 
 private:
     // statistics

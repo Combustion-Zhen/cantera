@@ -26,6 +26,9 @@ const size_t c_offset_L = 3; // (1/r)dP/dr
 const size_t c_offset_E = 4; // electric poisson's equation
 const size_t c_offset_Y = 5; // mass fractions
 
+const int cOffsetScalarT = 0;
+const int cOffsetScalarY = 1;
+
 class Transport;
 
 /**

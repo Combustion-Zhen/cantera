@@ -218,8 +218,6 @@ int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
         m_jac_ok = true;
     }
 
-    //showResidual(xnew);
-
     return m_newt->solve(x, xnew, *this, *m_jac, loglevel);
 }
 
@@ -352,8 +350,8 @@ doublereal OneDim::timeStep(int nsteps, double dt, double* x,
     return dt;
 }
 
-doublereal OneDim::singleTimeStep(double dt, double* x, 
-                                  double* r, int loglevel)
+doublereal OneDim::timeStepIteration(double dt, double* x, 
+                                     double* r, int loglevel)
 {
     // set the Jacobian age parameter to the transient value
     newton().setOptions(m_ts_jac_age);
@@ -378,49 +376,15 @@ doublereal OneDim::singleTimeStep(double dt, double* x,
     // set up for time stepping with stepsize dt
     initTimeInteg(dt,x);
 
-    // solve the transient problem
-    int m = solve(x, r, loglevel-1);
-
-    // successful time step. Copy the new solution in r to
-    // the current solution in x.
-    if (m >= 0) {
-
-        successiveFailures = 0;
-        m_time += dt;
-
-        debuglog("\n", loglevel);
-        copy(r, r + m_size, x);
-
-        if (m == 100) {
-            dt *= 1.5;
-        }
-        if (m_time_step_callback) {
-            m_time_step_callback->eval(dt);
-        }
-
-        dt = std::min(dt, m_tmax);
-
-    } else {
-
-        successiveFailures++;
-
-        // No solution could be found with this time step.
-        // Decrease the stepsize and try again.
-        debuglog("...failure.\n", loglevel);
-
-        if (successiveFailures > 2) {
-            //debuglog("Resetting negative species concentrations.\n", loglevel);
-            resetBadValues(x);
-            successiveFailures = 0;
-        } else {
-            dt *= m_tfactor;
-            if (dt < m_tmin) {
-                throw CanteraError("OneDim::singleTimeStep",
-                                   "Time integration failed.");
-            }
-        }
-
+    /*
+    for (int i=0; i!=m_niter; i++)
+    {
+        solveScalar(x, r, loglevel);
+        solveVelocity(x, r, loglevel);
     }
+    */
+
+    copy(r, r + m_size, x);
 
     //throw CanteraError("OneDim::eval", "Debug");
     // return the value of the stepsize
