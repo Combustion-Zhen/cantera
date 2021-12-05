@@ -178,7 +178,10 @@ void Sim1D::showSolution()
 {
     for (size_t n = 0; n < nDomains(); n++) {
         if (domain(n).domainType() != cEmptyType) {
-            writelog("\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+domain(n).id()
+            writelog("\n\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "
+                     +domain(n).id()
+                     + fmt::format(" loc {}", domain(n).loc())
+                     + fmt::format(" size {}", domain(n).size())
                      +" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
             domain(n).showSolution(&m_x[start(n)]);
         }
