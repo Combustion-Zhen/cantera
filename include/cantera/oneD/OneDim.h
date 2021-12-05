@@ -306,6 +306,11 @@ public:
         return m_size;
     }
 
+    /// Total scalar solution vector length
+    inline size_t sizeScalar() const {
+        return m_sizeScalar;
+    }
+
     /// Pointer to left-most domain (first added).
     inline Domain1D* left() {
         return m_dom[0];
@@ -319,6 +324,11 @@ public:
     /// Number of solution components at global point jg.
     inline size_t nVars(size_t jg) {
         return m_nvars[jg];
+    }
+
+    /// Number of composition scalars at global point jg
+    inline size_t nVarScalar(int jg) {
+        return m_nScalar[jg];
     }
 
     //! Location in the solution vector of the first component of global point
@@ -393,6 +403,10 @@ protected:
     double m_time;
 
     int m_niter; //!< maximum iteration for each time step
+
+    size_t m_sizeScalar; //!< scalar solution vector size
+
+    std::vector<size_t> m_nScalar; //!< number of scalars at each point
 
     std::unique_ptr<MultiSolverScalar> m_scalarSolver; //!< Jacobian evaluator
 

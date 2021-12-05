@@ -132,6 +132,10 @@ void OneDim::resize()
     m_bw = 0;
     m_nvars.clear();
     m_loc.clear();
+
+    m_nScalar.clear();
+    m_sizeScalar = 0;
+
     size_t lc = 0;
 
     // save the statistics for the last grid
@@ -142,9 +146,11 @@ void OneDim::resize()
 
         size_t np = d->nPoints();
         size_t nv = d->nComponents();
+        size_t nc = d->nScalars();
         for (size_t n = 0; n < np; n++) {
             m_nvars.push_back(nv);
             m_loc.push_back(lc);
+            m_nScalar.push_back(nc);
             lc += nv;
             m_pts++;
         }
@@ -169,6 +175,8 @@ void OneDim::resize()
             m_bw = std::max(m_bw, bw2);
         }
         m_size = d->loc() + d->size();
+
+        m_sizeScalar += d->nScalars() * d->nPoints();
     }
 
     m_newt->resize(size());

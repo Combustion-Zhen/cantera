@@ -31,12 +31,6 @@ public:
 
     MultiSolverScalar& operator=(const MultiSolverScalar&) = delete;
 
-    /// Change the problem size.
-    void resize();
-
-    //! Compute the weighted 2-norm of `step`.
-    double norm2(const double* x, const double* step, OneDim& r) const;
-
     /**
      * Evaluate the Jacobian at x0. The unperturbed residual function is resid0,
      * which must be supplied on input. The third parameter 'rdt' is the
@@ -44,6 +38,9 @@ public:
      * evaluated.
      */
     void evalJac(double* x0, double* resid0, double rdt);
+
+    //! Compute the weighted 2-norm of `step`.
+    double norm2(const double* x, const double* step, OneDim& r) const;
 
     //! Compute the undamped Newton step.  The residual function is evaluated
     //! at `x`, but the Jacobian is not recomputed.
@@ -98,27 +95,23 @@ public:
 
     //! Increment the Jacobian age.
     inline void incrementJacAge() {
-        m_age++;
+        m_jacAge++;
     }
 
     //! Number of times 'incrementAge' has been called since the last evaluation
     inline int getJacAge() const {
-        return m_age;
+        return m_jacAge;
     }
 
     //! Set the Jacobian age.
     inline void setJacAge(int age) {
-        m_age = age;
+        m_jacAge = age;
     }
 
 protected:
+
     //! Work arrays of size #m_n used in solve().
-    vector_fp m_x, m_stp, m_stp1;
-
-    int m_maxJacAge;
-
-    //! number of variables
-    size_t m_n;
+    vector_fp m_x, m_stp0, m_stp1;
 
     //! Residual evaluator for this Jacobian
     /*!
@@ -127,14 +120,17 @@ protected:
      */
     OneDim* m_resid;
 
+    int m_maxJacAge;
+
     int m_size;
 
     int m_points;
 
-    vector_fp m_r1;
+    vector_fp m_rtmp;
+
     double m_rtol, m_atol;
+    int m_jacAge;
     int m_nJacEval;
-    int m_age;
 
     //! calculation time
     double m_elapsedJac;

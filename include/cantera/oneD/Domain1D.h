@@ -311,6 +311,11 @@ public:
         return m_nv;
     }
 
+    //! Number of composition scalars.
+    inline size_t nScalars() const {
+        return m_nc;
+    }
+
     //! Check that the specified component index is in range.
     //! Throws an exception if n is greater than nComponents()-1
     inline void checkComponentIndex(size_t n) const {
@@ -539,7 +544,7 @@ public:
 
 protected:
     doublereal m_rdt;
-    size_t m_nv;
+    size_t m_nv; //! number of variables
     size_t m_points;
     vector_fp m_slast;
     vector_fp m_max;
@@ -550,10 +555,12 @@ protected:
     OneDim* m_container;
     size_t m_index;
     int m_type;
-    // Zhen Lu 210916
-    int m_ctype;
 
-    double m_time;
+    // Zhen Lu 210916
+    int m_nc; //!< number of compositions Y, T, nsp+1
+    int m_ctype; //!< coordinates type
+
+    double m_time; //!< simulation time
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain

@@ -133,42 +133,20 @@ const size_t NDAMP = 7;
 
 MultiSolverScalar::MultiSolverScalar(OneDim& r) : 
     BandMatrix(r.size(),r.bandwidth(),r.bandwidth()), 
-    m_maxJacAge(5)
+    m_maxJacAge(5), m_nJacEval(0), m_jacAge(0),
+    m_elapsedJac(0.0), m_elapsedNewton(0.0)
 {
-    m_n = r.size();
-    m_elapsedNewton = 0.0;
-
-    // Jacobian
     m_resid = &r;
-    m_size = r.size();
+    m_size = r.sizeScalar();
     m_points = r.points();
-    m_r1.resize(m_size);
-    m_elapsedJac = 0.0;
-    m_nJacEval = 0;
-    m_age = 100000;
+
+    m_x.resize(m_size);
+    m_stp0.resize(m_size);
+    m_stp1.resize(m_size);
+    m_rtmp.resize(m_size);
+
     m_atol = sqrt(std::numeric_limits<double>::epsilon());
     m_rtol = 1.0e-5;
-}
-
-void MultiSolverScalar::resize()
-{
-    m_n = m_resid->size();
-    m_x.resize(m_n);
-    m_stp.resize(m_n);
-    m_stp1.resize(m_n);
-}
-
-double MultiSolverScalar::norm2(const double* x,
-                                const double* step, OneDim& r) const
-{
-    double sum = 0.0;
-    size_t nd = r.nDomains();
-    for (size_t n = 0; n < nd; n++) {
-        double f = norm_square(x + r.start(n), step + r.start(n), r.domain(n));
-        sum += f;
-    }
-    sum /= r.size();
-    return sqrt(sum);
 }
 
 void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
@@ -179,7 +157,7 @@ void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
     size_t ipt=0;
 
     for (size_t j = 0; j < m_points; j++) {
-        size_t nv = m_resid->nVars(j);
+        size_t nv = m_resid->nVarScalar(j);
         for (size_t n = 0; n < nv; n++) {
             // perturb x(n); preserve sign(x(n))
             double xsave = x0[ipt];
@@ -194,7 +172,7 @@ void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
             double rdx = 1.0/dx;
 
             // calculate perturbed residual
-            m_resid->eval(j, x0, m_r1.data(), rdt, 0);
+            m_resid->eval(j, x0, m_rtmp.data(), rdt, 0);
 
             // compute nth column of Jacobian
             for (size_t i = j - 1; i != j+2; i++) {
@@ -202,7 +180,7 @@ void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
                     size_t mv = m_resid->nVars(i);
                     size_t iloc = m_resid->loc(i);
                     for (size_t m = 0; m < mv; m++) {
-                        value(m+iloc,ipt) = (m_r1[m+iloc] - resid0[m+iloc])*rdx;
+                        value(m+iloc,ipt) = (m_rtmp[m+iloc] - resid0[m+iloc])*rdx;
                     }
                 }
             }
@@ -212,7 +190,20 @@ void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
     }
 
     m_elapsedJac += double(clock() - t0)/CLOCKS_PER_SEC;
-    m_age = 0;
+    setJacAge(0);
+}
+
+double MultiSolverScalar::norm2(const double* x,
+                                const double* step, OneDim& r) const
+{
+    double sum = 0.0;
+    size_t nd = r.nDomains();
+    for (size_t n = 0; n < nd; n++) {
+        double f = norm_square(x + r.start(n), step + r.start(n), r.domain(n));
+        sum += f;
+    }
+    sum /= r.size();
+    return sqrt(sum);
 }
 
 void MultiSolverScalar::step(double* x, double* step,
@@ -367,26 +358,26 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1,
         }
 
         if (forceNewJac) {
-            r.eval(npos, &m_x[0], &m_stp[0], 0.0, 0);
-            evalJac(&m_x[0], &m_stp[0], 0.0);
+            r.eval(npos, &m_x[0], &m_stp0[0], 0.0, 0);
+            evalJac(&m_x[0], &m_stp0[0], 0.0);
             forceNewJac = false;
         }
 
         // compute the undamped Newton step
-        step(&m_x[0], &m_stp[0], r, loglevel-1);
+        step(&m_x[0], &m_stp0[0], r, loglevel-1);
 
         // increment the Jacobian age
         incrementJacAge();
 
         // damp the Newton step
-        m = dampStep(&m_x[0], &m_stp[0], x1, &m_stp1[0], s1, r, loglevel-1, frst);
+        m = dampStep(&m_x[0], &m_stp0[0], x1, &m_stp1[0], s1, r, loglevel-1, frst);
         if (loglevel == 1 && m >= 0) {
             if (frst) {
                 writelog("\n\n    {:>10s}    {:>10s}   {:>5s}",
                          "log10(ss)","log10(s1)","N_jac");
                 writelog("\n    ------------------------------------");
             }
-            doublereal ss = r.ssnorm(&m_x[0], &m_stp[0]);
+            doublereal ss = r.ssnorm(&m_x[0], &m_stp0[0]);
             writelog("\n    {:10.4f}    {:10.4f}       {:d}",
                      log10(ss),log10(s1),nJacEval());
         }
