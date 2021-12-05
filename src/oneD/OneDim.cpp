@@ -7,6 +7,7 @@
 #include "cantera/numerics/Func1.h"
 #include "cantera/base/ctml.h"
 #include "cantera/oneD/MultiNewton.h"
+#include "cantera/oneD/MultiSolverScalar.h"
 #include "cantera/base/AnyMap.h"
 
 #include <fstream>
@@ -29,6 +30,7 @@ OneDim::OneDim() :
     m_nevals(0), m_evaltime(0.0)
 {
     m_newt.reset(new MultiNewton(1));
+    m_scalarSolver.reset(new MultiSolverScalar(*this));
 }
 
 OneDim::OneDim(vector<Domain1D*> domains) :
@@ -179,6 +181,9 @@ void OneDim::resize()
     for (size_t i = 0; i < nDomains(); i++) {
         m_dom[i]->setJac(m_jac.get());
     }
+
+    // set the scalar solver
+    m_scalarSolver.reset(new MultiSolverScalar(*this));
 }
 
 void OneDim::showResidual(const double* r) const
@@ -219,6 +224,16 @@ int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
     }
 
     return m_newt->solve(x, xnew, *this, *m_jac, loglevel);
+}
+
+int OneDim::solveScalar(double* x, double* xnew, int loglevel)
+{
+    return 0;
+}
+
+int OneDim::solveVelocity(double* x, double* xnew, int loglevel)
+{
+    return 0;
 }
 
 void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
@@ -354,12 +369,10 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
                                      double* r, int loglevel)
 {
     // set the Jacobian age parameter to the transient value
-    newton().setOptions(m_ts_jac_age);
+    m_scalarSolver->setOptions(m_ts_jac_age);
 
     debuglog("\n\n time(s)    size (s)    log10(ss) \n", loglevel);
     debuglog("===============================\n", loglevel);
-
-    int successiveFailures = 0;
 
     if (loglevel > 0) {
         double ss = ssnorm(x, r);
@@ -376,15 +389,16 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
     // set up for time stepping with stepsize dt
     initTimeInteg(dt,x);
 
-    /*
     for (int i=0; i!=m_niter; i++)
     {
         solveScalar(x, r, loglevel);
-        solveVelocity(x, r, loglevel);
-    }
-    */
 
-    copy(r, r + m_size, x);
+        copy(r, r + m_size, x);
+
+        solveVelocity(x, r, loglevel);
+
+        copy(r, r + m_size, x);
+    }
 
     //throw CanteraError("OneDim::eval", "Debug");
     // return the value of the stepsize

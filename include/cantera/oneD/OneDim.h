@@ -16,6 +16,7 @@ namespace Cantera
 
 class Func1;
 class MultiNewton;
+class MultiSolverScalar;
 class AnyMap;
 
 /**
@@ -80,6 +81,10 @@ public:
      * @param loglevel   Controls amount of diagnostic output.
      */
     int solve(doublereal* x0, doublereal* x1, int loglevel);
+
+    int solveScalar(double* x0, double* x1, int loglevel);
+
+    int solveVelocity(double* x0, double* x1, int loglevel);
 
     /**
      * Evaluate the multi-domain residual function
@@ -388,6 +393,8 @@ protected:
     double m_time;
 
     int m_niter; //!< maximum iteration for each time step
+
+    std::unique_ptr<MultiSolverScalar> m_scalarSolver; //!< Jacobian evaluator
 
 private:
     // statistics
