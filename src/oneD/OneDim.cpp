@@ -26,7 +26,8 @@ OneDim::OneDim() :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0),
+    m_time(0.0), m_niter(3),
+    m_bwScalar(0), m_sizeScalar(0),
     m_nevals(0), m_evaltime(0.0)
 {
     m_newt.reset(new MultiNewton(1));
@@ -41,7 +42,8 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0),
+    m_time(0.0), m_niter(3),
+    m_bwScalar(0), m_sizeScalar(0),
     m_nevals(0), m_evaltime(0.0)
 {
     // create a Newton iterator, and add each domain.
@@ -134,8 +136,10 @@ void OneDim::resize()
     m_loc.clear();
 
     m_nScalar.clear();
+    m_locScalar.clear();
     m_sizeScalar = 0;
 
+    size_t lv = 0;
     size_t lc = 0;
 
     // save the statistics for the last grid
@@ -149,9 +153,13 @@ void OneDim::resize()
         size_t nc = d->nScalars();
         for (size_t n = 0; n < np; n++) {
             m_nvars.push_back(nv);
-            m_loc.push_back(lc);
+            m_loc.push_back(lv);
+            lv += nv;
+
             m_nScalar.push_back(nc);
-            lc += nv;
+            m_locScalar.push_back(lc);
+            lc += nc;
+
             m_pts++;
         }
 
@@ -174,8 +182,26 @@ void OneDim::resize()
             bw2 += d->nComponents() - 1;
             m_bw = std::max(m_bw, bw2);
         }
-        m_size = d->loc() + d->size();
 
+        // update the scalar Jacobian bandwidth
+
+        // bandwidth of the local block
+        m_bwScalar = std::max<size_t>(2*d->nScalars(), 1) - 1;
+
+        // bandwidth of the block coupling the first point of this
+        // domain to the last point of the previous domain
+        if (i > 0) {
+            size_t bw2 = m_dom[i-1]->bandwidth();
+            if (bw2 == npos) {
+                bw2 = m_dom[i-1]->nScalars();
+            }
+            bw2 += d->nScalars() - 1;
+            m_bwScalar = std::max(m_bwScalar, bw2);
+        }
+
+        // full solution size
+        m_size = d->loc() + d->size();
+        // scalar solution size
         m_sizeScalar += d->nScalars() * d->nPoints();
     }
 
@@ -274,6 +300,14 @@ void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
         m_evaltime += double(t1 - t0)/CLOCKS_PER_SEC;
         m_nevals++;
     }
+}
+
+void OneDim::evalScalar(size_t j, double* x, double* r, double rdt, int count)
+{
+    vector_fp rfull;
+    rfull.resize(m_size, 0.0);
+
+    eval(j, x, rfull.data(), rdt, count);
 }
 
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)

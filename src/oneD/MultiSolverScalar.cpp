@@ -4,6 +4,7 @@
 // at https://cantera.org/license.txt for license and copyright information.
 
 #include "cantera/oneD/MultiSolverScalar.h"
+#include "cantera/oneD/OneDimConst.h"
 #include "cantera/base/utilities.h"
 
 #include <ctime>
@@ -132,21 +133,18 @@ const size_t NDAMP = 7;
 // ---------------- MultiSolverScalar methods ----------------
 
 MultiSolverScalar::MultiSolverScalar(OneDim& r) : 
-    BandMatrix(r.size(),r.bandwidth(),r.bandwidth()), 
-    m_maxJacAge(5), m_nJacEval(0), m_jacAge(0),
+    BandMatrix(r.sizeScalar(),r.bandwidthScalar(),r.bandwidthScalar()), 
+    m_size(r.sizeScalar()), m_points(r.points()),
+    m_maxJacAge(5), m_jacAge(0), m_nJacEval(0),
+    m_atol(sqrt(std::numeric_limits<double>::epsilon())),
+    m_rtol(1.0e-5),
     m_elapsedJac(0.0), m_elapsedNewton(0.0)
 {
     m_resid = &r;
-    m_size = r.sizeScalar();
-    m_points = r.points();
-
     m_x.resize(m_size);
     m_stp0.resize(m_size);
     m_stp1.resize(m_size);
     m_rtmp.resize(m_size);
-
-    m_atol = sqrt(std::numeric_limits<double>::epsilon());
-    m_rtol = 1.0e-5;
 }
 
 void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
@@ -172,15 +170,15 @@ void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
             double rdx = 1.0/dx;
 
             // calculate perturbed residual
-            m_resid->eval(j, x0, m_rtmp.data(), rdt, 0);
+            //m_resid->evalScalar(j, x0, m_rtmp.data(), rdt, 0);
 
             // compute nth column of Jacobian
             for (size_t i = j - 1; i != j+2; i++) {
                 if (i != npos && i < m_points) {
-                    size_t mv = m_resid->nVars(i);
-                    size_t iloc = m_resid->loc(i);
+                    size_t mv = m_resid->nVarScalar(i);
+                    size_t iloc = m_resid->locScalar(i);
                     for (size_t m = 0; m < mv; m++) {
-                        value(m+iloc,ipt) = (m_rtmp[m+iloc] - resid0[m+iloc])*rdx;
+                        value(iloc+m,ipt) = (m_rtmp[iloc+m] - resid0[iloc+m])*rdx;
                     }
                 }
             }

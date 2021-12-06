@@ -120,17 +120,17 @@ protected:
      */
     OneDim* m_resid;
 
-    int m_maxJacAge;
-
     int m_size;
 
     int m_points;
 
     vector_fp m_rtmp;
 
-    double m_rtol, m_atol;
+    int m_maxJacAge;
     int m_jacAge;
     int m_nJacEval;
+
+    double m_atol, m_rtol;
 
     //! calculation time
     double m_elapsedJac;

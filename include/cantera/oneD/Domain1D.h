@@ -7,36 +7,10 @@
 #define CT_DOMAIN1D_H
 
 #include "cantera/base/ctexceptions.h"
+#include "OneDimConst.h"
 
 namespace Cantera
 {
-
-// domain types
-const int cFlowType = 50;
-const int cFreeFlow = 51;
-const int cAxisymmetricStagnationFlow = 52;
-//  Zhen Lu
-const int cRadialFlow = 53;
-const int cPolarFlow = 54;
-const int cTubularFlow = 55;
-
-const int cConnectorType = 100;
-const int cSurfType = 102;
-const int cInletType = 104;
-const int cSymmType = 105;
-const int cOutletType = 106;
-const int cEmptyType = 107;
-const int cOutletResType = 108;
-const int cPorousType = 109;
-
-// Zhen Lu 210916
-// coordinate types
-const int cCartesian = 0;
-const int cCylindrical = 1;
-const int cSpherical = 2;
-// temporal types
-const int cSteady = 0;
-const int cTransient = 1;
 
 class MultiJac;
 class OneDim;

@@ -100,6 +100,9 @@ public:
     void eval(size_t j, double* x, double* r, doublereal rdt=-1.0,
               int count = 1);
 
+    void evalScalar(size_t j, double* x, double* r, double rdt=-1.0,
+                    int count=-1);
+
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using
      * solution x. On return, array r contains the steady-state residual
@@ -337,9 +340,20 @@ public:
         return m_loc[jg];
     }
 
+    //! Location in the scalar solution vector of the first component 
+    //! of global points jg.
+    inline size_t locScalar(size_t jg) {
+        return m_locScalar[jg];
+    }
+
     /// Jacobian bandwidth.
     inline size_t bandwidth() const {
         return m_bw;
+    }
+
+    /// Jacobian bandwidth for the scalars
+    inline size_t bandwidthScalar() const {
+        return m_bwScalar;
     }
 
     /// Total number of points.
@@ -402,13 +416,20 @@ protected:
     //! Physical time for the transient solution
     double m_time;
 
-    int m_niter; //!< maximum iteration for each time step
+    //!< maximum iteration for each time step
+    int m_niter; 
 
-    size_t m_sizeScalar; //!< scalar solution vector size
+    //!< scalar Jacobian bandwidth
+    size_t m_bwScalar; 
+    //!< scalar solution vector size
+    size_t m_sizeScalar; 
+    //!< number of scalars at each point
+    std::vector<size_t> m_nScalar; 
+    //!< location of the first component at each point in the full solution vector
+    std::vector<size_t> m_locScalar; 
 
-    std::vector<size_t> m_nScalar; //!< number of scalars at each point
-
-    std::unique_ptr<MultiSolverScalar> m_scalarSolver; //!< Jacobian evaluator
+    //!< Jacobian evaluator
+    std::unique_ptr<MultiSolverScalar> m_scalarSolver; 
 
 private:
     // statistics
