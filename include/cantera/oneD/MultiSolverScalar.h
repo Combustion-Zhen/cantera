@@ -31,13 +31,8 @@ public:
 
     MultiSolverScalar& operator=(const MultiSolverScalar&) = delete;
 
-    /**
-     * Evaluate the Jacobian at x0. The unperturbed residual function is resid0,
-     * which must be supplied on input. The third parameter 'rdt' is the
-     * reciprocal of the time step. If zero, the steady-state Jacobian is
-     * evaluated.
-     */
-    void evalJac(double* x0, double* resid0, double rdt);
+    //! Evaluate the Jacobian at m_x
+    void evalJac();
 
     //! Compute the weighted 2-norm of `step`.
     double norm2(const double* x, const double* step, OneDim& r) const;
@@ -111,7 +106,7 @@ public:
 protected:
 
     //! Work arrays of size #m_n used in solve().
-    vector_fp m_x, m_stp0, m_stp1;
+    vector_fp m_xFull, m_xScalar, m_stp0, m_stp1;
 
     //! Residual evaluator for this Jacobian
     /*!
@@ -120,16 +115,12 @@ protected:
      */
     OneDim* m_resid;
 
-    int m_size;
-
-    int m_points;
-
-    vector_fp m_rtmp;
-
-    int m_maxJacAge;
+    //! number of Jacobian calculations
     int m_jacAge;
     int m_nJacEval;
+    int m_maxJacAge;
 
+    //! perturbation parameters
     double m_atol, m_rtol;
 
     //! calculation time

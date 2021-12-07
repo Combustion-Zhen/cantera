@@ -134,56 +134,72 @@ const size_t NDAMP = 7;
 
 MultiSolverScalar::MultiSolverScalar(OneDim& r) : 
     BandMatrix(r.sizeScalar(),r.bandwidthScalar(),r.bandwidthScalar()), 
-    m_size(r.sizeScalar()), m_points(r.points()),
-    m_maxJacAge(5), m_jacAge(0), m_nJacEval(0),
-    m_atol(sqrt(std::numeric_limits<double>::epsilon())),
-    m_rtol(1.0e-5),
+    m_jacAge(0), m_nJacEval(0), m_maxJacAge(5),
+    m_atol(sqrt(std::numeric_limits<double>::epsilon())), m_rtol(1.0e-5),
     m_elapsedJac(0.0), m_elapsedNewton(0.0)
 {
     m_resid = &r;
-    m_x.resize(m_size);
-    m_stp0.resize(m_size);
-    m_stp1.resize(m_size);
-    m_rtmp.resize(m_size);
+    m_xFull.resize(m_resid->size());
+    m_xScalar.resize(m_resid->sizeScalar());
+    m_stp0.resize(m_resid->sizeScalar());
+    m_stp1.resize(m_resid->sizeScalar());
 }
 
-void MultiSolverScalar::evalJac(double* x0, double* resid0, double rdt)
+void MultiSolverScalar::evalJac()
 {
-    m_nJacEval++;
     clock_t t0 = clock();
-    bfill(0.0);
-    size_t ipt=0;
+    vector_fp r0(m_resid->sizeScalar(), 0.0);
+    vector_fp r1(m_resid->sizeScalar(), 0.0);
 
-    for (size_t j = 0; j < m_points; j++) {
+    bfill(0.0);
+    m_nJacEval++;
+
+    // evaluate the unperturbed residual
+    //m_resid->evalScalar(npos, m_xFull, r0.data(), rdt, 0);
+
+    // perturb the full solution vector to obtain the Jacobian of scalars
+    for (size_t j = 0; j != m_resid->points(); j++) 
+    {
+        // the number of scalars
         size_t nv = m_resid->nVarScalar(j);
-        for (size_t n = 0; n < nv; n++) {
+        // location of the first variable in scalar and full solution vector for point j
+        size_t jLocFull = m_resid->loc(j);
+        size_t jLocScalar = m_resid->locScalar(j);
+        // iterate over scalars
+        for (size_t n = 0; n < nv; n++) 
+        {
+            // location of the scalar
+            size_t iScalar = jLocScalar + n;
+            // location of the scalar in the full solution vector
+            size_t offset = (n==0) ? c_offset_T : n-cOffsetScalarY+c_offset_Y ;
+            size_t iFull = jLocFull + offset;
+
             // perturb x(n); preserve sign(x(n))
-            double xsave = x0[ipt];
-            double dx;
-            if (xsave >= 0) {
-                dx = xsave*m_rtol + m_atol;
-            } else {
-                dx = xsave*m_rtol - m_atol;
-            }
-            x0[ipt] = xsave + dx;
-            dx = x0[ipt] - xsave;
+            double tmp = m_xFull[iFull];
+            double dx = (tmp>=0.0) ? tmp*m_rtol + m_atol : tmp*m_rtol - m_atol; 
             double rdx = 1.0/dx;
+            m_xFull[iFull] = tmp + dx;
 
             // calculate perturbed residual
-            //m_resid->evalScalar(j, x0, m_rtmp.data(), rdt, 0);
+            //m_resid->evalScalar(j, x0, r1.data(), rdt, 0);
 
             // compute nth column of Jacobian
-            for (size_t i = j - 1; i != j+2; i++) {
-                if (i != npos && i < m_points) {
+            for (size_t i = j - 1; i != j+2; i++) 
+            {
+                if (i != npos && i < m_resid->points() ) 
+                {
                     size_t mv = m_resid->nVarScalar(i);
                     size_t iloc = m_resid->locScalar(i);
-                    for (size_t m = 0; m < mv; m++) {
-                        value(iloc+m,ipt) = (m_rtmp[iloc+m] - resid0[iloc+m])*rdx;
+                    for (size_t m = 0; m < mv; m++) 
+                    {
+                        value(iloc+m,iScalar) = (r1[iloc+m] - r0[iloc+m])*rdx;
                     }
+
                 }
             }
-            x0[ipt] = xsave;
-            ipt++;
+
+            // recover the x(n) value
+            m_xFull[iFull] = tmp;
         }
     }
 
@@ -288,7 +304,7 @@ int MultiSolverScalar::dampStep(const double* x0, const double* step0,
         double ff = fbound*damp;
 
         // step the solution by the damped step size
-        for (size_t j = 0; j < m_n; j++) {
+        for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
             x1[j] = ff*step0[j] + x0[j];
         }
 
@@ -331,15 +347,14 @@ int MultiSolverScalar::dampStep(const double* x0, const double* step0,
     }
 }
 
-int MultiSolverScalar::newtonSolve(double* x0, double* x1,
-                                   OneDim& r, int loglevel)
+int MultiSolverScalar::newtonSolve(double* x0, double* x1, OneDim& r, int loglevel)
 {
     clock_t t0 = clock();
     int m = 0;
     bool forceNewJac = false;
     doublereal s1=1.e30;
 
-    copy(x0, x0 + m_n, &m_x[0]);
+    copy(x0, x0 + m_resid->size(), &m_xFull[0]);
 
     bool frst = true;
     doublereal rdt = r.rdt();
@@ -356,26 +371,26 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1,
         }
 
         if (forceNewJac) {
-            r.eval(npos, &m_x[0], &m_stp0[0], 0.0, 0);
-            evalJac(&m_x[0], &m_stp0[0], 0.0);
+            // m_xScalar to m_xFull
+            evalJac();
             forceNewJac = false;
         }
 
         // compute the undamped Newton step
-        step(&m_x[0], &m_stp0[0], r, loglevel-1);
+        step(&m_xScalar[0], &m_stp0[0], r, loglevel-1);
 
         // increment the Jacobian age
         incrementJacAge();
 
         // damp the Newton step
-        m = dampStep(&m_x[0], &m_stp0[0], x1, &m_stp1[0], s1, r, loglevel-1, frst);
+        m = dampStep(&m_xScalar[0], &m_stp0[0], x1, &m_stp1[0], s1, r, loglevel-1, frst);
         if (loglevel == 1 && m >= 0) {
             if (frst) {
                 writelog("\n\n    {:>10s}    {:>10s}   {:>5s}",
                          "log10(ss)","log10(s1)","N_jac");
                 writelog("\n    ------------------------------------");
             }
-            doublereal ss = r.ssnorm(&m_x[0], &m_stp0[0]);
+            doublereal ss = r.ssnorm(&m_xScalar[0], &m_stp0[0]);
             writelog("\n    {:10.4f}    {:10.4f}       {:d}",
                      log10(ss),log10(s1),nJacEval());
         }
@@ -384,7 +399,8 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1,
         // Successful step, but not converged yet. Take the damped step, and try
         // again.
         if (m == 0) {
-            copy(x1, x1 + m_n, m_x.begin());
+            copy(x1, x1 + m_resid->sizeScalar(), m_xScalar.begin());
+            // convert m_xScalar to m_xFull
         } else if (m == 1) {
             // convergence
             if (rdt == 0) {
@@ -411,7 +427,7 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1,
     }
 
     if (m < 0) {
-        copy(m_x.begin(), m_x.end(), x1);
+        copy(m_xFull.begin(), m_xFull.end(), x1);
     }
     if (m > 0 && nJacEval() == j0) {
         m = 100;
