@@ -66,6 +66,10 @@ public:
      */
     int newtonSolve(doublereal* x0, doublereal* x1, OneDim& r, int loglevel);
 
+    void convertFullToScalar(const vector_fp& full, vector_fp& scalar);
+
+    void convertScalarToFull(const vector_fp& scalar, vector_fp& full);
+
     /// Set options.
     void setOptions(int maxJacAge = 5) {
         m_maxJacAge = maxJacAge;

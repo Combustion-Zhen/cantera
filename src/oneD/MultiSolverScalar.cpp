@@ -163,16 +163,16 @@ void MultiSolverScalar::evalJac()
         // the number of scalars
         size_t nv = m_resid->nVarScalar(j);
         // location of the first variable in scalar and full solution vector for point j
-        size_t jLocFull = m_resid->loc(j);
-        size_t jLocScalar = m_resid->locScalar(j);
+        size_t jFull = m_resid->loc(j);
+        size_t jScalar = m_resid->locScalar(j);
         // iterate over scalars
         for (size_t n = 0; n < nv; n++) 
         {
             // location of the scalar
-            size_t iScalar = jLocScalar + n;
+            size_t iScalar = jScalar + n;
             // location of the scalar in the full solution vector
             size_t offset = (n==0) ? c_offset_T : n-cOffsetScalarY+c_offset_Y ;
-            size_t iFull = jLocFull + offset;
+            size_t iFull = jFull + offset;
 
             // perturb x(n); preserve sign(x(n))
             double tmp = m_xFull[iFull];
@@ -434,6 +434,52 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1, OneDim& r, int loglev
     }
     m_elapsedNewton += (clock() - t0)/(1.0*CLOCKS_PER_SEC);
     return m;
+}
+
+void MultiSolverScalar::convertFullToScalar(const vector_fp& full, vector_fp& scalar)
+{
+    for (size_t j = 0 ; j != m_resid->points() ; j++ )
+    {
+        // location of the first variable in scalar and full solution vector for point j
+        size_t jFull = m_resid->loc(j);
+        size_t jScalar = m_resid->locScalar(j);
+        // the number of scalars
+        size_t nScalar = m_resid->nVarScalar(j);
+        // iterate over scalars
+        for (size_t n = 0; n != nScalar; n++) 
+        {
+            // location of the scalar
+            size_t iScalar = jScalar + n;
+            // location of the scalar in the full solution vector
+            size_t m = (n==0) ? c_offset_T : n-cOffsetScalarY+c_offset_Y ;
+            size_t iFull = jFull + m;
+
+            scalar[iScalar] = full[iFull];
+        }
+    }
+}
+
+void MultiSolverScalar::convertScalarToFull(const vector_fp& scalar, vector_fp& full)
+{
+    for (size_t j = 0 ; j != m_resid->points() ; j++ )
+    {
+        // location of the first variable in scalar and full solution vector for point j
+        size_t jFull = m_resid->loc(j);
+        size_t jScalar = m_resid->locScalar(j);
+        // the number of scalars
+        size_t nScalar = m_resid->nVarScalar(j);
+        // iterate over scalars
+        for (size_t n = 0; n != nScalar; n++) 
+        {
+            // location of the scalar
+            size_t iScalar = jScalar + n;
+            // location of the scalar in the full solution vector
+            size_t m = (n==0) ? c_offset_T : n-cOffsetScalarY+c_offset_Y ;
+            size_t iFull = jFull + m;
+
+            full[iFull] = scalar[iScalar];
+        }
+    }
 }
 
 } // end namespace Cantera
