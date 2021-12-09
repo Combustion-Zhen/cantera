@@ -202,7 +202,7 @@ void OneDim::resize()
         // full solution size
         m_size = d->loc() + d->size();
         // scalar solution size
-        m_sizeScalar += d->nScalars() * d->nPoints();
+        m_sizeScalar += d->locScalar() + d->sizeScalar();
     }
 
     m_newt->resize(size());
@@ -262,7 +262,7 @@ int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
 
 int OneDim::solveScalar(double* x, double* xnew, int loglevel)
 {
-    return 0;
+    return m_scalarSolver->newtonSolve(x, xnew, loglevel);
 }
 
 int OneDim::solveVelocity(double* x, double* xnew, int loglevel)
@@ -302,12 +302,18 @@ void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
     }
 }
 
+// todo : implement independet calculation of scalar residual
 void OneDim::evalScalar(size_t j, double* x, double* r, double rdt, int count)
 {
-    vector_fp rfull;
-    rfull.resize(m_size, 0.0);
+    vector_fp rf, rs;
 
-    eval(j, x, rfull.data(), rdt, count);
+    rf.resize(m_size, 0.0);
+    rs.resize(m_sizeScalar, 0.0);
+
+    eval(j, x, rf.data(), rdt, count);
+    m_scalarSolver->convertFullToScalar(rf, rs);
+
+    copy(rs.begin(), rs.end(), r);
 }
 
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
@@ -433,13 +439,15 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
 
     for (int i=0; i!=m_niter; i++)
     {
-        solveScalar(x, r, loglevel);
+        int m;
+        //solveScalar(x, r, loglevel);
+        m = m_scalarSolver->newtonSolve(x, r, loglevel);
 
         copy(r, r + m_size, x);
 
-        solveVelocity(x, r, loglevel);
+        //solveVelocity(x, r, loglevel);
 
-        copy(r, r + m_size, x);
+        //copy(r, r + m_size, x);
     }
 
     //throw CanteraError("OneDim::eval", "Debug");

@@ -86,6 +86,11 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
         setBounds(c_offset_Y+k, -1.0e-7, 1.0e5);
     }
 
+    setBoundsScalar(0, 200.0, 2*m_thermo->maxTemp()); // temperature bounds
+    for (size_t k = 0; k < m_nsp; k++) {
+        setBoundsScalar(cOffsetScalarY+k, -1.0e-7, 1.0e5);
+    }
+
     //-------------------- grid refinement -------------------------
     m_refiner->setActive(c_offset_U, false);
     m_refiner->setActive(c_offset_V, false);

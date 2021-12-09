@@ -232,6 +232,10 @@ public:
         }
     }
 
+    size_t startScalar(size_t i) const {
+        return (m_dom[i]->nScalars()) ? m_dom[i]->locScalar() : 0 ;
+    }
+
     //! Set a function that will be called every time #eval is called.
     //! Can be used to provide keyboard interrupt support in the high-level
     //! language interfaces.

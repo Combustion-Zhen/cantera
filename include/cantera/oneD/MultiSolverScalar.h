@@ -31,22 +31,15 @@ public:
 
     MultiSolverScalar& operator=(const MultiSolverScalar&) = delete;
 
+    /**
+     * Find the solution to F(X) = 0 by damped Newton iteration. On entry, x0
+     * contains an initial estimate of the solution. On successful return, x1
+     * contains the converged solution.
+     */
+    int newtonSolve(double* x0, double* x1, int loglevel);
+
     //! Evaluate the Jacobian at m_x
     void evalJac();
-
-    //! Compute the weighted 2-norm of `step`.
-    double norm2(const double* x, const double* step, OneDim& r) const;
-
-    //! Compute the undamped Newton step.  The residual function is evaluated
-    //! at `x`, but the Jacobian is not recomputed.
-    void step(double* x, double* step, OneDim& r, int loglevel);
-
-    /**
-     * Return the factor by which the undamped Newton step 'step0'
-     * must be multiplied in order to keep all solution components in
-     * all domains between their specified lower and upper bounds.
-     */
-    double boundStep(const double* x0, const double* step0, const OneDim& r, int loglevel);
 
     /**
      * On entry, step0 must contain an undamped Newton step for the solution x0.
@@ -55,16 +48,21 @@ public:
      * successful, the new solution after taking the damped step is returned in
      * x1, and the undamped step at x1 is returned in step1.
      */
-    int dampStep(const double* x0, const double* step0,
-                 double* x1, double* step1, double& s1,
-                 OneDim& r, int loglevel, bool writetitle);
+    int dampStep(double* x1, int loglevel, bool writetitle);
+
+    //! Compute the undamped Newton step.  The residual function is evaluated
+    //! at `x`, but the Jacobian is not recomputed.
+    void step(double* x, double* step, int loglevel);
+
+    //! Compute the weighted 2-norm of `step`.
+    double norm2(const vector_fp& x, const vector_fp& step) const;
 
     /**
-     * Find the solution to F(X) = 0 by damped Newton iteration. On entry, x0
-     * contains an initial estimate of the solution. On successful return, x1
-     * contains the converged solution.
+     * Return the factor by which the undamped Newton step 'step0'
+     * must be multiplied in order to keep all solution components in
+     * all domains between their specified lower and upper bounds.
      */
-    int newtonSolve(doublereal* x0, doublereal* x1, OneDim& r, int loglevel);
+    double boundStep(const vector_fp& x, const vector_fp& step, int loglevel);
 
     void convertFullToScalar(const vector_fp& full, vector_fp& scalar);
 
@@ -110,7 +108,7 @@ public:
 protected:
 
     //! Work arrays of size #m_n used in solve().
-    vector_fp m_xFull, m_xScalar, m_stp0, m_stp1;
+    vector_fp m_x;
 
     //! Residual evaluator for this Jacobian
     /*!

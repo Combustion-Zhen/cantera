@@ -24,11 +24,11 @@ Domain1D::Domain1D(size_t nv, size_t points, double time) :
     m_container(0),
     m_index(npos),
     m_type(0),
-    // Zhen Lu 210916
     m_nc(0),
     m_ctype(0),
     m_time(0.0),
     m_iloc(0),
+    m_ilocScalar(0),
     m_jstart(0),
     m_left(0),
     m_right(0),
@@ -54,6 +54,8 @@ void Domain1D::resize(size_t nv, size_t np)
     m_name.resize(m_nv,"");
     m_max.resize(m_nv, 0.0);
     m_min.resize(m_nv, 0.0);
+    m_maxScalar.resize(m_nc, 0.0);
+    m_minScalar.resize(m_nc, 0.0);
     // Default error tolerances for all domains
     m_rtol_ss.resize(m_nv, 1.0e-4);
     m_atol_ss.resize(m_nv, 1.0e-9);
@@ -128,6 +130,7 @@ void Domain1D::locate()
 
         // the starting location in the solution vector
         m_iloc = m_left->loc() + m_left->size();
+        m_ilocScalar = m_left->locScalar() + m_left->sizeScalar();
     } else {
         // this is the left-most domain
         m_jstart = 0;

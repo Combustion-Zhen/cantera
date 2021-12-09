@@ -338,6 +338,11 @@ public:
         m_max[n] = upper;
     }
 
+    inline void setBoundsScalar(size_t n, double lower, double upper) {
+        m_minScalar[n] = lower;
+        m_maxScalar[n] = upper;
+    }
+
     //! Relative tolerance of the nth component.
     inline doublereal rtol(size_t n) {
         return (m_rdt == 0.0 ? m_rtol_ss[n] : m_rtol_ts[n]);
@@ -378,6 +383,14 @@ public:
         return m_min[n];
     }
 
+    inline double upperBoundScalar(size_t n) const {
+        return m_maxScalar[n];
+    }
+
+    inline double lowerBoundScalar(size_t n) const {
+        return m_minScalar[n];
+    }
+
     //! Prepare to solve the steady-state problem
     /*!
      * Set the internally-stored reciprocal of the time step to 0.0
@@ -407,13 +420,20 @@ public:
         return m_nv*m_points;
     }
 
+    inline size_t sizeScalar() const {
+        return m_nc*m_points;
+    }
+
     /**
      * Location of the start of the local solution vector in the global
      * solution vector,
      */
-    // Zhen Lu 210929 remove virtual
     inline size_t loc(size_t j = 0) const {
         return m_iloc;
+    }
+
+    inline size_t locScalar() const {
+        return m_ilocScalar;
     }
 
     /**
@@ -521,8 +541,8 @@ protected:
     size_t m_nv; //! number of variables
     size_t m_points;
     vector_fp m_slast;
-    vector_fp m_max;
-    vector_fp m_min;
+    vector_fp m_max, m_maxScalar;
+    vector_fp m_min, m_minScalar;
     vector_fp m_rtol_ss, m_rtol_ts;
     vector_fp m_atol_ss, m_atol_ts;
     vector_fp m_z;
@@ -541,7 +561,7 @@ protected:
     /*!
      * Remember there may be multiple domains associated with this problem
      */
-    size_t m_iloc;
+    size_t m_iloc, m_ilocScalar;
 
     size_t m_jstart;
 

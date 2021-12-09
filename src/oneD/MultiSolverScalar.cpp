@@ -20,6 +20,7 @@ namespace
 
 class Indx
 {
+
 public:
     Indx(size_t nv, size_t np) : m_nv(nv), m_np(np) {}
     size_t m_nv, m_np;
@@ -27,56 +28,6 @@ public:
         return j*m_nv + m;
     }
 };
-
-/**
- * Return a damping coefficient that keeps the solution after taking one
- * Newton step between specified lower and upper bounds. This function only
- * considers one domain.
- */
-doublereal bound_step(const doublereal* x, const doublereal* step,
-                      Domain1D& r, int loglevel)
-{
-    size_t np = r.nPoints();
-    size_t nv = r.nComponents();
-    Indx index(nv, np);
-    doublereal fbound = 1.0;
-    bool wroteTitle = false;
-    for (size_t m = 0; m < nv; m++) {
-        double above = r.upperBound(m);
-        double below = r.lowerBound(m);
-
-        for (size_t j = 0; j < np; j++) {
-            double val = x[index(m,j)];
-            if (loglevel > 0 && (val > above + 1.0e-12 || val < below - 1.0e-12)) {
-                writelog("\nERROR: solution out of bounds.\n");
-                writelog("domain {:d}: {:>20s}({:d}) = {:10.3e} ({:10.3e}, {:10.3e})\n",
-                         r.domainIndex(), r.componentName(m), j, val, below, above);
-            }
-
-            double newval = val + step[index(m,j)];
-
-            if (newval > above) {
-                fbound = std::max(0.0, std::min(fbound,
-                                                (above - val)/(newval - val)));
-            } else if (newval < below) {
-                fbound = std::min(fbound, (val - below)/(val - newval));
-            }
-
-            if (loglevel > 1 && (newval > above || newval < below)) {
-                if (!wroteTitle) {
-                    writelog("\nNewton step takes solution out of bounds.\n\n");
-                    writelog("  {:>12s}  {:>12s}  {:>4s}  {:>10s}  {:>10s}  {:>10s}  {:>10s}\n",
-                             "domain","component","pt","value","step","min","max");
-                    wroteTitle = true;
-                }
-                writelog("          {:4d}  {:>12s}  {:4d}  {:10.3e}  {:10.3e}  {:10.3e}  {:10.3e}\n",
-                         r.domainIndex(), r.componentName(m), j,
-                         val, step[index(m,j)], below, above);
-            }
-        }
-    }
-    return fbound;
-}
 
 /**
  * This function computes the square of a weighted norm of a step vector for one
@@ -100,21 +51,23 @@ doublereal bound_step(const doublereal* x, const doublereal* step,
  * The second term, \f$\epsilon_{a,n}\f$, is the absolute error tolerance for
  * component n.
  */
-doublereal norm_square(const doublereal* x,
-                       const doublereal* step, Domain1D& r)
+double norm_square(const double* x, const double* step, Domain1D& r)
 {
     double sum = 0.0;
-    doublereal f2max = 0.0;
-    size_t nv = r.nComponents();
+    double f2max = 0.0;
+    size_t nv = r.nScalars();
     size_t np = r.nPoints();
 
-    for (size_t n = 0; n < nv; n++) {
+    for (size_t n = 0; n != nv; n++) 
+    {
         double esum = 0.0;
-        for (size_t j = 0; j < np; j++) {
+        for (size_t j = 0; j != np; j++) 
+        {
             esum += fabs(x[nv*j + n]);
         }
         double ewt = r.rtol(n)*esum/np + r.atol(n);
-        for (size_t j = 0; j < np; j++) {
+        for (size_t j = 0; j != np; j++) 
+        {
             double f = step[nv*j + n]/ewt;
             sum += f*f;
             f2max = std::max(f*f, f2max);
@@ -123,8 +76,58 @@ doublereal norm_square(const doublereal* x,
     return sum;
 }
 
-} // end unnamed-namespace
+/**
+ * Return a damping coefficient that keeps the solution after taking one
+ * Newton step between specified lower and upper bounds. This function only
+ * considers one domain.
+ */
+double bound_step(const double* x, const double* step, Domain1D& r, int loglevel)
+{
+    size_t nv = r.nScalars();
+    size_t np = r.nPoints();
 
+    Indx index(nv, np);
+    double fbound = 1.0;
+    bool writeTitle = false;
+
+    for (size_t m = 0; m != nv; m++) {
+        double above = r.upperBoundScalar(m);
+        double below = r.lowerBoundScalar(m);
+
+        for (size_t j = 0; j != np; j++) {
+            double val = x[index(m,j)];
+            if (loglevel > 0 && (val > above + 1.0e-12 || val < below - 1.0e-12)) {
+                writelog("\nERROR: solution out of bounds.\n");
+                writelog("domain {:d}: {:>20s}({:d}) = {:10.3e} ({:10.3e}, {:10.3e})\n",
+                         r.domainIndex(), r.componentName(m), j, val, below, above);
+            }
+
+            double newval = val + step[index(m,j)];
+
+            if (newval > above) {
+                fbound = std::max(0.0, std::min(fbound,
+                                                (above - val)/(newval - val)));
+            } else if (newval < below) {
+                fbound = std::min(fbound, (val - below)/(val - newval));
+            }
+
+            if (loglevel > 1 && (newval > above || newval < below)) {
+                if (!writeTitle) {
+                    writelog("\nNewton step takes solution out of bounds.\n\n");
+                    writelog("  {:>12s}  {:>12s}  {:>4s}  {:>10s}  {:>10s}  {:>10s}  {:>10s}\n",
+                             "domain","component","pt","value","step","min","max");
+                    writeTitle = true;
+                }
+                writelog("          {:4d}  {:>12s}  {:4d}  {:10.3e}  {:10.3e}  {:10.3e}  {:10.3e}\n",
+                         r.domainIndex(), r.componentName(m), j,
+                         val, step[index(m,j)], below, above);
+            }
+        }
+    }
+    return fbound;
+}
+
+} // end unnamed-namespace
 
 // constants
 const doublereal DampFactor = sqrt(2.0);
@@ -139,15 +142,94 @@ MultiSolverScalar::MultiSolverScalar(OneDim& r) :
     m_elapsedJac(0.0), m_elapsedNewton(0.0)
 {
     m_resid = &r;
-    m_xFull.resize(m_resid->size());
-    m_xScalar.resize(m_resid->sizeScalar());
-    m_stp0.resize(m_resid->sizeScalar());
-    m_stp1.resize(m_resid->sizeScalar());
+    m_x.resize(m_resid->size());
+}
+
+int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
+{
+    clock_t t0 = clock();
+
+    bool forceNewJac = true;
+    bool writeTitle = true;
+    int nJacReeval = 0;
+
+    int m = 0;
+
+    copy(x0, x0 + m_resid->size(), m_x.begin());
+
+    while (true) 
+    {
+        // Check whether the Jacobian should be re-evaluated.
+        if (getJacAge() > m_maxJacAge) 
+        {
+            if (loglevel > 0) 
+            {
+                writelog("\nMaximum Jacobian age reached ({})\n", m_maxJacAge);
+            }
+            forceNewJac = true;
+        }
+
+        if (forceNewJac) 
+        {
+            evalJac();
+            forceNewJac = false;
+        }
+
+        // increment the Jacobian age
+        incrementJacAge();
+
+        // damp the Newton step
+        m = dampStep(x1, loglevel-1, writeTitle);
+
+        writeTitle = false;
+
+        // Successful step, but not converged yet. Take the damped step, and try
+        // again.
+        if (m == 0) 
+        {
+            copy(x1, x1 + m_resid->size(), m_x.begin());
+        } 
+        else if (m == 1) 
+        {
+            break;
+        } 
+        else if (m < 0) 
+        {
+            // If dampStep fails, first try a new Jacobian if an old one was
+            // being used. If it was a new Jacobian, then return -1 to signify
+            // failure.
+            if (getJacAge() > 1) 
+            {
+                forceNewJac = true;
+                if (nJacReeval > 3) 
+                {
+                    break;
+                }
+                nJacReeval++;
+                debuglog("\nRe-evaluating Jacobian, since no damping "
+                         "coefficient\ncould be found with this Jacobian.\n",
+                         loglevel);
+            } 
+            else 
+            {
+                break;
+            }
+        }
+    }
+
+    if (m < 0) 
+    {
+        copy(m_x.begin(), m_x.end(), x1);
+    }
+    m_elapsedNewton += (clock() - t0)/(1.0*CLOCKS_PER_SEC);
+
+    return m;
 }
 
 void MultiSolverScalar::evalJac()
 {
     clock_t t0 = clock();
+    vector_fp rf(m_resid->size(), 0.0);
     vector_fp r0(m_resid->sizeScalar(), 0.0);
     vector_fp r1(m_resid->sizeScalar(), 0.0);
 
@@ -155,7 +237,9 @@ void MultiSolverScalar::evalJac()
     m_nJacEval++;
 
     // evaluate the unperturbed residual
-    //m_resid->evalScalar(npos, m_xFull, r0.data(), rdt, 0);
+    m_resid->evalScalar(npos, m_x.data(), r0.data(), m_resid->rdt(), 0);
+    //m_resid->eval(npos, m_x.data(), rf.data(), m_resid->rdt(), 0);
+    //convertFullToScalar(rf, r0);
 
     // perturb the full solution vector to obtain the Jacobian of scalars
     for (size_t j = 0; j != m_resid->points(); j++) 
@@ -175,13 +259,15 @@ void MultiSolverScalar::evalJac()
             size_t iFull = jFull + offset;
 
             // perturb x(n); preserve sign(x(n))
-            double tmp = m_xFull[iFull];
+            double tmp = m_x[iFull];
             double dx = (tmp>=0.0) ? tmp*m_rtol + m_atol : tmp*m_rtol - m_atol; 
             double rdx = 1.0/dx;
-            m_xFull[iFull] = tmp + dx;
+            m_x[iFull] = tmp + dx;
 
             // calculate perturbed residual
-            //m_resid->evalScalar(j, x0, r1.data(), rdt, 0);
+            m_resid->evalScalar(j, m_x.data(), r1.data(), m_resid->rdt(), 0);
+            //m_resid->eval(j, m_x.data(), rf.data(), m_resid->rdt(), 0);
+            //convertFullToScalar(rf, r1);
 
             // compute nth column of Jacobian
             for (size_t i = j - 1; i != j+2; i++) 
@@ -199,7 +285,7 @@ void MultiSolverScalar::evalJac()
             }
 
             // recover the x(n) value
-            m_xFull[iFull] = tmp;
+            m_x[iFull] = tmp;
         }
     }
 
@@ -207,39 +293,127 @@ void MultiSolverScalar::evalJac()
     setJacAge(0);
 }
 
-double MultiSolverScalar::norm2(const double* x,
-                                const double* step, OneDim& r) const
+int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
 {
-    double sum = 0.0;
-    size_t nd = r.nDomains();
-    for (size_t n = 0; n < nd; n++) {
-        double f = norm_square(x + r.start(n), step + r.start(n), r.domain(n));
-        sum += f;
+
+    vector_fp scalar0(m_resid->sizeScalar(), 0.0);
+    vector_fp scalar1(m_resid->sizeScalar(), 0.0);
+    vector_fp stp0(m_resid->sizeScalar(), 0.0);
+    vector_fp stp1(m_resid->sizeScalar(), 0.0);
+    double s0, s1;
+
+    // write header
+    if (loglevel > 0 && writeTitle) 
+    {
+        writelog("\n\nDamped Newton iteration:\n");
+        writeline('-', 65, false);
+
+        writelog("\n{}  {:>9s}   {:>9s}     {:>9s}   {:>9s}   {:>9s}  {:>5s} {:>5s}\n",
+                "m","F_damp","F_bound","log10(ss)",
+                "log10(s0)","log10(s1)","N_jac","Age");
+        writeline('-', 65);
     }
-    sum /= r.size();
-    return sqrt(sum);
+
+    convertFullToScalar(m_x, scalar0);
+
+    // compute the undamped Newton step
+    step(m_x.data(), stp0.data(), loglevel-1);
+
+    // compute the weighted norm of the undamped step size step0
+    s0 = norm2(scalar0, stp0);
+
+    // compute the multiplier to keep all components in bounds
+    double fbound = boundStep(scalar0, stp0, loglevel-1);
+
+    // if fbound is very small, then x0 is already close to the boundary and
+    // step0 points out of the allowed domain. In this case, the Newton
+    // algorithm fails, so return an error condition.
+    if (fbound < 1.e-10) {
+        debuglog("\nAt limits.\n", loglevel);
+        return -3;
+    }
+
+    // ---------- Attempt damped step ----------
+
+    // damping coefficient starts at 1.0
+    double damp = 1.0;
+    size_t m;
+    vector_fp tmp(m_x);
+
+    for (m = 0; m < NDAMP; m++) {
+        double ff = fbound*damp;
+
+        // step the solution by the damped step size
+        for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
+            scalar1[j] = scalar0[j] + ff*stp0[j];
+            //x1[j] = ff*step0[j] + x0[j];
+        }
+        convertScalarToFull(scalar1, tmp);
+
+        // compute the next undamped step that would result if x1 is accepted
+        step(tmp.data(), stp1.data(), loglevel-1);
+
+        // compute the weighted norm of step1
+        s1 = norm2(scalar1, stp1);
+
+        // write log information
+        if (loglevel > 0) {
+            writelog("\n{:d}  {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f} {:4d}  {:d}/{:d}",
+                     m, damp, fbound, log10(s0+SmallNumber), log10(s1+SmallNumber),
+                     nJacEval(), getJacAge(), m_maxJacAge);
+        }
+
+        // if the norm of s1 is less than the norm of s0, then accept this
+        // damping coefficient. Also accept it if this step would result in a
+        // converged solution. Otherwise, decrease the damping coefficient and
+        // try again.
+        if (s1 < 1.0 || s1 < s0) {
+            break;
+        }
+        damp /= DampFactor;
+    }
+
+    copy(tmp.begin(), tmp.end(), x1);
+
+    // If a damping coefficient was found, return 1 if the solution after
+    // stepping by the damped step would represent a converged solution, and
+    // return 0 otherwise. If no damping coefficient could be found, return -2.
+    if (m < NDAMP) 
+    {
+        return (s1 > 1.0) ? 0 : 1 ;
+    } 
+    else 
+    {
+        return -2;
+    }
 }
 
-void MultiSolverScalar::step(double* x, double* step,
-                             OneDim& r, int loglevel)
+void MultiSolverScalar::step(double* x, double* step, int loglevel)
 {
-    r.eval(npos, x, step);
-    for (size_t n = 0; n < r.size(); n++) {
+    m_resid->evalScalar(npos, x, step);
+    for (size_t n = 0; n != m_resid->sizeScalar(); n++) 
+    {
         step[n] = -step[n];
     }
 
-    try {
+    try 
+    {
         this->solve(step, step);
-    } catch (CanteraError&) {
-        if (this->info() > 0) {
+    } 
+    catch (CanteraError&) 
+    {
+        if (this->info() > 0) 
+        {
             // Positive value for "info" indicates the row where factorization failed
             size_t row = static_cast<size_t>(this->info() - 1);
             // Find the domain, grid point, and solution component corresponding
             // to this row
-            for (size_t n = 0; n < r.nDomains(); n++) {
-                Domain1D& dom = r.domain(n);
+            for (size_t n = 0; n < m_resid->nDomains(); n++) 
+            {
+                Domain1D& dom = m_resid->domain(n);
                 size_t nComp = dom.nComponents();
-                if (row >= dom.loc() && row < dom.loc() + nComp * dom.nPoints()) {
+                if (row >= dom.loc() && row < dom.loc() + nComp * dom.nPoints()) 
+                {
                     size_t offset = row - dom.loc();
                     size_t pt = offset / nComp;
                     size_t comp = offset - pt * nComp;
@@ -254,186 +428,31 @@ void MultiSolverScalar::step(double* x, double* step,
     }
 }
 
-double MultiSolverScalar::boundStep(const double* x0, const double* step0, 
-                                    const OneDim& r, int loglevel)
+double MultiSolverScalar::norm2(const vector_fp& x, const vector_fp& step) const
 {
-    doublereal fbound = 1.0;
-    for (size_t i = 0; i < r.nDomains(); i++) {
+    double sum = 0.0;
+    for (size_t n = 0; n != m_resid->nDomains(); n++) 
+    {
+        sum += norm_square(&x[m_resid->startScalar(n)],
+                           &step[m_resid->startScalar(n)],
+                           m_resid->domain(n));
+    }
+    sum /= m_resid->sizeScalar();
+    return sqrt(sum);
+}
+
+double MultiSolverScalar::boundStep(const vector_fp& x, const vector_fp& step, int loglevel)
+{
+    double fbound = 1.0;
+    for (size_t i = 0; i != m_resid->nDomains(); i++) 
+    {
         fbound = std::min(fbound,
-                          bound_step(x0 + r.start(i), step0 + r.start(i),
-                                     r.domain(i), loglevel));
+                          bound_step(&x[m_resid->startScalar(i)],
+                                     &step[m_resid->startScalar(i)],
+                                     m_resid->domain(i),
+                                     loglevel));
     }
     return fbound;
-}
-
-int MultiSolverScalar::dampStep(const double* x0, const double* step0,
-                                double* x1, double* step1, double& s1,
-                                OneDim& r, int loglevel, bool writetitle)
-{
-    // write header
-    if (loglevel > 0 && writetitle) {
-        writelog("\n\nDamped Newton iteration:\n");
-        writeline('-', 65, false);
-
-        writelog("\n{}  {:>9s}   {:>9s}     {:>9s}   {:>9s}   {:>9s}  {:>5s} {:>5s}\n",
-                "m","F_damp","F_bound","log10(ss)",
-                "log10(s0)","log10(s1)","N_jac","Age");
-        writeline('-', 65);
-    }
-
-    // compute the weighted norm of the undamped step size step0
-    doublereal s0 = norm2(x0, step0, r);
-
-    // compute the multiplier to keep all components in bounds
-    doublereal fbound = boundStep(x0, step0, r, loglevel-1);
-
-    // if fbound is very small, then x0 is already close to the boundary and
-    // step0 points out of the allowed domain. In this case, the Newton
-    // algorithm fails, so return an error condition.
-    if (fbound < 1.e-10) {
-        debuglog("\nAt limits.\n", loglevel);
-        return -3;
-    }
-
-    // ---------- Attempt damped step ----------
-
-    // damping coefficient starts at 1.0
-    doublereal damp = 1.0;
-    size_t m;
-    for (m = 0; m < NDAMP; m++) {
-        double ff = fbound*damp;
-
-        // step the solution by the damped step size
-        for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
-            x1[j] = ff*step0[j] + x0[j];
-        }
-
-        // compute the next undamped step that would result if x1 is accepted
-        step(x1, step1, r, loglevel-1);
-
-        // compute the weighted norm of step1
-        s1 = norm2(x1, step1, r);
-
-        // write log information
-        if (loglevel > 0) {
-            doublereal ss = r.ssnorm(x1,step1);
-            writelog("\n{:d}  {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f} {:4d}  {:d}/{:d}",
-                     m, damp, fbound, log10(ss+SmallNumber),
-                     log10(s0+SmallNumber), log10(s1+SmallNumber),
-                     nJacEval(), getJacAge(), m_maxJacAge);
-        }
-
-        // if the norm of s1 is less than the norm of s0, then accept this
-        // damping coefficient. Also accept it if this step would result in a
-        // converged solution. Otherwise, decrease the damping coefficient and
-        // try again.
-        if (s1 < 1.0 || s1 < s0) {
-            break;
-        }
-        damp /= DampFactor;
-    }
-
-    // If a damping coefficient was found, return 1 if the solution after
-    // stepping by the damped step would represent a converged solution, and
-    // return 0 otherwise. If no damping coefficient could be found, return -2.
-    if (m < NDAMP) {
-        if (s1 > 1.0) {
-            return 0;
-        } else {
-            return 1;
-        }
-    } else {
-        return -2;
-    }
-}
-
-int MultiSolverScalar::newtonSolve(double* x0, double* x1, OneDim& r, int loglevel)
-{
-    clock_t t0 = clock();
-    int m = 0;
-    bool forceNewJac = false;
-    doublereal s1=1.e30;
-
-    copy(x0, x0 + m_resid->size(), &m_xFull[0]);
-
-    bool frst = true;
-    doublereal rdt = r.rdt();
-    int j0 = nJacEval();
-    int nJacReeval = 0;
-
-    while (true) {
-        // Check whether the Jacobian should be re-evaluated.
-        if (getJacAge() > m_maxJacAge) {
-            if (loglevel > 0) {
-                writelog("\nMaximum Jacobian age reached ({})\n", m_maxJacAge);
-            }
-            forceNewJac = true;
-        }
-
-        if (forceNewJac) {
-            // m_xScalar to m_xFull
-            evalJac();
-            forceNewJac = false;
-        }
-
-        // compute the undamped Newton step
-        step(&m_xScalar[0], &m_stp0[0], r, loglevel-1);
-
-        // increment the Jacobian age
-        incrementJacAge();
-
-        // damp the Newton step
-        m = dampStep(&m_xScalar[0], &m_stp0[0], x1, &m_stp1[0], s1, r, loglevel-1, frst);
-        if (loglevel == 1 && m >= 0) {
-            if (frst) {
-                writelog("\n\n    {:>10s}    {:>10s}   {:>5s}",
-                         "log10(ss)","log10(s1)","N_jac");
-                writelog("\n    ------------------------------------");
-            }
-            doublereal ss = r.ssnorm(&m_xScalar[0], &m_stp0[0]);
-            writelog("\n    {:10.4f}    {:10.4f}       {:d}",
-                     log10(ss),log10(s1),nJacEval());
-        }
-        frst = false;
-
-        // Successful step, but not converged yet. Take the damped step, and try
-        // again.
-        if (m == 0) {
-            copy(x1, x1 + m_resid->sizeScalar(), m_xScalar.begin());
-            // convert m_xScalar to m_xFull
-        } else if (m == 1) {
-            // convergence
-            if (rdt == 0) {
-                setJacAge(0); // for efficient sensitivity analysis
-            }
-            break;
-        } else if (m < 0) {
-            // If dampStep fails, first try a new Jacobian if an old one was
-            // being used. If it was a new Jacobian, then return -1 to signify
-            // failure.
-            if (getJacAge() > 1) {
-                forceNewJac = true;
-                if (nJacReeval > 3) {
-                    break;
-                }
-                nJacReeval++;
-                debuglog("\nRe-evaluating Jacobian, since no damping "
-                         "coefficient\ncould be found with this Jacobian.\n",
-                         loglevel);
-            } else {
-                break;
-            }
-        }
-    }
-
-    if (m < 0) {
-        copy(m_xFull.begin(), m_xFull.end(), x1);
-    }
-    if (m > 0 && nJacEval() == j0) {
-        m = 100;
-    }
-    m_elapsedNewton += (clock() - t0)/(1.0*CLOCKS_PER_SEC);
-    return m;
 }
 
 void MultiSolverScalar::convertFullToScalar(const vector_fp& full, vector_fp& scalar)
