@@ -60,7 +60,10 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     // vector, so the total number of components is the number of species
     // plus the offset of the first mass fraction.
     m_nv = m_nsp + c_offset_Y;
+
     m_nc = m_nsp + 1;
+    m_maxScalar.resize(m_nc, 0.0);
+    m_minScalar.resize(m_nc, 0.0);
 
     // enable all species equations by default
     m_do_species.resize(m_nsp, true);

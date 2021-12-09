@@ -54,8 +54,6 @@ void Domain1D::resize(size_t nv, size_t np)
     m_name.resize(m_nv,"");
     m_max.resize(m_nv, 0.0);
     m_min.resize(m_nv, 0.0);
-    m_maxScalar.resize(m_nc, 0.0);
-    m_minScalar.resize(m_nc, 0.0);
     // Default error tolerances for all domains
     m_rtol_ss.resize(m_nv, 1.0e-4);
     m_atol_ss.resize(m_nv, 1.0e-9);
