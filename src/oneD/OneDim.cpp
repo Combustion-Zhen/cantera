@@ -202,7 +202,7 @@ void OneDim::resize()
         // full solution size
         m_size = d->loc() + d->size();
         // scalar solution size
-        m_sizeScalar += d->locScalar() + d->sizeScalar();
+        m_sizeScalar = d->locScalar() + d->sizeScalar();
     }
 
     m_newt->resize(size());
@@ -449,6 +449,8 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
 
         //copy(r, r + m_size, x);
     }
+
+    m_time += dt;
 
     //throw CanteraError("OneDim::eval", "Debug");
     // return the value of the stepsize

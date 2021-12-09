@@ -403,24 +403,31 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
     finalize();
 
-    while (time() < t) {
+    while (time() < t) 
+    {
 
         // grid refinement
-        if (refine_grid) {
+        if (refine_grid) 
+        {
             int new_points = refine(loglevel-1);
-            if (new_points) {
+            if (new_points) 
+            {
                 // If the grid has changed, preemptively reduce the timestep
                 // to avoid multiple successive failed time steps.
                 dt = m_tstep;
             }
-            if (new_points && loglevel > 6) {
+            if (new_points && loglevel > 6) 
+            {
                 save("debug_sim1d.xml", "debug", "After regridding");
             }
-            if (new_points && loglevel > 7) {
+            if (new_points && loglevel > 7) 
+            {
                 saveResidual("debug_sim1d.xml", "residual",
                              "After regridding");
             }
-        } else {
+        } 
+        else 
+        {
             debuglog("grid refinement disabled.\n", loglevel);
         }
 
@@ -430,14 +437,17 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
         m_xlast_ts = m_x;
 
-        if (loglevel == 1) {
+        if (loglevel == 1) 
+        {
             writelog("{:10.4g} {:10.4g} {:10.4g}\n", time(), dt,
                      log10(ssnorm(m_x.data(), m_xnew.data())));
         }
-        if (loglevel > 6) {
+        if (loglevel > 6) 
+        {
             save("debug_sim1d.xml", "debug", "After timestepping");
         }
-        if (loglevel > 7) {
+        if (loglevel > 7) 
+        {
             saveResidual("debug_sim1d.xml", "residual",
                          "After timestepping");
         }

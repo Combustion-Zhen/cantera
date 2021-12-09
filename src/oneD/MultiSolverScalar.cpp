@@ -152,7 +152,6 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
     bool forceNewJac = true;
     bool writeTitle = true;
     int nJacReeval = 0;
-
     int m = 0;
 
     copy(x0, x0 + m_resid->size(), m_x.begin());
@@ -411,10 +410,10 @@ void MultiSolverScalar::step(double* x, double* step, int loglevel)
             for (size_t n = 0; n < m_resid->nDomains(); n++) 
             {
                 Domain1D& dom = m_resid->domain(n);
-                size_t nComp = dom.nComponents();
-                if (row >= dom.loc() && row < dom.loc() + nComp * dom.nPoints()) 
+                size_t nComp = dom.nScalars();
+                if (row >= dom.locScalar() && row < dom.locScalar() + dom.sizeScalar()) 
                 {
-                    size_t offset = row - dom.loc();
+                    size_t offset = row - dom.locScalar();
                     size_t pt = offset / nComp;
                     size_t comp = offset - pt * nComp;
                     throw CanteraError("MultiSolverScalar::step",
