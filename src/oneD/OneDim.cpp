@@ -419,14 +419,6 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
     // set the Jacobian age parameter to the transient value
     m_scalarSolver->setOptions(m_ts_jac_age);
 
-    debuglog("\n\n time(s)    size (s)    log10(ss) \n", loglevel);
-    debuglog("===============================\n", loglevel);
-
-    if (loglevel > 0) {
-        double ss = ssnorm(x, r);
-        writelog("{:10.4g}  {:10.4g}  {:10.4g}", m_time, dt, log10(ss));
-    }
-
     // iterate over all domains to update time
     Domain1D* d = left();
     while (d) {

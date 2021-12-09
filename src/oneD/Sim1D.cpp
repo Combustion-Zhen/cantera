@@ -433,7 +433,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
         // time step
         dt = std::min(dt, t - time());
-        dt = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);
+        dt = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
 
         m_xlast_ts = m_x;
 

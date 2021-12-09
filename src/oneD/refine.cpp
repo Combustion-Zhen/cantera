@@ -210,6 +210,7 @@ double Refiner::value(const double* x, size_t i, size_t j)
 void Refiner::show()
 {
     if (!m_loc.empty()) {
+        writelog("\n");
         writeline('#', 78);
         writelog(string("Refining grid in ") +
                  m_domain->id()+".\n"
@@ -225,6 +226,7 @@ void Refiner::show()
         writelog("\n");
         writeline('#', 78);
     } else if (m_domain->nPoints() > 1) {
+        writelog("\n");
         writelog("no new points needed in "+m_domain->id()+"\n");
     }
 }

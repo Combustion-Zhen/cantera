@@ -1133,11 +1133,15 @@ class ForcedPolarFlame(FlameBase):
         :param loglevel:
             integer flag controlling the amount of diagnostic output. Zero
             suppresses all output, and 5 produces very verbose output.
-        :param refine_grid:
-            if True, enable grid refinement.
+       :param refine_grid:
+           if True, enable grid refinement.
         """
 
         return super().advance(time, loglevel, refine_grid)
+
+    def set_time_step(self, stepsize):
+
+        return super().set_time_step(stepsize, [10,])
 
     def get_flame_speed_reaction_sensitivities(self):
         r"""
@@ -1244,11 +1248,13 @@ class FreePolarFlame(FlameBase):
 
         return super().advance(time, loglevel, refine_grid)
 
+    def set_time_step(self, stepsize=1.0e-6):
+
+        return super().set_time_step(stepsize, [10,])
+
     def set_ignition(self, energy=2.0e-4, radius=2.0e-4, time=2.0e-4):
 
-        self.flame.set_ignition(energy, radius, time)
-
-        return
+        return self.flame.set_ignition(energy, radius, time)
 
 class IonFlameBase(FlameBase):
 

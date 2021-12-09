@@ -307,9 +307,8 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
         writelog("\n\nDamped Newton iteration:\n");
         writeline('-', 65, false);
 
-        writelog("\n{}  {:>9s}   {:>9s}     {:>9s}   {:>9s}   {:>9s}  {:>5s} {:>5s}\n",
-                "m","F_damp","F_bound","log10(ss)",
-                "log10(s0)","log10(s1)","N_jac","Age");
+        writelog("\n{}  {:>9s}   {:>9s}   {:>9s}   {:>9s}   {:>5s} {:>5s}\n",
+                "m", "F_damp", "F_bound", "log10(s0)", "log10(s1)", "N_jac", "Age");
         writeline('-', 65);
     }
 
@@ -357,7 +356,7 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
 
         // write log information
         if (loglevel > 0) {
-            writelog("\n{:d}  {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f} {:4d}  {:d}/{:d}",
+            writelog("\n{:d}  {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f}    {:4d}  {:d}/{:d}",
                      m, damp, fbound, log10(s0+SmallNumber), log10(s1+SmallNumber),
                      nJacEval(), getJacAge(), m_maxJacAge);
         }
