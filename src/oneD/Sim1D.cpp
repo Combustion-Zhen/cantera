@@ -433,14 +433,19 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
         // time step
         dt = std::min(dt, t - time());
+        if ( loglevel > 0 )
+        {
+            writelog("\n{:10.4g} {:10.4g}\n", time(), dt);
+        }
+
         dt = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
 
         m_xlast_ts = m_x;
 
-        if (loglevel == 1) 
+        if (loglevel > 0) 
         {
-            writelog("{:10.4g} {:10.4g} {:10.4g}\n", time(), dt,
-                     log10(ssnorm(m_x.data(), m_xnew.data())));
+            writelog("\n{:10.4g} {:10.4g}\n", 
+                     time(), log10(ssnorm(m_x.data(), m_xnew.data())));
         }
         if (loglevel > 6) 
         {

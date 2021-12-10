@@ -89,6 +89,16 @@ public:
         return m_nJacEval;
     }
 
+    //! Increment the Jacobian evaluation count
+    inline void incrementJacEval() {
+        m_nJacEval++;
+    }
+
+    //! reset the Jac Eval count
+    inline void resetJacEval() {
+        m_nJacEval = 0;
+    }
+
 
     //! Increment the Jacobian age.
     inline void incrementJacAge() {

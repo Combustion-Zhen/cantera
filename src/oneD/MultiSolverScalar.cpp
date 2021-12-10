@@ -205,7 +205,7 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
                     break;
                 }
                 nJacReeval++;
-                debuglog("\nRe-evaluating Jacobian, since no damping "
+                debuglog("\n\nRe-evaluating Jacobian, since no damping "
                          "coefficient\ncould be found with this Jacobian.\n",
                          loglevel);
             } 
@@ -220,6 +220,9 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
     {
         copy(m_x.begin(), m_x.end(), x1);
     }
+    if (m > 0 && nJacEval() == 1) {
+        m = 100;
+    }
     m_elapsedNewton += (clock() - t0)/(1.0*CLOCKS_PER_SEC);
 
     return m;
@@ -233,7 +236,7 @@ void MultiSolverScalar::evalJac()
     vector_fp r1(m_resid->sizeScalar(), 0.0);
 
     bfill(0.0);
-    m_nJacEval++;
+    incrementJacEval();
 
     // evaluate the unperturbed residual
     m_resid->evalScalar(npos, m_x.data(), r0.data(), m_resid->rdt(), 0);

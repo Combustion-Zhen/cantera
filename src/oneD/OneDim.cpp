@@ -262,6 +262,8 @@ int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
 
 int OneDim::solveScalar(double* x, double* xnew, int loglevel)
 {
+    m_scalarSolver->resetJacEval();
+
     return m_scalarSolver->newtonSolve(x, xnew, loglevel);
 }
 
@@ -416,6 +418,9 @@ doublereal OneDim::timeStep(int nsteps, double dt, double* x,
 doublereal OneDim::timeStepIteration(double dt, double* x, 
                                      double* r, int loglevel)
 {
+
+    int m;
+
     // set the Jacobian age parameter to the transient value
     m_scalarSolver->setOptions(m_ts_jac_age);
 
@@ -431,20 +436,50 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
 
     for (int i=0; i!=m_niter; i++)
     {
-        int m;
-        //solveScalar(x, r, loglevel);
-        m = m_scalarSolver->newtonSolve(x, r, loglevel);
+        m = solveScalar(x, r, loglevel);
 
+        // monitor convergence
         copy(r, r + m_size, x);
+
+        /*
+        if (m>=0)
+        {
+            // Success. 
+            // Copy the new solution in r
+            // to the current solution in x.
+            copy(r, r + m_size, x);
+        }
+        else
+        {
+            // Fail.
+            // Reduce the time step size and try again.
+            dt *= m_tfactor;
+            if (dt < m_tmin) 
+            {
+                throw CanteraError("OneDim::timeStep",
+                                    "Time integration failed.");
+            }
+            break;
+        }
+        */
 
         //solveVelocity(x, r, loglevel);
 
+        // monitor convergence
         //copy(r, r + m_size, x);
+
     }
 
     m_time += dt;
 
-    //throw CanteraError("OneDim::eval", "Debug");
+    /*
+    if ( m == 100 )
+    {
+        dt *= 1.5;
+        dt = std::min(dt, m_tmax);
+    }
+    */
+
     // return the value of the stepsize
     return dt;
 }
