@@ -30,7 +30,7 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     m_do_radiation(false),
     m_kExcessLeft(0), m_kExcessRight(0),
     m_zfixed(Undef), m_tfixed(-1.),
-    m_stype(0), m_beta(0.1),
+    m_convectiveScheme(0), m_gammaSchemeBeta(0.1),
     m_do_ignition(false),
     m_ign_energy(0.0), m_ign_radius(0.0), m_ign_time(0.0)
 {
@@ -900,32 +900,22 @@ void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
     // rho_u at point 0 is dependent on rho_u at point 1, but not on
     // mdot from the inlet.
 
-    if (domainType() == cPolarFlow) {
-        // symmetric at r=0
-        rsd[index(c_offset_U,0)]
-        =
-        -
-        rho_u(x, 1) / dz(0)
-        -
-        rdt * (m_rho[0] - m_rho_last[0]);
-    } else {
-        size_t m = coordinatesType();
+    size_t m = coordinatesType();
 
-        rsd[index(c_offset_U,0)]
-        = 
+    rsd[index(c_offset_U,0)]
+    = 
+    -
+    (
+        rho_u(x,1) * pow(z(1), m)
         -
-        (
-            rho_u(x,1) * pow(z(1), m)
-            -
-            rho_u(x,0) * pow(z(0), m)
-        ) / dz(0) / pow(z(0), m);
+        rho_u(x,0) * pow(z(0), m)
+    ) / dz(0) / pow(z(0), m);
 
-        if (domainType() == cAxisymmetricStagnationFlow) {
-            rsd[index(c_offset_U,0)] 
-            -= 
-            (density(1)*V(x,1) + density(0)*V(x,0));
-        } 
-    }
+    if (domainType() == cAxisymmetricStagnationFlow) {
+        rsd[index(c_offset_U,0)] 
+        -= 
+        (density(1)*V(x,1) + density(0)*V(x,0));
+    } 
 
     // the inlet (or other) object connected to this one will modify
     // these equations by subtracting its values for V, T, and mdot. As
@@ -1418,7 +1408,7 @@ doublereal StFlow::dTdz(const doublereal* x, size_t j) const
 
 double StFlow::scalarGradient(const vector_fp& s, const double v, size_t j) const
 {
-    switch (m_stype)
+    switch (m_convectiveScheme)
     {
     case 1:
         return scalarGradientGamma(s, v, j);
@@ -1444,8 +1434,8 @@ double StFlow::scalarGradientGamma(const vector_fp& s, const double v, size_t j)
 
     if (phi <= 0.0 || phi >= 1.0) {
         return grad_UD;
-    } else if ( phi <= m_beta ) {
-        return phi / m_beta * grad_CD + (1 - phi / m_beta) * grad_UD;
+    } else if ( phi <= m_gammaSchemeBeta ) {
+        return phi/m_gammaSchemeBeta*grad_CD + (1-phi/m_gammaSchemeBeta)*grad_UD;
     } else {
         return grad_CD;
     }

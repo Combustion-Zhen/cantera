@@ -229,13 +229,15 @@ public:
         m_dovisc = true;
     }
 
-    void setScheme(size_t scheme=0) {
-        m_stype = scheme;
+    //! Set convective scheme for discretization
+    //! 0: upwind 1: Gamma
+    void setConvectiveScheme(size_t scheme=1) {
+        m_convectiveScheme = scheme;
     }
 
     //! Set coefficient for the gradient scheme
-    void setBeta(doublereal b) {
-        m_beta = b;
+    void setGammaSchemeBeta(double b=0.1) {
+        m_gammaSchemeBeta = b;
     }
 
     //! Set energy deposition for ignition at r = 0
@@ -541,9 +543,9 @@ public:
 private:
     vector_fp m_ybar;
 
-    size_t m_stype;
+    size_t m_convectiveScheme;
 
-    double m_beta;
+    double m_gammaSchemeBeta;
 
     //! Ignition parameters
     bool m_do_ignition;
