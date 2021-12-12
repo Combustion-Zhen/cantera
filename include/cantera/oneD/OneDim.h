@@ -74,6 +74,10 @@ public:
      */
     void setSteadyMode();
 
+    //! Set the time splitting scheme
+    //! 0: coupled, 1: 1st order, 2: Strang
+    void setSplittingScheme(int scheme=2);
+
     /**
      * Solve F(x) = 0, where F(x) is the multi-domain residual function.
      * @param x0         Starting estimate of solution.
@@ -109,6 +113,8 @@ public:
      * values. Used only for diagnostic output.
      */
     doublereal ssnorm(doublereal* x, doublereal* r);
+
+    void updateTime();
 
     //! Prepare for time stepping beginning with solution *x* and timestep *dt*.
     void initTimeInteg(doublereal dt, doublereal* x);
@@ -419,6 +425,10 @@ protected:
     //! Zhen Lu for transient solution
     //! Physical time for the transient solution
     double m_time;
+
+    //! time splitting scheme
+    //! 0: coupled solver, 1: 1st-order splitting, 2: Strang splitting
+    int m_splittingScheme;
 
     //!< maximum iteration for each time step
     int m_niter; 

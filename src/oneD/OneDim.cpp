@@ -26,7 +26,7 @@ OneDim::OneDim() :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_niter(3),
+    m_time(0.0), m_splittingScheme(0), m_niter(3),
     m_bwScalar(0), m_sizeScalar(0),
     m_nevals(0), m_evaltime(0.0)
 {
@@ -42,7 +42,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_niter(3),
+    m_time(0.0), m_splittingScheme(0), m_niter(3),
     m_bwScalar(0), m_sizeScalar(0),
     m_nevals(0), m_evaltime(0.0)
 {
@@ -248,6 +248,21 @@ void OneDim::setSteadyMode()
     }
 }
 
+void OneDim::setSplittingScheme(int scheme)
+{
+    m_splittingScheme = scheme;
+
+    if (scheme != 0)
+    {
+        Domain1D* d = left();
+        while (d)
+        {
+            d->setSplit();
+            d = d->right();
+        }
+    }
+}
+
 int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
 {
     if (!m_jac_ok) {
@@ -326,6 +341,17 @@ doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
         ss = std::max(fabs(r[i]),ss);
     }
     return ss;
+}
+
+void OneDim::updateTime()
+{
+    // iterate over all domains to update time
+    Domain1D* d = left();
+
+    while (d) {
+        d->updateTime(m_time);
+        d = d->right();
+    }
 }
 
 void OneDim::initTimeInteg(doublereal dt, doublereal* x)
@@ -424,12 +450,7 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
     // set the Jacobian age parameter to the transient value
     m_scalarSolver->setOptions(m_ts_jac_age);
 
-    // iterate over all domains to update time
-    Domain1D* d = left();
-    while (d) {
-        d->updateTime(m_time);
-        d = d->right();
-    }
+    updateTime();
 
     // set up for time stepping with stepsize dt
     initTimeInteg(dt,x);

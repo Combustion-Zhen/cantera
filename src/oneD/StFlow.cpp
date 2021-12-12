@@ -28,6 +28,7 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
     m_do_soret(false),
     m_do_multicomponent(false),
     m_do_radiation(false),
+    m_do_reaction(true),
     m_kExcessLeft(0), m_kExcessRight(0),
     m_zfixed(Undef), m_tfixed(-1.),
     m_convectiveScheme(0), m_gammaSchemeBeta(0.1),
@@ -1082,9 +1083,9 @@ void StFlow::evalSpecies(size_t j, double* x, double* rsd, int* diag, double rdt
     //   = M_k\omega_k
     //-------------------------------------------------
 
-    //getWdot(x,j);
-
-    for (size_t k = 0; k < m_nsp; k++) {
+    for (size_t k = 0; k < m_nsp; k++) 
+    {
+        /*
         rsd[index(c_offset_Y + k, j)]
         = 
         (
@@ -1094,6 +1095,15 @@ void StFlow::evalSpecies(size_t j, double* x, double* rsd, int* diag, double rdt
         )/m_rho[j]
         - 
         rdt * (Y(x,k,j) - Y_prev(k,j));
+        */
+        rsd[index(c_offset_Y + k, j)] = - rho_u(x,j) * dYdz(x,k,j)
+                                        - divDiffFlux(k,j);
+        if ( m_do_reaction )
+        {
+            rsd[index(c_offset_Y + k, j)] += m_wt[k] * wdot(k,j);
+        }
+        rsd[index(c_offset_Y + k, j)] /= m_rho[j];
+        rsd[index(c_offset_Y + k, j)] -= rdt * (Y(x,k,j) - Y_prev(k,j));
 
         diag[index(c_offset_Y + k, j)] = 1;
     }
@@ -1140,9 +1150,13 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
         rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
                                     - divHeatFlux(x,j) - sum_flux;
         // heat release
-        rsd[index(c_offset_T, j)] -= hrr;
+        if ( m_do_reaction )
+        {
+            rsd[index(c_offset_T, j)] -= hrr;
+        }
         // Zhen Lu 211027 ignition
-        if ( m_do_ignition ) {
+        if ( m_do_ignition ) 
+        {
             rsd[index(c_offset_T, j)] += ignEnergy(j);
         }
         rsd[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);

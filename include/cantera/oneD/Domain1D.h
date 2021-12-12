@@ -211,6 +211,9 @@ public:
         m_rdt = 1.0/dt;
     }
 
+    //! Set the splitting, turn-off reaction
+    virtual void setSplit() {}
+
     //! update simulation time in the domain
     inline void updateTime(double t) {
         m_time = t;

@@ -127,6 +127,11 @@ public:
     //! between j and j + 1.
     void setGasAtMidpoint(const doublereal* x, size_t j);
 
+    //! Set the splitting, turn-off reaction
+    virtual void setSplit() {
+        m_do_reaction = false;
+    }
+
     inline ThermoPhase& phase() {
         return *m_thermo;
     }
@@ -519,6 +524,9 @@ protected:
 
     //! radiative heat loss vector
     vector_fp m_qdotRadiation;
+
+    //! reaction flag
+    bool m_do_reaction;
 
     // fixed T and Y values
     vector_fp m_fixedtemp;
