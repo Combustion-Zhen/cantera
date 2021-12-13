@@ -132,6 +132,9 @@ public:
         m_do_reaction = false;
     }
 
+    //! advance chemistry substep
+    virtual void advanceChemistry(double* xg, double dt);
+
     inline ThermoPhase& phase() {
         return *m_thermo;
     }
@@ -409,6 +412,8 @@ protected:
     //! @}
 
     double ignEnergy(size_t j) const;
+
+    void setScalars(double* x, size_t j, const ThermoPhase& ph);
 
     //! Write the net production rates at point `j` into array `m_wdot`
     void getWdot(double* x, size_t j) {

@@ -825,6 +825,9 @@ cdef class Sim1D:
     def time(self):
         return self.sim.time()
 
+    def set_splitting_scheme(self, s):
+        self.sim.setSplittingScheme(s)
+
     def domain_index(self, dom):
         """
         Get the index of a domain, specified either by name or as a Domain1D

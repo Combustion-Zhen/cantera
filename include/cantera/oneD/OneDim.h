@@ -107,6 +107,8 @@ public:
     void evalScalar(size_t j, double* x, double* r, double rdt=-1.0,
                     int count=-1);
 
+    void advanceScalarChemistry(double* x, double dt);
+
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using
      * solution x. On return, array r contains the steady-state residual
@@ -458,6 +460,9 @@ private:
     //! Number of time steps taken in each call to solve() (e.g. for each
     //! successive grid refinement)
     vector_int m_timeSteps;
+
+    double m_evalTimeTransport;
+    double m_evalTimeChemistry;
 };
 
 }

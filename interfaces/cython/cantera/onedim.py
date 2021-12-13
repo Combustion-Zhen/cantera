@@ -1252,6 +1252,9 @@ class FreePolarFlame(FlameBase):
 
         return super().set_time_step(stepsize, [10,])
 
+    def set_splitting(self, scheme=2):
+        return super().set_splitting_scheme(scheme)
+
     def set_ignition(self, energy=2.0e-4, radius=2.0e-4, time=2.0e-4):
 
         return self.flame.set_ignition(energy, radius, time)

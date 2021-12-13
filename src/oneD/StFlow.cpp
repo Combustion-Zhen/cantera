@@ -9,6 +9,8 @@
 #include "cantera/transport/TransportBase.h"
 #include "cantera/numerics/funcs.h"
 #include "cantera/base/global.h"
+#include "cantera/zerodim.h"
+#include "cantera/base/Solution.h"
 
 #include <set>
 
@@ -817,6 +819,45 @@ void StFlow::setGasAtMidpoint(const doublereal* x, size_t j)
     }
     m_thermo->setMassFractions_NoNorm(m_ybar.data());
     m_thermo->setPressure(m_press);
+}
+
+void StFlow::advanceChemistry(double* xg, double dt)
+{
+    double* x = xg + loc();
+
+    for (size_t j=0; j!=nPoints(); j++)
+    {
+        setGas(x, j);
+
+        auto sol = Solution::create();
+        //sol->setThermo(shared_ptr<ThermoPhase>(m_thermo));
+        //sol->setKinetics(shared_ptr<Kinetics>(m_kin));
+
+        /*
+        IdealGasConstPressureReactor combustor;
+        combustor.insert(sol);
+
+        // set simulation
+        ReactorNet sim;
+        sim.addReactor(combustor);
+
+        // integrate
+        sim.advance(dt);
+
+        // update solution vector
+        setScalars(x, j, combustor.contents());
+        */
+    }
+
+}
+
+void StFlow::setScalars(double* x, size_t j, const ThermoPhase& ph)
+{
+    T(x, j) = ph.temperature();
+    for (size_t i=0; i!=m_nsp; i++)
+    {
+        Y(x, i, j) = ph.massFraction(i);
+    }
 }
 
 // protected member functions

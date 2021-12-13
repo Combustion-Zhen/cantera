@@ -28,7 +28,8 @@ OneDim::OneDim() :
     m_nsteps(0), m_nsteps_max(500),
     m_time(0.0), m_splittingScheme(0), m_niter(3),
     m_bwScalar(0), m_sizeScalar(0),
-    m_nevals(0), m_evaltime(0.0)
+    m_nevals(0), m_evaltime(0.0),
+    m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
 {
     m_newt.reset(new MultiNewton(1));
     m_scalarSolver.reset(new MultiSolverScalar(*this));
@@ -44,7 +45,8 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_nsteps(0), m_nsteps_max(500),
     m_time(0.0), m_splittingScheme(0), m_niter(3),
     m_bwScalar(0), m_sizeScalar(0),
-    m_nevals(0), m_evaltime(0.0)
+    m_nevals(0), m_evaltime(0.0),
+    m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
 {
     // create a Newton iterator, and add each domain.
     m_newt.reset(new MultiNewton(1));
@@ -333,6 +335,19 @@ void OneDim::evalScalar(size_t j, double* x, double* r, double rdt, int count)
     copy(rs.begin(), rs.end(), r);
 }
 
+void OneDim::advanceScalarChemistry(double* x, double dt)
+{
+    clock_t t0 = clock();
+
+    for (const auto& d : m_dom)
+    {
+        d->advanceChemistry(x, dt);
+    }
+
+    clock_t t1 = clock();
+    m_evalTimeChemistry += double(t1-t0)/CLOCKS_PER_SEC;
+}
+
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
 {
     eval(npos, x, r, 0.0, 0);
@@ -444,6 +459,22 @@ doublereal OneDim::timeStep(int nsteps, double dt, double* x,
 doublereal OneDim::timeStepIteration(double dt, double* x, 
                                      double* r, int loglevel)
 {
+
+    writelog("timeStepIteration start");
+
+    double hdt = dt/2.0;
+
+    switch (m_splittingScheme)
+    {
+    case 1:
+        advanceScalarChemistry(x, dt);
+        break;
+    case 2:
+        advanceScalarChemistry(x, hdt);
+        break;
+    default:
+        break;
+    }
 
     int m;
 

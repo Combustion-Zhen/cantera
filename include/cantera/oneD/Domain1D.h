@@ -214,6 +214,9 @@ public:
     //! Set the splitting, turn-off reaction
     virtual void setSplit() {}
 
+    //! advance chemistry substep
+    virtual void advanceChemistry(double* xg, double dt) {}
+
     //! update simulation time in the domain
     inline void updateTime(double t) {
         m_time = t;
