@@ -829,13 +829,9 @@ void StFlow::advanceChemistry(double* xg, double dt)
     {
         setGas(x, j);
 
-        auto sol = Solution::create();
-        //sol->setThermo(shared_ptr<ThermoPhase>(m_thermo));
-        //sol->setKinetics(shared_ptr<Kinetics>(m_kin));
-
-        /*
         IdealGasConstPressureReactor combustor;
-        combustor.insert(sol);
+        combustor.setThermoMgr(phase());
+        combustor.setKineticsMgr(kinetics());
 
         // set simulation
         ReactorNet sim;
@@ -846,7 +842,6 @@ void StFlow::advanceChemistry(double* xg, double dt)
 
         // update solution vector
         setScalars(x, j, combustor.contents());
-        */
     }
 
 }

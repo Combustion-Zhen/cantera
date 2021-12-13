@@ -107,7 +107,9 @@ public:
     void evalScalar(size_t j, double* x, double* r, double rdt=-1.0,
                     int count=-1);
 
-    void advanceScalarChemistry(double* x, double dt);
+    void advanceScalarChemistry(double* x, double dt, bool firstSubstep);
+
+    void advanceDomainChemistry(double* x, double dt);
 
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using

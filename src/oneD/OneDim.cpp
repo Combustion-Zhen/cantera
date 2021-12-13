@@ -335,17 +335,40 @@ void OneDim::evalScalar(size_t j, double* x, double* r, double rdt, int count)
     copy(rs.begin(), rs.end(), r);
 }
 
-void OneDim::advanceScalarChemistry(double* x, double dt)
+void OneDim::advanceScalarChemistry(double* x, double dt, bool firstSubstep)
 {
     clock_t t0 = clock();
 
-    for (const auto& d : m_dom)
+    switch (m_splittingScheme)
     {
-        d->advanceChemistry(x, dt);
+    case 1:
+    {
+        if (firstSubstep)
+        {
+            advanceDomainChemistry(x, dt);
+        }
+        break;
+    }
+    case 2:
+    {
+        double hdt = dt/2.0;
+        advanceDomainChemistry(x, hdt);
+        break;
+    }
+    default:
+        break;
     }
 
     clock_t t1 = clock();
     m_evalTimeChemistry += double(t1-t0)/CLOCKS_PER_SEC;
+}
+
+void OneDim::advanceDomainChemistry(double* x, double dt)
+{
+    for (const auto& d : m_dom)
+    {
+        d->advanceChemistry(x, dt);
+    }
 }
 
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
@@ -460,21 +483,10 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
                                      double* r, int loglevel)
 {
 
-    writelog("timeStepIteration start");
+    bool firstSubstep = true;
 
-    double hdt = dt/2.0;
-
-    switch (m_splittingScheme)
-    {
-    case 1:
-        advanceScalarChemistry(x, dt);
-        break;
-    case 2:
-        advanceScalarChemistry(x, hdt);
-        break;
-    default:
-        break;
-    }
+    advanceScalarChemistry(x, dt, firstSubstep);
+    firstSubstep = false;
 
     int m;
 
@@ -521,6 +533,8 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
         //copy(r, r + m_size, x);
 
     }
+
+    advanceScalarChemistry(x, dt, firstSubstep);
 
     m_time += dt;
 
