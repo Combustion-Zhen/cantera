@@ -111,6 +111,8 @@ public:
 
     void advanceDomainChemistry(double* x, double dt);
 
+    void advanceTransport(double*x, double*r, double dt, int loglevel);
+
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using
      * solution x. On return, array r contains the steady-state residual

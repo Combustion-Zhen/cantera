@@ -31,12 +31,14 @@ public:
 
     MultiSolverScalar& operator=(const MultiSolverScalar&) = delete;
 
+    int newtonSolve(double* x0, double* x1, int loglevel);
+
     /**
      * Find the solution to F(X) = 0 by damped Newton iteration. On entry, x0
      * contains an initial estimate of the solution. On successful return, x1
      * contains the converged solution.
      */
-    int newtonSolve(double* x0, double* x1, int loglevel);
+    int dampedNewtonSolve(double* x0, double* x1, int loglevel);
 
     //! Evaluate the Jacobian at m_x
     void evalJac();

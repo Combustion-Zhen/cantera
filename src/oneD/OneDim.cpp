@@ -371,6 +371,37 @@ void OneDim::advanceDomainChemistry(double* x, double dt)
     }
 }
 
+void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
+{
+    clock_t t0 = clock();
+
+    int m;
+
+    // set the Jacobian age parameter to the transient value
+    m_scalarSolver->setOptions(m_ts_jac_age);
+
+    updateTime();
+
+    // set up for time stepping with stepsize dt
+    initTimeInteg(dt,x);
+
+    for (int i=0; i!=m_niter; i++)
+    {
+        m = solveScalar(x, r, loglevel);
+
+        // monitor convergence
+        copy(r, r + m_size, x);
+
+        //solveVelocity(x, r, loglevel);
+
+        // monitor convergence
+        //copy(r, r + m_size, x);
+    }
+
+    clock_t t1 = clock();
+    m_evalTimeTransport += double(t1-t0)/CLOCKS_PER_SEC;
+}
+
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
 {
     eval(npos, x, r, 0.0, 0);
@@ -488,63 +519,11 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
     advanceScalarChemistry(x, dt, firstSubstep);
     firstSubstep = false;
 
-    int m;
-
-    // set the Jacobian age parameter to the transient value
-    m_scalarSolver->setOptions(m_ts_jac_age);
-
-    updateTime();
-
-    // set up for time stepping with stepsize dt
-    initTimeInteg(dt,x);
-
-    for (int i=0; i!=m_niter; i++)
-    {
-        m = solveScalar(x, r, loglevel);
-
-        // monitor convergence
-        copy(r, r + m_size, x);
-
-        /*
-        if (m>=0)
-        {
-            // Success. 
-            // Copy the new solution in r
-            // to the current solution in x.
-            copy(r, r + m_size, x);
-        }
-        else
-        {
-            // Fail.
-            // Reduce the time step size and try again.
-            dt *= m_tfactor;
-            if (dt < m_tmin) 
-            {
-                throw CanteraError("OneDim::timeStep",
-                                    "Time integration failed.");
-            }
-            break;
-        }
-        */
-
-        //solveVelocity(x, r, loglevel);
-
-        // monitor convergence
-        //copy(r, r + m_size, x);
-
-    }
+    advanceTransport(x, r, dt, loglevel);
 
     advanceScalarChemistry(x, dt, firstSubstep);
 
     m_time += dt;
-
-    /*
-    if ( m == 100 )
-    {
-        dt *= 1.5;
-        dt = std::min(dt, m_tmax);
-    }
-    */
 
     // return the value of the stepsize
     return dt;

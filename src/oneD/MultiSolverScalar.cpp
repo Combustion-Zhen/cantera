@@ -147,6 +147,28 @@ MultiSolverScalar::MultiSolverScalar(OneDim& r) :
 
 int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
 {
+    copy(x0, x0 + m_resid->size(), m_x.begin());
+
+    evalJac();
+
+    vector_fp stp(m_resid->sizeScalar(), 0.0);
+    step(m_x.data(), stp.data(), loglevel-1);
+
+    vector_fp scalar(m_resid->sizeScalar(), 0.0);
+    convertFullToScalar(m_x, scalar);
+
+    for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
+        scalar[j] = scalar[j] + stp[j];
+    }
+    convertScalarToFull(scalar, m_x);
+
+    copy(m_x.begin(), m_x.end(), x1);
+
+    return 0;
+}
+
+int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
+{
     clock_t t0 = clock();
 
     bool forceNewJac = true;
