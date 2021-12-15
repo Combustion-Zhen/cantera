@@ -281,7 +281,8 @@ int OneDim::solveScalar(double* x, double* xnew, int loglevel)
 {
     m_scalarSolver->resetJacEval();
 
-    return m_scalarSolver->newtonSolve(x, xnew, loglevel);
+    //return m_scalarSolver->newtonSolve(x, xnew, loglevel);
+    return m_scalarSolver->dampedNewtonSolve(x, xnew, loglevel);
 }
 
 int OneDim::solveVelocity(double* x, double* xnew, int loglevel)
@@ -390,7 +391,16 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
         m = solveScalar(x, r, loglevel);
 
         // monitor convergence
-        copy(r, r + m_size, x);
+        if (m<0)
+        {
+            throw CanteraError("OneDim::advanceTransport",
+                "Scalar solver fails to convergence ({}) ",
+                m);
+        }
+        else
+        {
+            copy(r, r + m_size, x);
+        }
 
         //solveVelocity(x, r, loglevel);
 
