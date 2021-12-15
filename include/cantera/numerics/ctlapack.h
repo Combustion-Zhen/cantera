@@ -20,6 +20,7 @@
 #define _DGELSS_  dgelss
 #define _DGBCON_  dgbcon
 #define _DGBSV_   dgbsv
+#define _DGTSV_   dgtsv
 #define _DGBTRF_  dgbtrf
 #define _DGBTRS_  dgbtrs
 #define _DGECON_  dgecon
@@ -41,6 +42,7 @@
 #define _DGELSS_  dgelss_
 #define _DGBCON_  dgbcon_
 #define _DGBSV_   dgbsv_
+#define _DGTSV_   dgtsv_
 #define _DGBTRF_  dgbtrf_
 #define _DGBTRS_  dgbtrs_
 #define _DGECON_  dgecon_
@@ -109,6 +111,10 @@ extern "C" {
 
     int _DGBSV_(integer* n, integer* kl, integer* ku, integer* nrhs,
                 doublereal* a, integer* lda, integer* ipiv, doublereal* b,
+                integer* ldb, integer* info);
+
+    int _DGTSV_(integer* n, integer* nrhs,
+                doublereal* dl, doublereal* d, doublereal* du, doublereal* b,
                 integer* ldb, integer* info);
 
     int _DGBTRF_(integer* m, integer* n, integer* kl, integer* ku,
@@ -240,6 +246,15 @@ inline void ct_dgbsv(int n, int kl, int ku, int nrhs,
             f_ldb = ldb, f_info = 0;
     _DGBSV_(&f_n, &f_kl, &f_ku, &f_nrhs, a, &f_lda, ipiv,
             b, &f_ldb, &f_info);
+    info = f_info;
+}
+
+inline void ct_dgtsv(int n, int nrhs,
+                     doublereal* dl, doublereal* d, doublereal* du, doublereal* b,
+                     int ldb, int info)
+{
+    integer f_n = n, f_nrhs = nrhs, f_ldb = ldb, f_info = 0;
+    _DGTSV_(&f_n, &f_nrhs, dl, d, du, b, &f_ldb, &f_info);
     info = f_info;
 }
 
