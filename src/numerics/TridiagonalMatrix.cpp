@@ -65,12 +65,15 @@ int TridiagonalMatrix::solve(vector_fp& b, size_t nrhs, size_t ldb)
 {
     int info = 0;
 
-    if (ldb == 0) {
+    if (ldb == 0) 
+    {
         ldb = nColumns();
     }
 
 #if CT_USE_LAPACK
-    ct_dgtsv(size(), nrhs, m_dl.data(), m_d.data(), m_du.data(), b.data(), ldb, info);
+    ct_dgtsv(size(), nrhs, 
+             m_dl.data(), m_d.data(), m_du.data(), b.data(), 
+             ldb, info);
 #else
     throw Cantera::CanteraError("TridiagonalMatrix::solve", 
                                 "Tridiagonal problem solver not set");

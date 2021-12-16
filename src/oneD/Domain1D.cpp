@@ -29,6 +29,7 @@ Domain1D::Domain1D(size_t nv, size_t points, double time) :
     m_time(0.0),
     m_iloc(0),
     m_ilocScalar(0),
+    m_ilocVelocity(0),
     m_jstart(0),
     m_left(0),
     m_right(0),
@@ -129,10 +130,13 @@ void Domain1D::locate()
         // the starting location in the solution vector
         m_iloc = m_left->loc() + m_left->size();
         m_ilocScalar = m_left->locScalar() + m_left->sizeScalar();
+        m_ilocVelocity = m_left->locVelocity() + m_left->sizeVelocity();
     } else {
         // this is the left-most domain
         m_jstart = 0;
         m_iloc = 0;
+        m_ilocScalar = 0;
+        m_ilocVelocity = 0;
     }
     // if there is a domain to the right of this one, then repeat this for it
     if (m_right) {

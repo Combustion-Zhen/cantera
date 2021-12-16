@@ -6,6 +6,7 @@
 #ifndef CT_MULTISOLVERCONTINUITY_H
 #define CT_MULTISOLVERCONTINUITY_H
 
+#include "cantera/numerics/TridiagonalMatrix.h"
 #include "OneDim.h"
 
 namespace Cantera
@@ -16,7 +17,7 @@ namespace Cantera
  * Used by class OneDim.
  * @ingroup onedim
  */
-class MultiSolverContinuity
+class MultiSolverContinuity : public TridiagonalMatrix
 {
 public:
 

@@ -296,6 +296,11 @@ public:
         return m_nc;
     }
 
+    //! Number of velocity components
+    inline size_t nVelocity() const {
+        return (m_nv==0) ? 0 : 1 ;
+    }
+
     //! Check that the specified component index is in range.
     //! Throws an exception if n is greater than nComponents()-1
     inline void checkComponentIndex(size_t n) const {
@@ -430,6 +435,10 @@ public:
         return m_nc*m_points;
     }
 
+    inline size_t sizeVelocity() const {
+        return (m_nv==0) ? 0 : m_points ;
+    }
+
     /**
      * Location of the start of the local solution vector in the global
      * solution vector,
@@ -440,6 +449,10 @@ public:
 
     inline size_t locScalar() const {
         return m_ilocScalar;
+    }
+
+    inline size_t locVelocity() const {
+        return m_ilocVelocity;
     }
 
     /**
@@ -567,7 +580,7 @@ protected:
     /*!
      * Remember there may be multiple domains associated with this problem
      */
-    size_t m_iloc, m_ilocScalar;
+    size_t m_iloc, m_ilocScalar, m_ilocVelocity;
 
     size_t m_jstart;
 

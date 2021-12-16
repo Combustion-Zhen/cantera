@@ -18,8 +18,8 @@ namespace Cantera
 
 // public
 
-MultiSolverContinuity::MultiSolverContinuity(OneDim& r)
-    //BandMatrix(r.sizeScalar(),r.bandwidthScalar(),r.bandwidthScalar())
+MultiSolverContinuity::MultiSolverContinuity(OneDim& r) :
+    TridiagonalMatrix(r.size())
 {
     m_resid = &r;
     m_x.resize(m_resid->size());
@@ -27,29 +27,25 @@ MultiSolverContinuity::MultiSolverContinuity(OneDim& r)
 
 void MultiSolverContinuity::convertFullToVelocity(const vector_fp& full, vector_fp& velocity)
 {
-    for (size_t j = 0 ; j != m_resid->points() ; j++ )
+    for (size_t i = 0 ; i != m_resid->points() ; i++ )
     {
         // location of the first variable in scalar and full solution vector for point j
-        size_t i = m_resid->loc(j);
+        size_t j = m_resid->loc(i);
+        size_t k = m_resid->locVelocity(i);
         // take the velocity, which is stored as the first component
-        if ( m_resid->nVars(j) )
-        {
-            velocity[j] = full[i];
-        }
+        velocity[k] = full[j];
     }
 }
 
 void MultiSolverContinuity::convertVelocityToFull(const vector_fp& velocity, vector_fp& full)
 {
-    for (size_t j = 0 ; j != m_resid->points() ; j++ )
+    for (size_t i = 0 ; i != m_resid->points() ; i++ )
     {
         // location of the first variable in scalar and full solution vector for point j
-        size_t i = m_resid->loc(j);
+        size_t j = m_resid->loc(i);
+        size_t k = m_resid->locVelocity(i);
         //
-        if ( m_resid->nVars(j) )
-        {
-            full[i] = velocity[j];
-        }
+        full[j] = velocity[k];
     }
 }
 

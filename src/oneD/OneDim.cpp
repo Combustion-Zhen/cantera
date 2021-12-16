@@ -27,7 +27,7 @@ OneDim::OneDim() :
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
     m_time(0.0), m_splittingScheme(0), m_niter(3),
-    m_bwScalar(0), m_sizeScalar(0),
+    m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
 {
@@ -44,7 +44,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
     m_time(0.0), m_splittingScheme(0), m_niter(3),
-    m_bwScalar(0), m_sizeScalar(0),
+    m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
 {
@@ -139,10 +139,12 @@ void OneDim::resize()
 
     m_nScalar.clear();
     m_locScalar.clear();
-    m_sizeScalar = 0;
+
+    m_locVelocity.clear();
 
     size_t lv = 0;
     size_t lc = 0;
+    size_t lu = 0;
 
     // save the statistics for the last grid
     saveStats();
@@ -153,6 +155,8 @@ void OneDim::resize()
         size_t np = d->nPoints();
         size_t nv = d->nComponents();
         size_t nc = d->nScalars();
+        size_t nu = d->nVelocity();
+
         for (size_t n = 0; n < np; n++) {
             m_nvars.push_back(nv);
             m_loc.push_back(lv);
@@ -161,6 +165,9 @@ void OneDim::resize()
             m_nScalar.push_back(nc);
             m_locScalar.push_back(lc);
             lc += nc;
+
+            m_locVelocity.push_back(lu);
+            lu += nu;
 
             m_pts++;
         }
@@ -205,6 +212,8 @@ void OneDim::resize()
         m_size = d->loc() + d->size();
         // scalar solution size
         m_sizeScalar = d->locScalar() + d->sizeScalar();
+        // velocity solution size
+        m_sizeVelocity = d->locVelocity() + d->sizeVelocity();
     }
 
     m_newt->resize(size());

@@ -330,6 +330,11 @@ public:
         return m_sizeScalar;
     }
 
+    /// Total velocity solution vector length
+    inline size_t sizeVelocity() const {
+        return m_sizeVelocity;
+    }
+
     /// Pointer to left-most domain (first added).
     inline Domain1D* left() {
         return m_dom[0];
@@ -360,6 +365,12 @@ public:
     //! of global points jg.
     inline size_t locScalar(size_t jg) {
         return m_locScalar[jg];
+    }
+
+    //! Location in the scalar solution vector of the first component 
+    //! of global points jg.
+    inline size_t locVelocity(size_t jg) {
+        return m_locVelocity[jg];
     }
 
     /// Jacobian bandwidth.
@@ -445,8 +456,13 @@ protected:
     size_t m_sizeScalar; 
     //!< number of scalars at each point
     std::vector<size_t> m_nScalar; 
-    //!< location of the first component at each point in the full solution vector
+    //!< location of the first component at each point in the scalar solution vector
     std::vector<size_t> m_locScalar; 
+
+    //!< velocity solution vector size
+    size_t m_sizeVelocity;
+    //!< location of the first component at each point in the velocity solution vector
+    std::vector<size_t> m_locVelocity; 
 
     //!< Jacobian evaluator
     std::unique_ptr<MultiSolverScalar> m_scalarSolver; 
