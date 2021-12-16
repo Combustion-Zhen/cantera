@@ -8,6 +8,7 @@
 #include "cantera/base/ctml.h"
 #include "cantera/oneD/MultiNewton.h"
 #include "cantera/oneD/MultiSolverScalar.h"
+#include "cantera/oneD/MultiSolverContinuity.h"
 #include "cantera/base/AnyMap.h"
 
 #include <fstream>
@@ -33,6 +34,7 @@ OneDim::OneDim() :
 {
     m_newt.reset(new MultiNewton(1));
     m_scalarSolver.reset(new MultiSolverScalar(*this));
+    m_continuitySolver.reset(new MultiSolverContinuity(*this));
 }
 
 OneDim::OneDim(vector<Domain1D*> domains) :
@@ -229,6 +231,8 @@ void OneDim::resize()
 
     // set the scalar solver
     m_scalarSolver.reset(new MultiSolverScalar(*this));
+    // set the velocity solver
+    m_continuitySolver.reset(new MultiSolverContinuity(*this));
 }
 
 void OneDim::showResidual(const double* r) const
@@ -296,7 +300,7 @@ int OneDim::solveScalar(double* x, double* xnew, int loglevel)
 
 int OneDim::solveVelocity(double* x, double* xnew, int loglevel)
 {
-    return 0;
+    //return m_continuitySolver->newtonSolve(x, xnew, loglevel);
 }
 
 void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
@@ -411,10 +415,10 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
             copy(r, r + m_size, x);
         }
 
-        //solveVelocity(x, r, loglevel);
+        solveVelocity(x, r, loglevel);
 
         // monitor convergence
-        //copy(r, r + m_size, x);
+        copy(r, r + m_size, x);
     }
 
     clock_t t1 = clock();

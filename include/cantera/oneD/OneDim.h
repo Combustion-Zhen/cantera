@@ -17,6 +17,7 @@ namespace Cantera
 class Func1;
 class MultiNewton;
 class MultiSolverScalar;
+class MultiSolverContinuity;
 class AnyMap;
 
 /**
@@ -458,14 +459,15 @@ protected:
     std::vector<size_t> m_nScalar; 
     //!< location of the first component at each point in the scalar solution vector
     std::vector<size_t> m_locScalar; 
+    //!< scalar solver
+    std::unique_ptr<MultiSolverScalar> m_scalarSolver; 
 
     //!< velocity solution vector size
     size_t m_sizeVelocity;
     //!< location of the first component at each point in the velocity solution vector
     std::vector<size_t> m_locVelocity; 
-
-    //!< Jacobian evaluator
-    std::unique_ptr<MultiSolverScalar> m_scalarSolver; 
+    //!< velocity solver
+    std::unique_ptr<MultiSolverContinuity> m_continuitySolver; 
 
 private:
     // statistics

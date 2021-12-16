@@ -51,17 +51,32 @@ void MultiSolverContinuity::convertVelocityToFull(const vector_fp& velocity, vec
 
 int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 {
+
+    vector_fp velocity(m_resid->sizeVelocity(), 0.0);
+    vector_fp step(m_resid->sizeVelocity(), 0.0);
+
     copy(x0, x0+m_resid->size(), m_x.begin());
 
-    // get the matrix
+    convertFullToVelocity(m_x, velocity);
+
+    // get the Jacobian matrix
+    evalJac();
 
     // get the rhs
+    evalResidual(step);
 
     // solve the tridiagonal problem
+    int m = this->solve(step);
 
-    // int m = this->solve();
+    for (size_t i = 0; i != m_resid->sizeVelocity(); i++ )
+    {
+        velocity[i] += step[i];
+    }
+    convertVelocityToFull(velocity, m_x);
 
-    return 0;
+    copy(m_x.begin(), m_x.end(), x1);
+
+    return m;
 }
 
 } // end namespace Cantera

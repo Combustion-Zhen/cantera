@@ -39,6 +39,10 @@ public:
     //! this is a linear problem
     int newtonSolve(double* x0, double* x1, int loglevel);
 
+    void evalJac() {};
+
+    void evalResidual(vector_fp& residual) {};
+
 protected:
 
     //! Work arrays of size #m_n used in solve().
