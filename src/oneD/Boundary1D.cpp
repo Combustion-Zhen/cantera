@@ -208,7 +208,7 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
         }
 
         if (m_flow->fixed_mdot()) {
-            // The flow domain sets this to -rho*u. Add mdot to specify the mass
+            // The flow domain sets this to rho*u. Add mdot to specify the mass
             // flow rate.
             // velocity is negative on the right inlet boundary
             rb[c_offset_U] += m_mdot; // u
@@ -225,6 +225,40 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
                 rb[c_offset_Y+k] += m_mdot * m_yin[k];
             }
         }
+    }
+}
+
+void Inlet1D::evalContinuityResidualJacobian
+(
+    vector_fp& xg, 
+    vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du, 
+    double rdt
+)
+{
+    size_t iloc = locVelocity();
+    // start of local part of global arrays
+    double* x = xg.data() + loc();
+
+    if (m_flow_right)
+    {
+        double* xb = x;
+        double rho = m_flow_right->density(0);
+        rg[iloc] = - rho * xb[c_offset_U] 
+                   + m_mdot;
+        d[iloc] = rho;
+        du[iloc] = 0;
+    }
+
+    if (m_flow_left)
+    {
+        size_t nc = m_flow_left->nComponents();
+        size_t np = m_flow_left->nPoints();
+        double* xb = x - nc;
+        double rho = m_flow_left->density(np-1);
+        rg[iloc-1] = - rho * xb[c_offset_U] 
+                     - m_mdot;
+        dl[iloc-2] = 0;
+        d[iloc-1] = rho;
     }
 }
 
@@ -378,6 +412,35 @@ void Symm1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
     }
 }
 
+void Symm1D::evalContinuityResidualJacobian
+(
+    vector_fp& xg, 
+    vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du, 
+    double rdt
+)
+{
+    size_t iloc = locVelocity();
+    // start of local part of global arrays
+    double* x = xg.data() + loc();
+
+    if (m_flow_right)
+    {
+        double* xb = x;
+        rg[iloc] = - xb[c_offset_U];
+        d[iloc] = 1;
+        du[iloc] = 0;
+    }
+
+    if (m_flow_left)
+    {
+        size_t nc = m_flow_left->nComponents();
+        double* xb = x - nc;
+        rg[iloc-1] = - xb[c_offset_U];
+        dl[iloc-2] = 0;
+        d[iloc-1] = 1;
+    }
+}
+
 XML_Node& Symm1D::save(XML_Node& o, const double* const soln)
 {
     XML_Node& symm = Domain1D::save(o, soln);
@@ -436,7 +499,6 @@ void Outlet1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
         size_t nc = m_flow_right->nComponents();
         double* xb = x;
         double* rb = r;
-        // Zhen Lu 210924
         //rb[c_offset_U] = xb[c_offset_L];
         rb[c_offset_L] = xb[c_offset_L];
         if (m_flow_right->doEnergy(0)) {

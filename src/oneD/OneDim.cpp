@@ -294,13 +294,12 @@ int OneDim::solveScalar(double* x, double* xnew, int loglevel)
 {
     m_scalarSolver->resetJacEval();
 
-    //return m_scalarSolver->newtonSolve(x, xnew, loglevel);
     return m_scalarSolver->dampedNewtonSolve(x, xnew, loglevel);
 }
 
 int OneDim::solveVelocity(double* x, double* xnew, int loglevel)
 {
-    //return m_continuitySolver->newtonSolve(x, xnew, loglevel);
+    return m_continuitySolver->newtonSolve(x, xnew, loglevel);
 }
 
 void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
@@ -347,6 +346,35 @@ void OneDim::evalScalar(size_t j, double* x, double* r, double rdt, int count)
     m_scalarSolver->convertFullToScalar(rf, rs);
 
     copy(rs.begin(), rs.end(), r);
+}
+
+void OneDim::evalContinuity(vector_fp& x, vector_fp& r, 
+                            vector_fp& dl, vector_fp& d, vector_fp& du,
+                            double rdt)
+{
+    fill(r.begin(), r.end(), 0.0);
+    if (rdt < 0.0) 
+    {
+        rdt = m_rdt;
+    }
+
+    // iterate over the bulk domains first
+    for (const auto& domain : m_bulk) 
+    {
+        domain->evalContinuityResidualJacobian
+        (
+            x, r, dl, d, du, rdt
+        );
+    }
+
+    // then over the connector domains
+    for (const auto& domain : m_connect) 
+    {
+        domain->evalContinuityResidualJacobian
+        (
+            x, r, dl, d, du, rdt
+        );
+    }
 }
 
 void OneDim::advanceScalarChemistry(double* x, double dt, bool firstSubstep)
@@ -417,7 +445,6 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 
         solveVelocity(x, r, loglevel);
 
-        // monitor convergence
         copy(r, r + m_size, x);
     }
 

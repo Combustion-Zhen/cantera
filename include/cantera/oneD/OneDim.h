@@ -106,7 +106,11 @@ public:
               int count = 1);
 
     void evalScalar(size_t j, double* x, double* r, double rdt=-1.0,
-                    int count=-1);
+                    int count=1);
+
+    void evalContinuity(vector_fp& x, vector_fp& r, 
+                        vector_fp& dl, vector_fp& d, vector_fp& du,
+                        double rdt=-1.0);
 
     void advanceScalarChemistry(double* x, double dt, bool firstSubstep);
 

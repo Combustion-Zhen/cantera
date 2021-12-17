@@ -84,7 +84,7 @@ public:
     /*!
      * Copy the internally-stored density at the last time step
      */
-    virtual void initTimeInteg(doublereal dt, const doublereal* x0);
+    virtual void initTimeInteg(doublereal dt, doublereal* x0);
 
     //! Print the solution.
     virtual void showSolution(const doublereal* x);
@@ -330,7 +330,6 @@ protected:
     virtual void evalResidual(double* x, double* rsd, int* diag,
                               double rdt, size_t jmin, size_t jmax);
 
-    // Zhen Lu 210920
     //! Evaluate all residual components at the left boundary.
     virtual void evalLeftBoundary(double* x, double* res, int* diag,
                                   double rdt);
@@ -358,6 +357,14 @@ protected:
     //! interior grid points.
     virtual void evalEnergy(size_t j, double* x, double* r,
                             int* diag, double rdt);
+
+    //! Evaluate the residual and Jacobian of the continuity equation at all points
+    virtual void evalContinuityResidualJacobian
+    (
+        vector_fp& xg, 
+        vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
+        double rdt
+    ); 
 
     //! Update the properties (thermo, transport, and diffusion flux).
     //! This function is called in eval after the points which need

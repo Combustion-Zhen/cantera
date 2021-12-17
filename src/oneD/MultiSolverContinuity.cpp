@@ -19,7 +19,7 @@ namespace Cantera
 // public
 
 MultiSolverContinuity::MultiSolverContinuity(OneDim& r) :
-    TridiagonalMatrix(r.size())
+    TridiagonalMatrix(r.sizeVelocity())
 {
     m_resid = &r;
     m_x.resize(m_resid->size());
@@ -59,11 +59,18 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 
     convertFullToVelocity(m_x, velocity);
 
-    // get the Jacobian matrix
-    evalJac();
+    // get the residual and Jacobian from the continuity equation
+    m_resid->evalContinuity(m_x, step, m_dl, m_d, m_du);
 
-    // get the rhs
-    evalResidual(step);
+    if (loglevel>2)
+    {
+        writelog("\n {:10.4g} {:10.4g} {:10.4g}", 
+                step[0], m_d[0], m_du[0]);
+        writelog("\n {:10.4g} {:10.4g} {:10.4g}\n", 
+                step[m_resid->sizeVelocity()-1], 
+                m_d[m_resid->sizeVelocity()-1], 
+                m_dl[m_resid->sizeVelocity()-2]);
+    }
 
     // solve the tridiagonal problem
     int m = this->solve(step);
@@ -73,6 +80,15 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
         velocity[i] += step[i];
     }
     convertVelocityToFull(velocity, m_x);
+
+    if (loglevel>2)
+    {
+        writelog("\n {:10.4g} {:10.4g}", 
+                velocity[0], step[0]);
+        writelog("\n {:10.4g} {:10.4g}", 
+                velocity[m_resid->sizeVelocity()-1], 
+                step[m_resid->sizeVelocity()-1]);
+    }
 
     copy(m_x.begin(), m_x.end(), x1);
 

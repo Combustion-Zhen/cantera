@@ -202,11 +202,21 @@ public:
         throw NotImplementedError("Domain1D::eval");
     }
 
+    virtual void evalContinuityResidualJacobian
+    (
+        vector_fp& xg, 
+        vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
+        double rdt
+    ) 
+    {
+        throw NotImplementedError("Domain1D::evalContinuityResidualJacobian");
+    }
+
     //! Prepare to do time stepping with time step dt
     /*!
      * Copy the internally-stored solution at the last time step to array x0.
      */
-    virtual void initTimeInteg(doublereal dt, const doublereal* x0) {
+    virtual void initTimeInteg(doublereal dt, doublereal* x0) {
         std::copy(x0 + loc(), x0 + loc() + size(), m_slast.begin());
         m_rdt = 1.0/dt;
     }
