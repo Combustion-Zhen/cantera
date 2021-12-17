@@ -71,6 +71,8 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
                 m_d[m_resid->sizeVelocity()-1], 
                 m_dl[m_resid->sizeVelocity()-2]);
     }
+    writelog("\n {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
+            step[1], m_dl[0], m_d[1], m_du[1]);
 
     // solve the tridiagonal problem
     int m = this->solve(step);

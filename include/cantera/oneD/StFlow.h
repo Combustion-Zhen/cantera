@@ -295,6 +295,10 @@ public:
         return m_rho[j];
     }
 
+    inline doublereal density_prev(size_t j) const {
+        return m_rho_last[j];
+    }
+
     inline virtual bool fixed_mdot() const {
         return (domainType() != cFreeFlow);
     }

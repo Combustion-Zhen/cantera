@@ -426,9 +426,19 @@ void Symm1D::evalContinuityResidualJacobian
     if (m_flow_right)
     {
         double* xb = x;
+        double rho = m_flow_right->density(0);
+        // 0 at the symmetric point
         rg[iloc] = - xb[c_offset_U];
         d[iloc] = 1;
         du[iloc] = 0;
+
+        size_t nc = m_flow_right->nComponents();
+        double* xb1 = xb + nc;
+        rg[iloc+1] =-rho*xb1[c_offset_U]/m_flow_right->dz(0)
+                    -rdt*(rho-m_flow_right->density_prev(0));
+        dl[iloc] = 0;
+        d[iloc+1] = rho / m_flow_right->dz(0);
+        du[iloc+1] = 0;
     }
 
     if (m_flow_left)
