@@ -70,16 +70,16 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
                 step[m_resid->sizeVelocity()-1], 
                 m_d[m_resid->sizeVelocity()-1], 
                 m_dl[m_resid->sizeVelocity()-2]);
+        writelog("\n {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
+                step[1], m_dl[0], m_d[1], m_du[1]);
     }
-    writelog("\n {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
-            step[1], m_dl[0], m_d[1], m_du[1]);
 
     // solve the tridiagonal problem
-    int m = this->solve(step);
-
+    //int m = this->solve(step);
     for (size_t i = 0; i != m_resid->sizeVelocity(); i++ )
     {
-        velocity[i] += step[i];
+        //velocity[i] += step[i];
+        velocity[i] += step[i]/m_d[i];
     }
     convertVelocityToFull(velocity, m_x);
 
@@ -94,7 +94,7 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 
     copy(m_x.begin(), m_x.end(), x1);
 
-    return m;
+    return 0;
 }
 
 } // end namespace Cantera

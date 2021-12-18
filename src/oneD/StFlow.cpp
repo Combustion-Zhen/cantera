@@ -1247,6 +1247,7 @@ void StFlow::evalContinuityResidualJacobian
     {
         // residual
 
+        /*
         // Gamma scheme
         double dUpwind
         = 
@@ -1320,9 +1321,9 @@ void StFlow::evalContinuityResidualJacobian
         dl[iloc+j-1] /= pow(z(j), m);
         d[iloc+j] /= pow(z(j), m);
         du[iloc+j] /= pow(z(j), m);
+        */
 
         // central difference
-        /*
         rg[iloc+j] 
         = 
         -
@@ -1336,7 +1337,6 @@ void StFlow::evalContinuityResidualJacobian
         dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / d2z(j) / pow(z(j), m);
         d[iloc+j] = 0;
         du[iloc+j] = density(j+1) * pow(z(j+1), m) / d2z(j) / pow(z(j), m);
-        */
 
         rg[iloc+j] -= rdt * (m_rho[j] - m_rho_last[j]);
 

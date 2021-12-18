@@ -73,6 +73,34 @@ void Boundary1D::_init(size_t n)
     }
 }
 
+void Boundary1D::swapDiagonalsLeft
+(
+    double br, double bj, vector_fp& r,
+    vector_fp& dl, vector_fp& d, vector_fp& du
+)
+{
+    size_t iloc = m_flow_right->locVelocity();
+
+    r[iloc] -= br * d[iloc] / bj;
+    r[iloc+1] -= br * dl[iloc] / bj;
+
+    for (size_t j = 2; j != m_flow_right->nPoints(); j++)
+    {
+        r[iloc+j] -= r[iloc+j-2] * dl[iloc+j-1] / du[iloc+j-2];
+    }
+    // swap rows of residual and diagonal
+    for (size_t j = m_flow_right->nPoints()-1; j != 0; j--)
+    {
+        r[iloc+j] = r[iloc+j-1];
+        d[iloc+j] = du[iloc+j-1];
+    }
+    r[iloc] = br;
+    d[iloc] = bj;
+
+    fill(dl.begin(), dl.end(), 0.0);
+    fill(du.begin(), du.end(), 0.0);
+}
+
 // ---------------- Inlet1D methods ----------------
 
 Inlet1D::Inlet1D()
@@ -425,20 +453,34 @@ void Symm1D::evalContinuityResidualJacobian
 
     if (m_flow_right)
     {
-        double* xb = x;
-        double rho = m_flow_right->density(0);
-        // 0 at the symmetric point
-        rg[iloc] = - xb[c_offset_U];
-        d[iloc] = 1;
-        du[iloc] = 0;
-
         size_t nc = m_flow_right->nComponents();
-        double* xb1 = xb + nc;
-        rg[iloc+1] =-rho*xb1[c_offset_U]/m_flow_right->dz(0)
-                    -rdt*(rho-m_flow_right->density_prev(0));
-        dl[iloc] = 0;
-        d[iloc+1] = rho / m_flow_right->dz(0);
-        du[iloc+1] = 0;
+        double* xb = x;
+
+        // update the residual and Jacobian considering the symmetry
+        rg[iloc]
+        =
+        - rdt *
+        (
+            m_flow_right->density(0)
+            -
+            m_flow_right->density_prev(0)
+        )
+        -
+        (
+            m_flow_right->density(1) 
+            *
+            xb[c_offset_U+nc]
+            /
+            m_flow_right->dz(0)
+        );
+
+        d[iloc] = 0;
+        du[iloc] = m_flow_right->density(1)/m_flow_right->dz(0);
+
+        // u = 0
+        double bcResidual = 0 - xb[c_offset_U];
+        double bcJacobian = 1;
+        swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
     if (m_flow_left)

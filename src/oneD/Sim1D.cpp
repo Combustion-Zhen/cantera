@@ -433,6 +433,9 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
         // time step
         dt = std::min(dt, t - time());
+        // avoid very small time step
+        if ( dt < 1.0e-10 )
+            break;
         if ( loglevel > 0 )
         {
             writelog("\n{:10.4g} {:10.4g}\n", time(), dt);
