@@ -431,11 +431,15 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
     {
         writelog("\n\nSemi-implicit method for velocity linked equations\n");
         writeline('-', 65, false);
-        writelog("\n niter      stepsize     log10(ts)\n");
+        writelog("\n {:>9s}   {:>9s}   {:>16s}   {:>12s}\n",
+                 "niter", "stepsize", "log10(residual)", "log10(step)");
     }
 
     for (int i=0; i!=m_niter; i++)
     {
+        vector_fp step(size(), 0.0);
+        copy(x, x+size(), step.begin());
+
         m = solveScalar(x, r, loglevel-1);
 
         // monitor convergence
@@ -454,11 +458,17 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 
         copy(r, r + m_size, x);
 
+        for (size_t j = 0; j != size(); j++)
+        {
+            step[j] -= x[j];
+        }
+        double norm = tsNorm2Step(x, step.data());
+
         if (loglevel == 1) 
         {
             double ts = tsNormScalar(x);
-            writelog(" {:4d}    {:10.4g}    {:10.4g}\n", 
-                     i, dt, log10(ts));
+            writelog("      {:4d}  {:10.4g}         {:10.4g}     {:10.4g}\n", 
+                     i, dt, log10(ts), log10(norm));
         }
 
     }
@@ -487,6 +497,40 @@ double OneDim::tsNormScalar(double* x)
         ts = std::max(fabs(r[i]),ts);
     }
     return ts;
+}
+
+double OneDim::tsNorm2Step(double* x, double* step) const
+{
+    double sum = 0.0;
+    // iterate over domains
+    for (size_t i = 0; i != nDomains(); i++)
+    {
+        Domain1D& d = domain(i);
+
+        // domain info
+        size_t nv = d.nComponents();
+        size_t np = d.nPoints();
+        // pointer to the start location
+        double* xd = x + d.loc();
+        double* sd = step + d.loc();
+
+        for (size_t n = 0; n != nv; n++) 
+        {
+            double esum = 0.0;
+            for (size_t j = 0; j != np; j++) 
+            {
+                esum += fabs(xd[nv*j + n]);
+            }
+            double ewt = d.rtol(n)*esum/np + d.atol(n);
+            for (size_t j = 0; j != np; j++) 
+            {
+                double f = sd[nv*j + n]/ewt;
+                sum += f*f;
+            }
+        }
+    }
+    sum /= size();
+    return sqrt(sum);
 }
 
 void OneDim::updateTime()
@@ -587,8 +631,8 @@ doublereal OneDim::timeStep(int nsteps, double dt, double* x,
     return dt;
 }
 
-doublereal OneDim::timeStepIteration(double dt, double* x, 
-                                     double* r, int loglevel)
+double OneDim::timeStepIteration(double dt, double* x, 
+                                 double* r, int loglevel)
 {
 
     bool firstSubstep = true;

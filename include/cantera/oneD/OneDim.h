@@ -127,6 +127,8 @@ public:
 
     double tsNormScalar(double* x);
 
+    double tsNorm2Step(double* x, double* step) const;
+
     void updateTime();
 
     //! Prepare for time stepping beginning with solution *x* and timestep *dt*.
