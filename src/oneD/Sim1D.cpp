@@ -438,17 +438,16 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
             break;
         if ( loglevel > 0 )
         {
-            writelog("\n{:10.4g} {:10.4g}\n", time(), dt);
+            writelog(" {:10.4g} {:10.4g}", time(), dt);
         }
 
         dt = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
 
         m_xlast_ts = m_x;
 
-        if (loglevel > 0) 
+        if (loglevel == 1) 
         {
-            writelog("\n{:10.4g} {:10.4g}\n", 
-                     time(), log10(tsNormScalar(m_x.data())));
+            writelog(" {:10.4g}\n", log10(tsNormScalar(m_x.data())));
         }
         if (loglevel > 6) 
         {

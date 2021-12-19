@@ -27,7 +27,7 @@ OneDim::OneDim() :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_niter(3),
+    m_time(0.0), m_splittingScheme(0), m_niter(10),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -45,7 +45,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_niter(3),
+    m_time(0.0), m_splittingScheme(0), m_niter(10),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -427,9 +427,16 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
     // set up for time stepping with stepsize dt
     initTimeInteg(dt,x);
 
+    if (loglevel == 1) 
+    {
+        writelog("\n\nSemi-implicit method for velocity linked equations\n");
+        writeline('-', 65, false);
+        writelog("\n niter      stepsize     log10(ts)\n");
+    }
+
     for (int i=0; i!=m_niter; i++)
     {
-        m = solveScalar(x, r, loglevel);
+        m = solveScalar(x, r, loglevel-1);
 
         // monitor convergence
         if (m<0)
@@ -443,13 +450,15 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
             copy(r, r + m_size, x);
         }
 
-        solveVelocity(x, r, loglevel);
+        solveVelocity(x, r, loglevel-1);
 
         copy(r, r + m_size, x);
 
-        if (loglevel > 1) {
+        if (loglevel == 1) 
+        {
             double ts = tsNormScalar(x);
-            writelog("\n {:4d} {:10.4g} {:10.4g}", i, dt, log10(ts));
+            writelog(" {:4d}    {:10.4g}    {:10.4g}\n", 
+                     i, dt, log10(ts));
         }
 
     }
@@ -587,7 +596,7 @@ doublereal OneDim::timeStepIteration(double dt, double* x,
     advanceScalarChemistry(x, dt, firstSubstep);
     firstSubstep = false;
 
-    advanceTransport(x, r, dt, loglevel);
+    advanceTransport(x, r, dt, loglevel-1);
 
     advanceScalarChemistry(x, dt, firstSubstep);
 
