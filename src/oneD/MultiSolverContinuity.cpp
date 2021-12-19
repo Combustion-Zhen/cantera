@@ -62,18 +62,6 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
     // get the residual and Jacobian from the continuity equation
     m_resid->evalContinuity(m_x, step, m_dl, m_d, m_du);
 
-    if (loglevel>2)
-    {
-        writelog("\n {:10.4g} {:10.4g} {:10.4g}", 
-                step[0], m_d[0], m_du[0]);
-        writelog("\n {:10.4g} {:10.4g} {:10.4g}\n", 
-                step[m_resid->sizeVelocity()-1], 
-                m_d[m_resid->sizeVelocity()-1], 
-                m_dl[m_resid->sizeVelocity()-2]);
-        writelog("\n {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
-                step[1], m_dl[0], m_d[1], m_du[1]);
-    }
-
     // solve the tridiagonal problem
     //int m = this->solve(step);
     for (size_t i = 0; i != m_resid->sizeVelocity(); i++ )
@@ -83,13 +71,18 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
     }
     convertVelocityToFull(velocity, m_x);
 
-    if (loglevel>2)
+    if (loglevel>3)
     {
-        writelog("\n {:10.4g} {:10.4g}", 
-                velocity[0], step[0]);
-        writelog("\n {:10.4g} {:10.4g}", 
-                velocity[m_resid->sizeVelocity()-1], 
-                step[m_resid->sizeVelocity()-1]);
+        writelog("\n\n velocity    residual    diagonal    superdiagonal \n");
+        writelog("===============left  boundary===============\n");
+        writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
+                 velocity[0], step[0], m_d[0], m_du[0]);
+        writelog("===============right boundary===============\n");
+        writelog(" {10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
+                 velocity[m_resid->sizeVelocity()-1], 
+                 step[m_resid->sizeVelocity()-1], 
+                 m_d[m_resid->sizeVelocity()-1], 
+                 m_dl[m_resid->sizeVelocity()-2]);
     }
 
     copy(m_x.begin(), m_x.end(), x1);

@@ -125,6 +125,8 @@ public:
      */
     doublereal ssnorm(doublereal* x, doublereal* r);
 
+    double tsNormScalar(double* x);
+
     void updateTime();
 
     //! Prepare for time stepping beginning with solution *x* and timestep *dt*.

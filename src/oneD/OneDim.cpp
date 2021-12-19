@@ -446,6 +446,12 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
         solveVelocity(x, r, loglevel);
 
         copy(r, r + m_size, x);
+
+        if (loglevel > 1) {
+            double ts = tsNormScalar(x);
+            writelog("\n {:4d} {:10.4g} {:10.4g}", i, dt, log10(ts));
+        }
+
     }
 
     clock_t t1 = clock();
@@ -460,6 +466,18 @@ doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
         ss = std::max(fabs(r[i]),ss);
     }
     return ss;
+}
+
+double OneDim::tsNormScalar(double* x)
+{
+    vector_fp r(m_sizeScalar, 0.0);
+    evalScalar(npos, x, r.data(), -1.0, 0);
+
+    double ts = 0.0;
+    for (size_t i = 0; i != m_sizeScalar; i++) {
+        ts = std::max(fabs(r[i]),ts);
+    }
+    return ts;
 }
 
 void OneDim::updateTime()
