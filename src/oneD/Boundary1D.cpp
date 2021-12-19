@@ -271,10 +271,12 @@ void Inlet1D::evalContinuityResidualJacobian
     {
         double* xb = x;
         double rho = m_flow_right->density(0);
-        rg[iloc] = - rho * xb[c_offset_U] 
-                   + m_mdot;
-        d[iloc] = rho;
-        du[iloc] = 0;
+
+        double bcResidual = m_mdot - rho * xb[c_offset_U];
+        double bcJacobian = rho;
+
+        // elimination
+        swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
     if (m_flow_left)
@@ -480,6 +482,7 @@ void Symm1D::evalContinuityResidualJacobian
         // u = 0
         double bcResidual = 0 - xb[c_offset_U];
         double bcJacobian = 1;
+        // elimination
         swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
