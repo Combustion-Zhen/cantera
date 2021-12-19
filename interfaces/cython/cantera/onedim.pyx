@@ -1108,7 +1108,7 @@ cdef class Sim1D:
             self.set_initial_guess()
         self.sim.showSolution()
 
-    def set_time_step(self, stepsize, n_steps):
+    def set_time_step(self, stepsize, n_steps=[10,]):
         """Set the sequence of time steps to try when Newton fails.
 
         :param stepsize:
@@ -1347,8 +1347,7 @@ cdef class Sim1D:
             self.sim.solve(loglevel, <cbool>refine_grid)
     
     def advance(self, time, loglevel=1, refine_grid=True):
-        self.sim.advance(time, loglevel, <cbool>refine_grid)
-        return
+        return self.sim.advance(time, loglevel, <cbool>refine_grid)
 
     def refine(self, loglevel=1):
         """
