@@ -116,7 +116,7 @@ public:
 
     void advanceDomainChemistry(double* x, double dt);
 
-    void advanceTransport(double*x, double*r, double dt, int loglevel);
+    double advanceTransport(double*x, double*r, double dt, int loglevel);
 
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using
@@ -309,6 +309,10 @@ public:
         m_nsteps_max = nmax;
     }
 
+    void setMaxIteration(size_t nmax) {
+        m_maxIter = nmax;
+    }
+
     //! Return the maximum number of timeteps allowed before successful
     //! steady-state solve
     int maxTimeStepCount() const {
@@ -407,6 +411,14 @@ public:
         return m_time;
     }
 
+    inline void increaseTime(double dt) {
+        m_time += dt;
+    }
+
+    inline size_t maxIter() const {
+        return m_maxIter;
+    }
+
 protected:
 
     void evalSSJacobian(doublereal* x, doublereal* xnew);
@@ -457,7 +469,7 @@ protected:
     int m_splittingScheme;
 
     //!< maximum iteration for each time step
-    int m_niter; 
+    size_t m_maxIter; 
 
     //!< scalar Jacobian bandwidth
     size_t m_bwScalar; 

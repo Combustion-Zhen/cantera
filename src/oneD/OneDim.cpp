@@ -27,7 +27,7 @@ OneDim::OneDim() :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_niter(10),
+    m_time(0.0), m_splittingScheme(0), m_maxIter(100),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -45,7 +45,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_niter(10),
+    m_time(0.0), m_splittingScheme(0), m_maxIter(100),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -413,11 +413,10 @@ void OneDim::advanceDomainChemistry(double* x, double dt)
     }
 }
 
-void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
+double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 {
     clock_t t0 = clock();
-
-    int m;
+    double norm = 1.e10;
 
     // set the Jacobian age parameter to the transient value
     m_scalarSolver->setOptions(m_ts_jac_age);
@@ -435,12 +434,12 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
                  "niter", "stepsize", "log10(residual)", "log10(step)");
     }
 
-    for (int i=0; i!=m_niter; i++)
+    for (size_t i=0; i != maxIter(); i++)
     {
         vector_fp step(size(), 0.0);
         copy(x, x+size(), step.begin());
 
-        m = solveScalar(x, r, loglevel-1);
+        int m = solveScalar(x, r, loglevel-1);
 
         // monitor convergence
         if (m<0)
@@ -458,11 +457,12 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 
         copy(r, r + m_size, x);
 
+        // examine the convergence
         for (size_t j = 0; j != size(); j++)
         {
             step[j] -= x[j];
         }
-        double norm = tsNorm2Step(x, step.data());
+        norm = tsNorm2Step(x, step.data());
 
         if (loglevel == 1) 
         {
@@ -471,10 +471,20 @@ void OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
                      i, dt, log10(ts), log10(norm));
         }
 
+        if ( norm <= 1.0 )
+            break;
+    }
+
+    if ( norm > 1.0 )
+    {
+        throw CanteraError("OneDim::advanceTransport",
+                           "Semi-implicit iteration does dot converge.");
     }
 
     clock_t t1 = clock();
     m_evalTimeTransport += double(t1-t0)/CLOCKS_PER_SEC;
+
+    return norm;
 }
 
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
@@ -640,14 +650,12 @@ double OneDim::timeStepIteration(double dt, double* x,
     advanceScalarChemistry(x, dt, firstSubstep);
     firstSubstep = false;
 
-    advanceTransport(x, r, dt, loglevel-1);
+    double norm = advanceTransport(x, r, dt, loglevel-1);
 
     advanceScalarChemistry(x, dt, firstSubstep);
 
-    m_time += dt;
-
     // return the value of the stepsize
-    return dt;
+    return norm;
 }
 
 void OneDim::resetBadValues(double* x)
