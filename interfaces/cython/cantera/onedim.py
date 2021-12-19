@@ -1245,18 +1245,12 @@ class FreePolarFlame(FlameBase):
         :param refine_grid:
             if True, enable grid refinement.
         """
-
         return super().advance(time, loglevel, refine_grid)
 
     def set_time_step(self, stepsize=1.0e-6):
-
         return super().set_time_step(stepsize, [10,])
 
-    def set_splitting(self, scheme=2):
-        return super().set_splitting_scheme(scheme)
-
     def set_ignition(self, energy=2.0e-4, radius=2.0e-4, time=2.0e-4):
-
         return self.flame.set_ignition(energy, radius, time)
 
 class IonFlameBase(FlameBase):

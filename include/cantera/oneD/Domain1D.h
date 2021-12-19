@@ -577,7 +577,7 @@ public:
 
     //! Set the convective scheme
     //! 0: upwind, 1: central, 2: gamma
-    inline void setConvectiveScheme(int scheme=2) {
+    inline void setConvectiveScheme(int scheme=0) {
         m_convectiveScheme = scheme;
     }
 

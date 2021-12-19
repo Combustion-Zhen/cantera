@@ -290,6 +290,7 @@ void OneDim::setSchemes(int splitScheme, int timeScheme,
         d->setDivScheme(divScheme);
         d->setConvectiveScheme(convScheme);
         d->setGammaSchemeBeta(beta);
+        d = d->right();
     }
 }
 

@@ -1045,6 +1045,7 @@ cdef extern from "cantera/oneD/Sim1D.h":
         void setSteadyCallback(CxxFunc1*)
         double time()
         void setSplittingScheme(int) except +translate_exception
+        void setSchemes(int, int, int, int, double)
 
 cdef extern from "<sstream>":
     cdef cppclass CxxStringStream "std::stringstream":
