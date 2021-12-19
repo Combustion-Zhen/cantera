@@ -82,9 +82,15 @@ public:
 
     virtual void setupGrid(size_t n, const double* z) {}
 
-    // for central difference only
+    //! elimination of dl and du in the tridiagonal matrix
+    //! with left side inlet, for central difference only
     void swapDiagonalsLeft(double br, double bj, vector_fp& r,
                            vector_fp& dl, vector_fp&d, vector_fp& du);
+
+    //! elimination of dl and du in the tridiagonal matrix
+    //! with right side inlet, for central difference only
+    void swapDiagonalsRight(double br, double bj, vector_fp& r,
+                            vector_fp& dl, vector_fp&d, vector_fp& du);
 
 protected:
     void _init(size_t n);

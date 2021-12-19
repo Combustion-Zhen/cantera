@@ -80,22 +80,52 @@ void Boundary1D::swapDiagonalsLeft
 )
 {
     size_t iloc = m_flow_right->locVelocity();
+    size_t np = m_flow_right->nPoints();
 
     r[iloc] -= br * d[iloc] / bj;
     r[iloc+1] -= br * dl[iloc] / bj;
 
-    for (size_t j = 2; j != m_flow_right->nPoints(); j++)
+    for (size_t j = 2; j != np; j++)
     {
         r[iloc+j] -= r[iloc+j-2] * dl[iloc+j-1] / du[iloc+j-2];
     }
     // swap rows of residual and diagonal
-    for (size_t j = m_flow_right->nPoints()-1; j != 0; j--)
+    for (size_t j = np-1; j != 0; j--)
     {
         r[iloc+j] = r[iloc+j-1];
         d[iloc+j] = du[iloc+j-1];
     }
     r[iloc] = br;
     d[iloc] = bj;
+
+    fill(dl.begin(), dl.end(), 0.0);
+    fill(du.begin(), du.end(), 0.0);
+}
+
+void Boundary1D::swapDiagonalsRight
+(
+    double br, double bj, vector_fp& r,
+    vector_fp& dl, vector_fp& d, vector_fp& du
+)
+{
+    size_t iloc = m_flow_right->locVelocity();
+    size_t np = m_flow_right->nPoints();
+
+    r[iloc+np-1] -= br * d[iloc+np-1] / bj;
+    r[iloc+np-2] -= br * du[iloc+np-2] / bj;
+
+    for (size_t j = np-3; j != 0; j--)
+    {
+        r[iloc+j] -= r[iloc+j+2] * du[iloc+j] / dl[iloc+j+1];
+    }
+    // swap rows of residual and diagonal
+    for (size_t j = 0; j != np-1; j++)
+    {
+        r[iloc+j] = r[iloc+j+1];
+        d[iloc+j] = dl[iloc+j];
+    }
+    r[iloc+np-1] = br;
+    d[iloc+np-1] = bj;
 
     fill(dl.begin(), dl.end(), 0.0);
     fill(du.begin(), du.end(), 0.0);
@@ -263,7 +293,6 @@ void Inlet1D::evalContinuityResidualJacobian
     double rdt
 )
 {
-    size_t iloc = locVelocity();
     // start of local part of global arrays
     double* x = xg.data() + loc();
 
@@ -285,10 +314,12 @@ void Inlet1D::evalContinuityResidualJacobian
         size_t np = m_flow_left->nPoints();
         double* xb = x - nc;
         double rho = m_flow_left->density(np-1);
-        rg[iloc-1] = - rho * xb[c_offset_U] 
-                     - m_mdot;
-        dl[iloc-2] = 0;
-        d[iloc-1] = rho;
+
+        double bcResidual = - m_mdot - rho * xb[c_offset_U];
+        double bcJacobian = rho;
+
+        // elimination
+        swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
 
