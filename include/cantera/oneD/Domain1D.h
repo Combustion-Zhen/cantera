@@ -565,6 +565,27 @@ public:
         return m_z[j];
     }
 
+    //! Set the time scheme
+    inline void setTimeScheme(int scheme=0) {
+        m_timeScheme = scheme;
+    }
+
+    //! Set the divergence scheme
+    inline void setDivScheme(int scheme=1) {
+        m_divScheme = scheme;
+    }
+
+    //! Set the convective scheme
+    //! 0: upwind, 1: central, 2: gamma
+    inline void setConvectiveScheme(int scheme=2) {
+        m_convectiveScheme = scheme;
+    }
+
+    //! Set coefficient for the gradient scheme
+    inline void setGammaSchemeBeta(double b=0.1) {
+        m_gammaSchemeBeta = b;
+    }
+
 protected:
     doublereal m_rdt;
     size_t m_nv; //! number of variables
@@ -579,11 +600,20 @@ protected:
     size_t m_index;
     int m_type;
 
-    // Zhen Lu 210916
-    int m_nc; //!< number of compositions Y, T, nsp+1
-    int m_ctype; //!< coordinates type
-
-    double m_time; //!< simulation time
+    //! simulation time
+    double m_time;
+    //! number of compositions Y, T, nsp+1
+    int m_nc;
+    //! coordinates type
+    int m_ctype;
+    //! time scheme, 0: implicit Euler, 1: Crank-Nicolson
+    int m_timeScheme;
+    //! divergence scheme, 0: upwind, 1: linear
+    int m_divScheme;
+    //! convective scheme, 0: upwind, 1: linear, 2: gamma
+    int m_convectiveScheme;
+    //! parameter of the gamma differencing scheme default as 0.1
+    double m_gammaSchemeBeta;
 
     //! Starting location within the solution vector for unknowns that
     //! correspond to this domain

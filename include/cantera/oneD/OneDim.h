@@ -77,7 +77,10 @@ public:
 
     //! Set the time splitting scheme
     //! 0: coupled, 1: 1st order, 2: Strang
-    void setSplittingScheme(int scheme=2);
+    void setSplittingScheme(int scheme=0);
+
+    void setSchemes(int splitScheme=0, int timeScheme=0, 
+                    int divScheme=1, int convScheme=2, double beta=0.1);
 
     /**
      * Solve F(x) = 0, where F(x) is the multi-domain residual function.

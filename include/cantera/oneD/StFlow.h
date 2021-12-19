@@ -237,17 +237,6 @@ public:
         m_dovisc = true;
     }
 
-    //! Set convective scheme for discretization
-    //! 0: upwind 1: Gamma
-    void setConvectiveScheme(size_t scheme=1) {
-        m_convectiveScheme = scheme;
-    }
-
-    //! Set coefficient for the gradient scheme
-    void setGammaSchemeBeta(double b=0.1) {
-        m_gammaSchemeBeta = b;
-    }
-
     //! Set energy deposition for ignition at r = 0
     void setIgnition(double e=2.0e-4, double r=2.0e-4, double t=2.0e-4) {
         m_do_ignition = true;
@@ -418,6 +407,9 @@ protected:
     double scalarGradientUpwind(
         const vector_fp& s, const double v, size_t j) const;
 
+    double scalarGradientLinear(
+        const vector_fp& s, const double v, size_t j) const;
+
     double scalarGradientGamma(
         const vector_fp& s, const double v, size_t j) const;
     //! @}
@@ -566,10 +558,6 @@ public:
 
 private:
     vector_fp m_ybar;
-
-    size_t m_convectiveScheme;
-
-    double m_gammaSchemeBeta;
 
     //! Ignition parameters
     bool m_do_ignition;

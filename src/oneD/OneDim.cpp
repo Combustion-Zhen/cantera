@@ -278,6 +278,21 @@ void OneDim::setSplittingScheme(int scheme)
     }
 }
 
+void OneDim::setSchemes(int splitScheme, int timeScheme, 
+                        int divScheme, int convScheme, double beta)
+{
+    setSplittingScheme(splitScheme);
+    
+    Domain1D* d = left();
+    while (d)
+    {
+        d->setTimeScheme(timeScheme);
+        d->setDivScheme(divScheme);
+        d->setConvectiveScheme(convScheme);
+        d->setGammaSchemeBeta(beta);
+    }
+}
+
 int OneDim::solve(doublereal* x, doublereal* xnew, int loglevel)
 {
     if (!m_jac_ok) {
