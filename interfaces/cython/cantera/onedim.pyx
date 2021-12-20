@@ -825,6 +825,12 @@ cdef class Sim1D:
     def time(self):
         return self.sim.time()
 
+    def set_time(self, t):
+        self.sim.setTime(t)
+
+    def set_max_iteration(self, nmax):
+        self.sim.setMaxIteration(nmax)
+
     def set_splitting(self, s=2):
         self.sim.setSplittingScheme(s)
 

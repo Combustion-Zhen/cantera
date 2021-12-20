@@ -1044,6 +1044,8 @@ cdef extern from "cantera/oneD/Sim1D.h":
         void setTimeStepCallback(CxxFunc1*)
         void setSteadyCallback(CxxFunc1*)
         double time()
+        void setTime(double)
+        void setMaxIteration(size_t)
         void setSplittingScheme(int) except +translate_exception
         void setSchemes(int, int, int, int, double)
 
