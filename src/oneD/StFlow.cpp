@@ -1245,97 +1245,41 @@ void StFlow::evalContinuityResidualJacobian
     for (size_t j = jmin+1; j != jmax; j++) 
     {
         // residual
-
-        /*
-        // Gamma scheme
-        double dUpwind
-        = 
-        (u(x, j)>=0) 
-        ? 
-        ( rho_u(x,j)*pow(z(j),m) - rho_u(x,j-1)*pow(z(j-1),m) ) / dz(j-1)
-        :
-        ( rho_u(x,j+1)*pow(z(j+1),m) - rho_u(x,j)*pow(z(j),m) ) / dz(j);
-
-        double dCenter
-        = 
-        ( rho_u(x,j+1)*pow(z(j+1),m) - rho_u(x,j-1)*pow(z(j-1),m) ) / d2z(j);
-
-        double phi = dUpwind / dCenter / 2;
-
-        if (phi <= 0.0 || phi > 1.0)
+        if ( divScheme() == 1)
         {
-            rg[iloc+j] = -dUpwind;
-            // Jacobian
-            if (u(x, j)>=0)
-            {
-                dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / dz(j-1);
-                d[iloc+j] = density(j) * pow(z(j), m) / dz(j-1);
-                du[iloc+j] = 0;
-            }
-            else
-            {
-                dl[iloc+j-1] = 0;
-                d[iloc+j] = - density(j) * pow(z(j), m) / dz(j);
-                du[iloc+j] = density(j+1) * pow(z(j+1), m) / dz(j);
-            }
-        }
-        //else if (phi <= m_gammaSchemeBeta)
-        else if (phi <= 0.4)
-        {
-            //double g = phi / m_gammaSchemeBeta;
-            double g = phi / 0.4;
+            // central difference
+            rg[iloc+j] 
+            = 
+            -
+            (
+                rho_u(x,j+1) * pow(z(j+1), m)
+                -
+                rho_u(x,j-1) * pow(z(j-1), m)
+            ) / d2z(j) / pow(z(j), m);
 
-            rg[iloc+j] = -g*dCenter-(1-g)*dUpwind;
-            // Jacobian
-            if (u(x, j)>=0)
-            {
-                dl[iloc+j-1] = -density(j-1)*pow(z(j-1),m)/dz(j-1)*(1-g)
-                               -density(j-1)*pow(z(j-1),m)/d2z(j)*g;
-
-                d[iloc+j] = density(j)*pow(z(j),m)/dz(j-1)*(1-g);
-
-                du[iloc+j] = density(j+1)*pow(z(j+1),m)/dz(j)*g;
-            }
-            else
-            {
-                dl[iloc+j-1] = -density(j-1)*pow(z(j-1),m)/d2z(j)*g;
-
-                d[iloc+j] = -density(j)*pow(z(j),m)/dz(j)*(1-g);
-
-                du[iloc+j] = density(j+1)*pow(z(j+1),m)/dz(j)*(1-g)
-                            +density(j+1)*pow(z(j+1),m)/d2z(j)*g;
-            }
+            // diagonals
+            dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / d2z(j) / pow(z(j), m);
+            d[iloc+j] = 0;
+            du[iloc+j] = density(j+1) * pow(z(j+1), m) / d2z(j) / pow(z(j), m);
         }
         else
         {
-            rg[iloc+j] = -dCenter;
-            // Jacobian
-            dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / d2z(j);
-            d[iloc+j] = 0;
-            du[iloc+j] = density(j+1) * pow(z(j+1), m) / d2z(j);
-        }
-
-        rg[iloc+j] /= pow(z(j), m);
-        //
-        dl[iloc+j-1] /= pow(z(j), m);
-        d[iloc+j] /= pow(z(j), m);
-        du[iloc+j] /= pow(z(j), m);
-        */
-
-        // central difference
-        rg[iloc+j] 
-        = 
-        -
-        (
-            rho_u(x,j+1) * pow(z(j+1), m)
+            // upwind
+            // central difference
+            rg[iloc+j] 
+            = 
             -
-            rho_u(x,j-1) * pow(z(j-1), m)
-        ) / d2z(j) / pow(z(j), m);
+            (
+                rho_u(x,j) * pow(z(j), m)
+                -
+                rho_u(x,j-1) * pow(z(j-1), m)
+            ) / dz(j-1) / pow(z(j), m);
 
-        // diagonals
-        dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / d2z(j) / pow(z(j), m);
-        d[iloc+j] = 0;
-        du[iloc+j] = density(j+1) * pow(z(j+1), m) / d2z(j) / pow(z(j), m);
+            // diagonals
+            dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / dz(j-1) / pow(z(j), m);
+            d[iloc+j] = density(j) * pow(z(j), m) / dz(j-1) / pow(z(j), m);
+            du[iloc+j] = 0;
+        }
 
         rg[iloc+j] -= rdt * (m_rho[j] - m_rho_last[j]);
 

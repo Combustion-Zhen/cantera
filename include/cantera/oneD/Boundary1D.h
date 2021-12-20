@@ -92,6 +92,9 @@ public:
     void swapDiagonalsRight(double br, double bj, vector_fp& r,
                             vector_fp& dl, vector_fp&d, vector_fp& du);
 
+    void eliminateSubDiagonals(double br, double bj, vector_fp& r,
+                               vector_fp& dl, vector_fp&d, vector_fp& du);
+
 protected:
     void _init(size_t n);
 

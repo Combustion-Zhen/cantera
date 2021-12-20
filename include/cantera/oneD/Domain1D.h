@@ -570,6 +570,10 @@ public:
         m_timeScheme = scheme;
     }
 
+    inline int divScheme() const {
+        return m_divScheme;
+    }
+
     //! Set the divergence scheme
     inline void setDivScheme(int scheme=1) {
         m_divScheme = scheme;

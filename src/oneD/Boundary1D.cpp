@@ -131,6 +131,27 @@ void Boundary1D::swapDiagonalsRight
     fill(du.begin(), du.end(), 0.0);
 }
 
+void Boundary1D::eliminateSubDiagonals
+(
+    double br, double bj, vector_fp& r,
+    vector_fp& dl, vector_fp& d, vector_fp& du
+)
+{
+    size_t iloc = m_flow_right->locVelocity();
+    size_t np = m_flow_right->nPoints();
+
+    r[iloc] = br;
+    d[iloc] = bj;
+
+    for (size_t j = 1; j != np; j++)
+    {
+        r[iloc+j] -= r[iloc+j-1] * dl[iloc+j-1] / d[iloc+j-1];
+    }
+
+    fill(dl.begin(), dl.end(), 0.0);
+    fill(du.begin(), du.end(), 0.0);
+}
+
 // ---------------- Inlet1D methods ----------------
 
 Inlet1D::Inlet1D()
@@ -305,7 +326,14 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcJacobian = rho;
 
         // elimination
-        swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
+        if ( divScheme() == 1 )
+        {
+            swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
+        }
+        else
+        {
+            eliminateSubDiagonals(bcResidual, bcJacobian, rg, dl, d, du);
+        }
     }
 
     if (m_flow_left)
@@ -319,6 +347,11 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcJacobian = rho;
 
         // elimination
+        if ( divScheme() == 0 )
+        {
+            throw CanteraError("Inlet1D::evalContinuityResidualJacobian",
+                               "upwind not implemented for right side inlet.");
+        }
         swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
@@ -514,7 +547,14 @@ void Symm1D::evalContinuityResidualJacobian
         double bcResidual = 0 - xb[c_offset_U];
         double bcJacobian = 1;
         // elimination
-        swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
+        if ( divScheme() == 1 )
+        {
+            swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
+        }
+        else
+        {
+            eliminateSubDiagonals(bcResidual, bcJacobian, rg, dl, d, du);
+        }
     }
 
     if (m_flow_left)
