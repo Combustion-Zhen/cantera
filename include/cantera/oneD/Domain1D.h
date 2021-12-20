@@ -232,6 +232,10 @@ public:
         m_time = t;
     }
 
+    inline double time() const {
+        return m_time;
+    }
+
     //! Domain type flag.
     inline int domainType() const {
         return m_type;

@@ -570,6 +570,13 @@ void OneDim::updateTime()
     }
 }
 
+void OneDim::setTime(double t)
+{
+    m_time = t;
+
+    updateTime();
+}
+
 void OneDim::initTimeInteg(doublereal dt, doublereal* x)
 {
     doublereal rdt_old = m_rdt;

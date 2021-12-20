@@ -134,6 +134,8 @@ public:
 
     void updateTime();
 
+    void setTime(double t);
+
     //! Prepare for time stepping beginning with solution *x* and timestep *dt*.
     void initTimeInteg(doublereal dt, doublereal* x);
 
