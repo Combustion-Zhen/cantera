@@ -27,7 +27,7 @@ OneDim::OneDim() :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_maxIter(100),
+    m_time(0.0), m_splittingScheme(0), m_maxIter(10),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -45,7 +45,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_maxIter(100),
+    m_time(0.0), m_splittingScheme(0), m_maxIter(10),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -473,7 +473,7 @@ double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 
         copy(r, r + m_size, x);
 
-        // examine the convergence
+        // check the residuals
         for (size_t j = 0; j != size(); j++)
         {
             step[j] -= x[j];
