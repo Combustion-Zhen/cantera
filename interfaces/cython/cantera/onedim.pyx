@@ -126,7 +126,7 @@ cdef class Domain1D:
     def set_transient_tolerances(self, *, default=None, Y=None, abs=None,
                                  rel=None, **kwargs):
         """
-        Set the error tolerances for the steady-state problem.
+        Set the error tolerances for the transient-state problem.
 
         The argument list should consist of keyword/value pairs, with
         component names as keywords and (rtol, atol) tuples as the values.
@@ -1348,6 +1348,11 @@ cdef class Sim1D:
     
     def advance(self, time, loglevel=1, refine_grid=True):
         return self.sim.advance(time, loglevel, <cbool>refine_grid)
+
+    def set_tolerances(self, rtol=1.0e-4, atol=1.0e-11):
+        for i in range(len(self.domains)):
+            self.domains[i].set_steady_tolerances(default=(rtol, atol))
+            self.domains[i].set_transient_tolerances(default=(rtol, atol))
 
     def refine(self, loglevel=1):
         """
