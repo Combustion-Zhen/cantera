@@ -1204,7 +1204,7 @@ class FreePolarFlame(FlameBase):
 
         super().__init__((self.pole, self.flame, self.boundary), gas, grid)
 
-    def set_initial_guess(self, data=None, group=None, locs=[0.0, 0.3, 0.7, 1.0],
+    def set_initial_guess(self, data=None, group=None, num=11,
                           direct='outward', radius=0.002, thickness=0.0004):
         """
         Set the initial guess for the solution. By default, the adiabatic flame
@@ -1217,6 +1217,52 @@ class FreePolarFlame(FlameBase):
         super().set_initial_guess(data=data, group=group)
         if data:
             return
+
+        self.gas.TPY = self.gas.T, self.P, self.gas.Y
+
+        T0 = self.gas.T
+        Y0 = self.gas.Y
+
+        # get adiabatic flame temperature and composition
+        self.gas.equilibrate('HP')
+        Teq = self.gas.T
+        Yeq = self.gas.Y
+
+        width = self.flame.grid[-1]
+
+        # calculate grid
+        if radius / thickness <= 4 or (width-radius)/thickness <=4 :
+            raise Exception("FreePolarFlame init: "+
+                            "Flame too close to the boundary")
+
+        b_erf = 0.5 + 0.5 * special.erf(-4)
+        weight = np.linspace(b_erf, 1-b_erf, num=num-2, endpoint=True)
+        locs = radius + thickness * special.erfinv(2*weight-1)
+
+        locs = np.insert(locs, 0, 0)
+        locs = np.append(locs, width)
+        weight = np.insert(weight, 0, 0)
+        weight = np.append(weight, 1)
+
+        if direct == 'inward':
+            T_l = T0
+            T_r = Teq
+            Y_l = Y0
+            Y_r = Yeq
+        elif direct == 'outward':
+            T_l = Teq
+            T_r = T0
+            Y_l = Yeq
+            Y_r = Y0
+
+        locs = locs / width
+
+        profile = (1-weight) * T_l + weight * T_r
+        self.set_profile('T', locs, profile)
+
+        for n in range(self.gas.n_species):
+            profile = (1-weight) * Y_l[n] + weight * Y_r[n]
+            self.set_profile(self.gas.species_name(n), locs, profile)
 
     def set_ignition(self, energy=2.0e-4, radius=2.0e-4, time=2.0e-4):
         return self.flame.set_ignition(energy, radius, time)
