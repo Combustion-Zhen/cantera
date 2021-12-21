@@ -131,7 +131,7 @@ double bound_step(const double* x, const double* step, Domain1D& r, int loglevel
 
 // constants
 const double DampFactor = 2.0;
-const size_t NDAMP = 7;
+const size_t NDAMP = 8;
 
 // ---------------- MultiSolverScalar methods ----------------
 
@@ -149,7 +149,7 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
 {
     copy(x0, x0 + m_resid->size(), m_x.begin());
 
-    evalJac();
+    evalJac(m_x);
 
     vector_fp stp(m_resid->sizeScalar(), 0.0);
     step(m_x.data(), stp.data(), loglevel-1);
@@ -184,15 +184,14 @@ int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
         if (getJacAge() > m_maxJacAge) 
         {
             if (loglevel > 0) 
-            {
                 writelog("\nMaximum Jacobian age reached ({})\n", m_maxJacAge);
-            }
+
             forceNewJac = true;
         }
 
         if (forceNewJac) 
         {
-            evalJac();
+            evalJac(m_x);
             forceNewJac = false;
         }
 
@@ -219,19 +218,15 @@ int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
             // If dampStep fails, first try a new Jacobian if an old one was
             // being used. If it was a new Jacobian, then return -1 to signify
             // failure.
-            if (getJacAge() > 1) 
+            if ( getJacAge() > 1 && nJacReeval < 4 ) 
             {
                 forceNewJac = true;
-                if (nJacReeval > 3) 
-                {
-                    break;
-                }
                 nJacReeval++;
                 debuglog("\n\nRe-evaluating Jacobian, since no damping "
                          "coefficient\ncould be found with this Jacobian.\n",
                          loglevel);
             } 
-            else 
+            else
             {
                 break;
             }
@@ -239,18 +234,17 @@ int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
     }
 
     if (m < 0) 
-    {
         copy(m_x.begin(), m_x.end(), x1);
-    }
-    if (m > 0 && nJacEval() == 1) {
+
+    if (m > 0 && nJacEval() == 1)
         m = 100;
-    }
+
     m_elapsedNewton += (clock() - t0)/(1.0*CLOCKS_PER_SEC);
 
     return m;
 }
 
-void MultiSolverScalar::evalJac()
+void MultiSolverScalar::evalJac(vector_fp& x)
 {
     clock_t t0 = clock();
     vector_fp rf(m_resid->size(), 0.0);
@@ -261,9 +255,7 @@ void MultiSolverScalar::evalJac()
     incrementJacEval();
 
     // evaluate the unperturbed residual
-    m_resid->evalScalar(npos, m_x.data(), r0.data(), m_resid->rdt(), 0);
-    //m_resid->eval(npos, m_x.data(), rf.data(), m_resid->rdt(), 0);
-    //convertFullToScalar(rf, r0);
+    m_resid->evalScalar(npos, x.data(), r0.data(), m_resid->rdt(), 0);
 
     // perturb the full solution vector to obtain the Jacobian of scalars
     for (size_t j = 0; j != m_resid->points(); j++) 
@@ -283,15 +275,13 @@ void MultiSolverScalar::evalJac()
             size_t iFull = jFull + offset;
 
             // perturb x(n); preserve sign(x(n))
-            double tmp = m_x[iFull];
+            double tmp = x[iFull];
             double dx = (tmp>=0.0) ? tmp*m_rtol + m_atol : tmp*m_rtol - m_atol; 
             double rdx = 1.0/dx;
-            m_x[iFull] = tmp + dx;
+            x[iFull] = tmp + dx;
 
             // calculate perturbed residual
-            m_resid->evalScalar(j, m_x.data(), r1.data(), m_resid->rdt(), 0);
-            //m_resid->eval(j, m_x.data(), rf.data(), m_resid->rdt(), 0);
-            //convertFullToScalar(rf, r1);
+            m_resid->evalScalar(j, x.data(), r1.data(), m_resid->rdt(), 0);
 
             // compute nth column of Jacobian
             for (size_t i = j - 1; i != j+2; i++) 
@@ -309,7 +299,7 @@ void MultiSolverScalar::evalJac()
             }
 
             // recover the x(n) value
-            m_x[iFull] = tmp;
+            x[iFull] = tmp;
         }
     }
 
@@ -351,7 +341,8 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
     // if fbound is very small, then x0 is already close to the boundary and
     // step0 points out of the allowed domain. In this case, the Newton
     // algorithm fails, so return an error condition.
-    if (fbound < 1.e-10) {
+    if (fbound < 1.e-10)
+    {
         debuglog("\nAt limits.\n", loglevel);
         return -3;
     }
@@ -380,7 +371,8 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
         s1 = norm2(scalar1, stp1);
 
         // write log information
-        if (loglevel > 0) {
+        if (loglevel > 0)
+        {
             writelog("\n{:d}  {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f}    {:4d}  {:d}/{:d}",
                      m, damp, fbound, log10(s0+SmallNumber), log10(s1+SmallNumber),
                      nJacEval(), getJacAge(), m_maxJacAge);
@@ -390,9 +382,9 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
         // damping coefficient. Also accept it if this step would result in a
         // converged solution. Otherwise, decrease the damping coefficient and
         // try again.
-        if (s1 < 1.0 || s1 < s0) {
+        if (s1 < 1.0 || s1 < s0)
             break;
-        }
+
         damp /= DampFactor;
     }
 
@@ -402,13 +394,9 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
     // stepping by the damped step would represent a converged solution, and
     // return 0 otherwise. If no damping coefficient could be found, return -2.
     if (m < NDAMP) 
-    {
         return (s1 > 1.0) ? 0 : 1 ;
-    } 
     else 
-    {
         return -2;
-    }
 }
 
 void MultiSolverScalar::step(double* x, double* step, int loglevel)

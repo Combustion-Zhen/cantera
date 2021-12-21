@@ -41,7 +41,7 @@ public:
     int dampedNewtonSolve(double* x0, double* x1, int loglevel);
 
     //! Evaluate the Jacobian at m_x
-    void evalJac();
+    void evalJac(vector_fp& x);
 
     /**
      * On entry, step0 must contain an undamped Newton step for the solution x0.
