@@ -327,13 +327,9 @@ void Inlet1D::evalContinuityResidualJacobian
 
         // elimination
         if ( divScheme() == 1 )
-        {
             swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
-        }
         else
-        {
             eliminateSubDiagonals(bcResidual, bcJacobian, rg, dl, d, du);
-        }
     }
 
     if (m_flow_left)
@@ -348,10 +344,8 @@ void Inlet1D::evalContinuityResidualJacobian
 
         // elimination
         if ( divScheme() == 0 )
-        {
             throw CanteraError("Inlet1D::evalContinuityResidualJacobian",
                                "upwind not implemented for right side inlet.");
-        }
         swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
@@ -546,13 +540,9 @@ void Symm1D::evalContinuityResidualJacobian
         double bcJacobian = 1;
         // elimination
         if ( divScheme() == 1 )
-        {
             swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
-        }
         else
-        {
             eliminateSubDiagonals(bcResidual, bcJacobian, rg, dl, d, du);
-        }
     }
 
     if (m_flow_left)
