@@ -436,6 +436,7 @@ protected:
 
     std::unique_ptr<MultiJac> m_jac; //!< Jacobian evaluator
     std::unique_ptr<MultiNewton> m_newt; //!< Newton iterator
+    double m_dt; //!< time step
     doublereal m_rdt; //!< reciprocal of time step
     bool m_jac_ok; //!< if true, Jacobian is current
 

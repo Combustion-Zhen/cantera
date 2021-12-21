@@ -21,7 +21,7 @@ namespace Cantera
 
 OneDim::OneDim() : 
     m_tmin(1.0e-16), m_tmax(1e8), m_tfactor(0.5),
-    m_rdt(0.0), m_jac_ok(false),
+    m_dt(0.0), m_rdt(0.0), m_jac_ok(false),
     m_bw(0), m_size(0),
     m_init(false), m_pts(0),
     m_ss_jac_age(20), m_ts_jac_age(20),
@@ -39,7 +39,7 @@ OneDim::OneDim() :
 
 OneDim::OneDim(vector<Domain1D*> domains) :
     m_tmin(1.0e-16), m_tmax(1e8), m_tfactor(0.5),
-    m_rdt(0.0), m_jac_ok(false),
+    m_dt(0.0), m_rdt(0.0), m_jac_ok(false),
     m_bw(0), m_size(0),
     m_init(false),
     m_ss_jac_age(20), m_ts_jac_age(20),
@@ -583,6 +583,7 @@ void OneDim::initTimeInteg(doublereal dt, doublereal* x)
 {
     doublereal rdt_old = m_rdt;
     m_rdt = 1.0/dt;
+    m_dt = dt;
 
     // if the stepsize has changed, then update the transient part of the
     // Jacobian
