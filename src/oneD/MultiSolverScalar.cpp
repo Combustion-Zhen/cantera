@@ -130,7 +130,7 @@ double bound_step(const double* x, const double* step, Domain1D& r, int loglevel
 } // end unnamed-namespace
 
 // constants
-const doublereal DampFactor = sqrt(2.0);
+const double DampFactor = 2.0;
 const size_t NDAMP = 7;
 
 // ---------------- MultiSolverScalar methods ----------------
@@ -363,7 +363,7 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
     size_t m;
     vector_fp tmp(m_x);
 
-    for (m = 0; m < NDAMP; m++) {
+    for (m = 0; m != NDAMP; m++) {
         double ff = fbound*damp;
 
         // step the solution by the damped step size
