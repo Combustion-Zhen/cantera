@@ -503,13 +503,11 @@ double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
             break;
     }
 
-    /*
     if ( norm > 1.0 )
     {
         throw CanteraError("OneDim::advanceTransport",
                            "Semi-implicit iteration does dot converge.");
     }
-    */
 
     clock_t t1 = clock();
     m_evalTimeTransport += double(t1-t0)/CLOCKS_PER_SEC;
