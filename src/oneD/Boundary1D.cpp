@@ -525,7 +525,7 @@ void Symm1D::evalContinuityResidualJacobian
         // update the residual and Jacobian considering the symmetry
         rg[iloc]
         =
-        - rdt *
+        - rdt * m_flow_right->dz(0) *
         (
             m_flow_right->density(0)
             -
@@ -536,12 +536,10 @@ void Symm1D::evalContinuityResidualJacobian
             m_flow_right->density(1) 
             *
             xb[c_offset_U+nc]
-            /
-            m_flow_right->dz(0)
         );
 
         d[iloc] = 0;
-        du[iloc] = m_flow_right->density(1)/m_flow_right->dz(0);
+        du[iloc] = m_flow_right->density(1);
 
         // u = 0
         double bcResidual = 0 - xb[c_offset_U];

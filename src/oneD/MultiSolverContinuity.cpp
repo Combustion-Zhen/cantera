@@ -73,11 +73,19 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 
     if (loglevel > 0)
     {
-        writelog("\n\n velocity    residual    diagonal    s-diagonal \n");
+        writelog("\n\n velocity    residual    diagonal    s-diagonals \n");
         writelog("===============left  boundary===============\n");
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
                  velocity[0], step[0], m_d[0], m_du[0]);
+        writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
+                 velocity[1], step[1], m_d[1], m_dl[0], m_du[1]);
         writelog("===============right boundary===============\n");
+        writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
+                 velocity[m_resid->sizeVelocity()-2], 
+                 step[m_resid->sizeVelocity()-2], 
+                 m_d[m_resid->sizeVelocity()-2], 
+                 m_dl[m_resid->sizeVelocity()-3],
+                 m_du[m_resid->sizeVelocity()-2]);
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
                  velocity[m_resid->sizeVelocity()-1], 
                  step[m_resid->sizeVelocity()-1], 

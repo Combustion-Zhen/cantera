@@ -1225,19 +1225,11 @@ void StFlow::evalContinuityResidualJacobian
     size_t m = coordinatesType();
 
     // left boundary
-    rg[iloc+jmin]
-    =
-    -
-    (
-        rho_u(x,jmin+1) * pow(z(jmin+1), m)
-        -
-        rho_u(x,jmin) * pow(z(jmin), m)
-    ) / dz(jmin) / pow(z(jmin), m)
-    -
-    rdt * (m_rho[jmin] - m_rho_last[jmin]);
+    rg[iloc+jmin] = -(rho_u(x,jmin+1)*pow(z(jmin+1)/z(jmin),m)-rho_u(x,jmin))
+                    -dz(jmin)*rdt*(m_rho[jmin]-m_rho_last[jmin]);
     // diagonals
-    d[iloc+jmin] = -density(jmin) * pow(z(jmin), m) / dz(jmin) / pow(z(jmin), m);
-    du[iloc+jmin] = density(jmin+1) * pow(z(jmin+1), m) / dz(jmin) / pow(z(jmin), m);
+    d[iloc+jmin] = -density(jmin);
+    du[iloc+jmin] = density(jmin+1) * pow(z(jmin+1)/z(jmin), m);
     //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g}", 
     //         jmin, rg[iloc+jmin], d[iloc+jmin], du[iloc+jmin]);
 
@@ -1248,59 +1240,37 @@ void StFlow::evalContinuityResidualJacobian
         if ( divScheme() == 1)
         {
             // central difference
-            rg[iloc+j] 
-            = 
-            -
-            (
-                rho_u(x,j+1) * pow(z(j+1), m)
-                -
-                rho_u(x,j-1) * pow(z(j-1), m)
-            ) / d2z(j) / pow(z(j), m);
+            rg[iloc+j] = -(rho_u(x,j+1)*pow(z(j+1)/z(j),m)-rho_u(x,j-1)*pow(z(j-1)/z(j),m))
+                         -d2z(j)*rdt*(m_rho[j]-m_rho_last[j]);
 
             // diagonals
-            dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / d2z(j) / pow(z(j), m);
+            dl[iloc+j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
             d[iloc+j] = 0;
-            du[iloc+j] = density(j+1) * pow(z(j+1), m) / d2z(j) / pow(z(j), m);
+            du[iloc+j] = density(j+1) * pow(z(j+1)/z(j), m);
         }
         else
         {
             // upwind
             // central difference
-            rg[iloc+j] 
-            = 
-            -
-            (
-                rho_u(x,j) * pow(z(j), m)
-                -
-                rho_u(x,j-1) * pow(z(j-1), m)
-            ) / dz(j-1) / pow(z(j), m);
+            rg[iloc+j] = -(rho_u(x,j)-rho_u(x,j-1) * pow(z(j-1)/z(j),m))
+                         -dz(j-1)*rdt*(m_rho[j]-m_rho_last[j]);
 
             // diagonals
-            dl[iloc+j-1] = - density(j-1) * pow(z(j-1), m) / dz(j-1) / pow(z(j), m);
-            d[iloc+j] = density(j) * pow(z(j), m) / dz(j-1) / pow(z(j), m);
+            dl[iloc+j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
+            d[iloc+j] = density(j);
             du[iloc+j] = 0;
         }
-
-        rg[iloc+j] -= rdt * (m_rho[j] - m_rho_last[j]);
 
         //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
         //         j, rg[iloc+j], dl[iloc+j-1], d[iloc+j], du[iloc+j]);
     }
 
     // right boundary
-    rg[iloc+jmax]
-    =
-    -
-    (
-        rho_u(x,jmax) * pow(z(jmax), m)
-        -
-        rho_u(x,jmax-1) * pow(z(jmax-1), m)
-    ) / dz(jmax-1) / pow(z(jmax), m)
-    -
-    rdt * (m_rho[jmax] - m_rho_last[jmax]);
+    rg[iloc+jmax] = -(rho_u(x,jmax)-rho_u(x,jmax-1)*pow(z(jmax-1)/z(jmax),m))
+                    -dz(jmax-1)*rdt*(m_rho[jmax]-m_rho_last[jmax]);
     // diagonals
-    dl[iloc+jmax-1] = - density(jmax-1) * pow(z(jmax-1), m) / dz(jmax-1) / pow(z(jmax), m);
-    d[iloc+jmax] = density(jmax) * pow(z(jmax), m) / dz(jmax-1) / pow(z(jmax), m);
+    dl[iloc+jmax-1] = - density(jmax-1) * pow(z(jmax-1)/z(jmax), m);
+    d[iloc+jmax] = density(jmax);
     //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g}", 
     //         jmax, rg[iloc+jmax], dl[iloc+jmax-1], d[iloc+jmax]);
 }
