@@ -359,6 +359,16 @@ protected:
         double rdt
     ); 
 
+    virtual void evalScalarSpecies(size_t j, double* x, double* r, double dt);
+
+    virtual void evalScalarTemperature(size_t j, double* x, double* r, double dt);
+
+    virtual void evalScalarResidual(double* x, double* rsd, int* diag,
+                                    double dt, size_t jmin, size_t jmax);
+
+    virtual void evalScalar(size_t j, double* x, double* r,
+                            integer* mask, double dt);
+
     //! Update the properties (thermo, transport, and diffusion flux).
     //! This function is called in eval after the points which need
     //! to be updated are defined.

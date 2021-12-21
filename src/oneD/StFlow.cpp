@@ -929,7 +929,6 @@ void StFlow::evalResidual(double* x, double* rsd, int* diag,
     }
 }
 
-// Zhen Lu 210920
 void StFlow::evalLeftBoundary(double* x, double* rsd, int* diag, double rdt)
 {
     // Continuity. This propagates information right-to-left, since
@@ -1273,6 +1272,141 @@ void StFlow::evalContinuityResidualJacobian
     d[iloc+jmax] = density(jmax);
     //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g}", 
     //         jmax, rg[iloc+jmax], dl[iloc+jmax-1], d[iloc+jmax]);
+}
+
+void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
+{
+    for (size_t k = 0; k < m_nsp; k++) 
+    {
+        r[index(c_offset_Y + k, j)] = - rho_u(x,j) * dYdz(x,k,j)
+                                      - divDiffFlux(k,j);
+        if ( m_do_reaction )
+        {
+            r[index(c_offset_Y + k, j)] += m_wt[k] * wdot(k,j);
+        }
+        r[index(c_offset_Y + k, j)] /= m_rho[j];
+        r[index(c_offset_Y + k, j)] *= dt;
+        r[index(c_offset_Y + k, j)] -= (Y(x,k,j) - Y_prev(k,j));
+    }
+}
+
+void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
+{
+    if (m_do_energy[j])
+    {
+        setGas(x,j);
+
+        // heat release term
+        const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
+        const vector_fp& cp_R = m_thermo->cp_R_ref();
+
+        double hrr = 0.0;
+        double sum_flux = 0.0;
+
+        for (size_t k = 0; k < m_nsp; k++) {
+            hrr += wdot(k,j) * h_RT[k];
+
+            //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
+            double flxk = (
+                m_flux(k,j) * dz(j-1)
+                +
+                m_flux(k,j-1) * dz(j)
+            ) / d2z(j);
+            sum_flux += flxk * cp_R[k] / m_wt[k];
+        }
+
+        hrr *= GasConstant * T(x,j);
+
+        double dtdzj = dTdz(x,j);
+        sum_flux *= GasConstant * dtdzj;
+
+        // convection and diffusion
+        r[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
+                                  - divHeatFlux(x,j) - sum_flux;
+        // heat release
+        if ( m_do_reaction )
+        {
+            r[index(c_offset_T, j)] -= hrr;
+        }
+        // Zhen Lu 211027 ignition
+        if ( m_do_ignition ) 
+        {
+            r[index(c_offset_T, j)] += ignEnergy(j);
+        }
+        r[index(c_offset_T, j)] -= m_qdotRadiation[j];
+        r[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
+        r[index(c_offset_T, j)] *= dt;
+        r[index(c_offset_T, j)] -= (T(x,j) - T_prev(j));
+    }
+    else
+    {
+        // residual equations if the energy equation is disabled
+        r[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
+    }
+}
+
+void StFlow::evalScalarResidual(double* x, double* rsd, int* diag,
+                                double dt, size_t jmin, size_t jmax)
+{
+    //----------------------------------------------------
+    // evaluate the residual equations at all required
+    // grid points
+    //----------------------------------------------------
+
+    for (size_t j = jmin; j <= jmax; j++) 
+    {
+        if (j == 0) 
+        {
+            //----------------------------------------------
+            //         left boundary
+            //----------------------------------------------
+            evalLeftBoundary(x, rsd, diag, dt);
+        } 
+        else if (j == m_points - 1) 
+        {
+            //----------------------------------------------
+            //         right boundary
+            //----------------------------------------------
+            evalRightBoundary(x, rsd, diag, dt);
+        } 
+        else 
+        {
+            //----------------------------------------------
+            //         interior points
+            //----------------------------------------------
+            evalScalarSpecies(j, x, rsd, dt);
+
+            evalScalarTemperature(j, x, rsd, dt);
+        }
+    }
+}
+
+void StFlow::evalScalar(size_t jg, double* xg, double* rg,
+                        integer* diagg, double dt)
+{
+    // if evaluating a Jacobian, and the global point is outside the domain of
+    // influence for this domain, then skip evaluating the residual
+    if (jg != npos && (jg + 1 < firstPoint() || jg > lastPoint() + 1)) {
+        return;
+    }
+
+    // start of local part of global arrays
+    doublereal* x = xg + loc();
+    doublereal* rsd = rg + loc();
+    integer* diag = diagg + loc();
+
+    size_t jmin, jmax;
+    if (jg == npos) { // evaluate all points
+        jmin = 0;
+        jmax = m_points - 1;
+    } else { // evaluate points for Jacobian
+        size_t jpt = (jg == 0) ? 0 : jg - firstPoint();
+        jmin = std::max<size_t>(jpt, 1) - 1;
+        jmax = std::min(jpt+1,m_points-1);
+    }
+
+    updateProperties(jg, x, jmin, jmax);
+    evalScalarResidual(x, rsd, diag, dt, jmin, jmax);
 }
 
 void StFlow::updateProperties(size_t jg, double* x, size_t jmin, size_t jmax)

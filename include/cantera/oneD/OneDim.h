@@ -108,8 +108,7 @@ public:
     void eval(size_t j, double* x, double* r, doublereal rdt=-1.0,
               int count = 1);
 
-    void evalScalar(size_t j, double* x, double* r, double rdt=-1.0,
-                    int count=1);
+    void evalScalar(size_t j, double* x, double* r, int count=1);
 
     void evalContinuity(vector_fp& x, vector_fp& r, 
                         vector_fp& dl, vector_fp& d, vector_fp& du,

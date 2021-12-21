@@ -212,6 +212,11 @@ public:
         throw NotImplementedError("Domain1D::evalContinuityResidualJacobian");
     }
 
+    virtual void evalScalar(size_t j, doublereal* x, doublereal* r,
+                            integer* mask, doublereal dt) {
+        throw NotImplementedError("Domain1D::evalScalar");
+    }
+
     //! Prepare to do time stepping with time step dt
     /*!
      * Copy the internally-stored solution at the last time step to array x0.

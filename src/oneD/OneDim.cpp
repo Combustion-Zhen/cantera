@@ -351,14 +351,26 @@ void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
 }
 
 // todo : implement independet calculation of scalar residual
-void OneDim::evalScalar(size_t j, double* x, double* r, double rdt, int count)
+void OneDim::evalScalar(size_t j, double* x, double* r, int count)
 {
+    double dt = m_dt;
+    double rdt = m_rdt;
+
     vector_fp rf, rs;
 
     rf.resize(m_size, 0.0);
     rs.resize(m_sizeScalar, 0.0);
 
-    eval(j, x, rf.data(), rdt, count);
+    // iterate over the bulk domains first
+    for (const auto& d : m_bulk) {
+        d->evalScalar(j, x, rf.data(), m_mask.data(), dt);
+    }
+
+    // then over the connector domains
+    for (const auto& d : m_connect) {
+        d->eval(j, x, rf.data(), m_mask.data(), rdt);
+    }
+
     m_scalarSolver->convertFullToScalar(rf, rs);
 
     copy(rs.begin(), rs.end(), r);
@@ -518,7 +530,7 @@ doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
 double OneDim::tsNormScalar(double* x)
 {
     vector_fp r(m_sizeScalar, 0.0);
-    evalScalar(npos, x, r.data(), -1.0, 0);
+    evalScalar(npos, x, r.data(), 0);
 
     double ts = 0.0;
     for (size_t i = 0; i != m_sizeScalar; i++) {

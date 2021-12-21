@@ -228,7 +228,7 @@ int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
                 debuglog("\n\nRe-evaluating Jacobian, since no damping "
                          "coefficient\ncould be found with this Jacobian.\n",
                          loglevel);
-            } 
+            }
             else
             {
                 break;
@@ -258,7 +258,7 @@ void MultiSolverScalar::evalJac(vector_fp& x)
     incrementJacEval();
 
     // evaluate the unperturbed residual
-    m_resid->evalScalar(npos, x.data(), r0.data(), m_resid->rdt(), 0);
+    m_resid->evalScalar(npos, x.data(), r0.data(), 0);
 
     // perturb the full solution vector to obtain the Jacobian of scalars
     for (size_t j = 0; j != m_resid->points(); j++) 
@@ -284,7 +284,7 @@ void MultiSolverScalar::evalJac(vector_fp& x)
             x[iFull] = tmp + dx;
 
             // calculate perturbed residual
-            m_resid->evalScalar(j, x.data(), r1.data(), m_resid->rdt(), 0);
+            m_resid->evalScalar(j, x.data(), r1.data(), 0);
 
             // compute nth column of Jacobian
             for (size_t i = j - 1; i != j+2; i++) 
