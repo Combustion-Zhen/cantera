@@ -828,11 +828,17 @@ cdef class Sim1D:
     def set_time(self, t):
         self.sim.setTime(t)
 
+    def set_limit_CFL(self, CFL):
+        self.sim.setLimitCFL(CFL)
+
+    def set_limit_timestep(self, step):
+        self.sim.setLimitStep(step)
+
     def set_max_iteration(self, nmax):
         self.sim.setMaxIteration(nmax)
 
-    def set_splitting(self, s=2):
-        self.sim.setSplittingScheme(s)
+    def set_split(self, s=2):
+        self.sim.setSplitScheme(s)
 
     def set_schemes(self, split=0, time=0, div=0, conv=0, beta=0.1):
         self.sim.setSchemes(split, time, div, conv, beta)

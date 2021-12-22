@@ -77,7 +77,7 @@ public:
 
     //! Set the time splitting scheme
     //! 0: coupled, 1: 1st order, 2: Strang
-    void setSplittingScheme(int scheme=0);
+    void setSplitScheme(int scheme=0);
 
     void setSchemes(int splitScheme=0, int timeScheme=0, 
                     int divScheme=0, int convScheme=0, double beta=0.1);

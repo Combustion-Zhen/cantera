@@ -265,7 +265,7 @@ void OneDim::setSteadyMode()
     }
 }
 
-void OneDim::setSplittingScheme(int scheme)
+void OneDim::setSplitScheme(int scheme)
 {
     m_splitScheme = scheme;
 
@@ -283,7 +283,7 @@ void OneDim::setSplittingScheme(int scheme)
 void OneDim::setSchemes(int splitScheme, int timeScheme, 
                         int divScheme, int convScheme, double beta)
 {
-    setSplittingScheme(splitScheme);
+    setSplitScheme(splitScheme);
     
     Domain1D* d = left();
     while (d)
