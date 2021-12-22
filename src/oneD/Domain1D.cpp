@@ -28,7 +28,7 @@ Domain1D::Domain1D(size_t nv, size_t points, double time) :
     m_nc(0),
     m_ctype(0),
     m_timeScheme(0),
-    m_divScheme(1),
+    m_divScheme(0),
     m_convectiveScheme(0),
     m_gammaSchemeBeta(0.1),
     m_iloc(0),

@@ -343,10 +343,11 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcJacobian = rho;
 
         // elimination
-        if ( divScheme() == 0 )
+        if ( divScheme() == 1 )
+            swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
+        else
             throw CanteraError("Inlet1D::evalContinuityResidualJacobian",
                                "upwind not implemented for right side inlet.");
-        swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
 

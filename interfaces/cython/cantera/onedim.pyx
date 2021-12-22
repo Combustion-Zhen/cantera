@@ -834,7 +834,7 @@ cdef class Sim1D:
     def set_splitting(self, s=2):
         self.sim.setSplittingScheme(s)
 
-    def set_schemes(self, split=0, time=0, div=1, conv=0, beta=0.1):
+    def set_schemes(self, split=0, time=0, div=0, conv=0, beta=0.1):
         self.sim.setSchemes(split, time, div, conv, beta)
 
     def domain_index(self, dom):

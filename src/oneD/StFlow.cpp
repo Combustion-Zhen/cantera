@@ -1250,7 +1250,6 @@ void StFlow::evalContinuityResidualJacobian
         else
         {
             // upwind
-            // central difference
             rg[iloc+j] = -(rho_u(x,j)-rho_u(x,j-1) * pow(z(j-1)/z(j),m))
                          -dz(j-1)*rdt*(m_rho[j]-m_rho_last[j]);
 
