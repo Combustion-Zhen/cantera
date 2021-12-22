@@ -1417,13 +1417,17 @@ double StFlow::evalMaxCFL(vector_fp& xg, double dt)
     for ( size_t j = jmin; j != jmax; j++)
     {
         // convection
-        double convCFL = dt*u(x,j)/dz(j);
+        double convCFL = dt*abs(u(x,j))/dz(j);
         maxCFL = std::max(maxCFL, convCFL);
         // diffusion of species
         for ( size_t k = 0; k != m_nsp; k++)
         {
             // approximation
-            double diffCFL = dt * m_flux(k,j)/(density(j)*Y(x,k,j)*dz(j));
+            setGasAtMidpoint(x,j);
+            double rho = m_thermo->density();
+            double diffCFL = dt 
+                            *abs(m_flux(k,j))
+                            /(rho*0.5*(Y(x,k,j)+Y(x,k,j+1))*dz(j));
             maxCFL = std::max(maxCFL, diffCFL);
         }
     }
