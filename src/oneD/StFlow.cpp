@@ -1207,30 +1207,36 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
 void StFlow::evalContinuityResidualJacobian
 (
     vector_fp& xg, 
-    vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du, 
+    vector_fp& rg, vector_fp& dlg, vector_fp& dg, vector_fp& dug,
     double rdt
 )
 {
     size_t jmin = 0;
     size_t jmax = nPoints()-1;
-    size_t iloc = locVelocity();
 
     double* x = xg.data() + loc();
 
     // update density
     updateThermo(x, jmin, jmax);
 
+    size_t iloc = locVelocity();
+
+    double* r = rg.data() + iloc;
+    double* d = dg.data() + iloc;
+    double* dl = dlg.data() + iloc;
+    double* du = dug.data() + iloc;
+
     // coordinates type
     size_t m = coordinatesType();
 
     // left boundary
-    rg[iloc+jmin] = -(rho_u(x,jmin+1)*pow(z(jmin+1)/z(jmin),m)-rho_u(x,jmin))
-                    -dz(jmin)*rdt*(m_rho[jmin]-m_rho_last[jmin]);
+    r[jmin] = -(rho_u(x,jmin+1)*pow(z(jmin+1)/z(jmin),m)-rho_u(x,jmin))
+              -dz(jmin)*rdt*(m_rho[jmin]-m_rho_last[jmin]);
     // diagonals
-    d[iloc+jmin] = -density(jmin);
-    du[iloc+jmin] = density(jmin+1) * pow(z(jmin+1)/z(jmin), m);
+    d[jmin] = -density(jmin);
+    du[jmin] = density(jmin+1) * pow(z(jmin+1)/z(jmin), m);
     //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g}", 
-    //         jmin, rg[iloc+jmin], d[iloc+jmin], du[iloc+jmin]);
+    //         jmin, rg[iloc+jmin], dg[iloc+jmin], dug[iloc+jmin]);
 
     // interior points
     for (size_t j = jmin+1; j != jmax; j++) 
@@ -1239,38 +1245,38 @@ void StFlow::evalContinuityResidualJacobian
         if ( divScheme() == 1)
         {
             // central difference
-            rg[iloc+j] = -(rho_u(x,j+1)*pow(z(j+1)/z(j),m)-rho_u(x,j-1)*pow(z(j-1)/z(j),m))
-                         -d2z(j)*rdt*(m_rho[j]-m_rho_last[j]);
+            r[j] = -(rho_u(x,j+1)*pow(z(j+1)/z(j),m)-rho_u(x,j-1)*pow(z(j-1)/z(j),m))
+                   -d2z(j)*rdt*(m_rho[j]-m_rho_last[j]);
 
             // diagonals
-            dl[iloc+j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
-            d[iloc+j] = 0;
-            du[iloc+j] = density(j+1) * pow(z(j+1)/z(j), m);
+            d[j] = 0;
+            dl[j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
+            du[j] = density(j+1) * pow(z(j+1)/z(j), m);
         }
         else
         {
             // upwind
-            rg[iloc+j] = -(rho_u(x,j)-rho_u(x,j-1) * pow(z(j-1)/z(j),m))
-                         -dz(j-1)*rdt*(m_rho[j]-m_rho_last[j]);
+            r[j] = -(rho_u(x,j)-rho_u(x,j-1) * pow(z(j-1)/z(j),m))
+                   -dz(j-1)*rdt*(m_rho[j]-m_rho_last[j]);
 
             // diagonals
-            dl[iloc+j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
-            d[iloc+j] = density(j);
-            du[iloc+j] = 0;
+            d[j] = density(j);
+            dl[j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
+            du[j] = 0;
         }
 
         //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
-        //         j, rg[iloc+j], dl[iloc+j-1], d[iloc+j], du[iloc+j]);
+        //         j, rg[iloc+j], dlg[iloc+j-1], dg[iloc+j], dug[iloc+j]);
     }
 
     // right boundary
-    rg[iloc+jmax] = -(rho_u(x,jmax)-rho_u(x,jmax-1)*pow(z(jmax-1)/z(jmax),m))
+    r[jmax] = -(rho_u(x,jmax)-rho_u(x,jmax-1)*pow(z(jmax-1)/z(jmax),m))
                     -dz(jmax-1)*rdt*(m_rho[jmax]-m_rho_last[jmax]);
     // diagonals
-    dl[iloc+jmax-1] = - density(jmax-1) * pow(z(jmax-1)/z(jmax), m);
-    d[iloc+jmax] = density(jmax);
+    d[jmax] = density(jmax);
+    dl[jmax-1] = - density(jmax-1) * pow(z(jmax-1)/z(jmax), m);
     //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g}", 
-    //         jmax, rg[iloc+jmax], dl[iloc+jmax-1], d[iloc+jmax]);
+    //         jmax, rg[iloc+jmax], dlg[iloc+jmax-1], dg[iloc+jmax]);
 }
 
 void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
