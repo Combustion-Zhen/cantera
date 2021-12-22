@@ -217,6 +217,10 @@ public:
         throw NotImplementedError("Domain1D::evalScalar");
     }
 
+    virtual double evalMaxCFL(vector_fp& x, double dt) {
+        return 0.0;
+    }
+
     //! Prepare to do time stepping with time step dt
     /*!
      * Copy the internally-stored solution at the last time step to array x0.

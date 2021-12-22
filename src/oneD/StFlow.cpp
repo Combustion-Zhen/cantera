@@ -1119,17 +1119,6 @@ void StFlow::evalSpecies(size_t j, double* x, double* rsd, int* diag, double rdt
 
     for (size_t k = 0; k < m_nsp; k++) 
     {
-        /*
-        rsd[index(c_offset_Y + k, j)]
-        = 
-        (
-            - rho_u(x,j) * dYdz(x,k,j)
-            - divDiffFlux(k,j)
-            + m_wt[k] * wdot(k,j)
-        )/m_rho[j]
-        - 
-        rdt * (Y(x,k,j) - Y_prev(k,j));
-        */
         rsd[index(c_offset_Y + k, j)] = - rho_u(x,j) * dYdz(x,k,j)
                                         - divDiffFlux(k,j);
         if ( m_do_reaction )
@@ -1264,7 +1253,6 @@ void StFlow::evalContinuityResidualJacobian
             dl[j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
             du[j] = 0;
         }
-
         //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
         //         j, rg[iloc+j], dlg[iloc+j-1], dg[iloc+j], dug[iloc+j]);
     }
@@ -1412,6 +1400,35 @@ void StFlow::evalScalar(size_t jg, double* xg, double* rg,
 
     updateProperties(jg, x, jmin, jmax);
     evalScalarResidual(x, rsd, diag, dt, jmin, jmax);
+}
+
+double StFlow::evalMaxCFL(vector_fp& xg, double dt)
+{
+    double maxCFL = SmallNumber;
+    double* x = xg.data() + loc();
+
+    size_t jmin = 0;
+    size_t jmax = nPoints() - 1;
+
+    updateThermo(x, jmin, jmax);
+    updateTransport(x, jmin, jmax);
+    updateDiffFluxes(x, jmin, jmax);
+
+    for ( size_t j = jmin; j != jmax; j++)
+    {
+        // convection
+        double convCFL = dt*u(x,j)/dz(j);
+        maxCFL = std::max(maxCFL, convCFL);
+        // diffusion of species
+        for ( size_t k = 0; k != m_nsp; k++)
+        {
+            // approximation
+            double diffCFL = dt * m_flux(k,j)/(density(j)*Y(x,k,j)*dz(j));
+            maxCFL = std::max(maxCFL, diffCFL);
+        }
+    }
+
+    return maxCFL;
 }
 
 void StFlow::updateProperties(size_t jg, double* x, size_t jmin, size_t jmax)

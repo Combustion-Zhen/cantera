@@ -432,14 +432,13 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
         }
 
         // time step
-        dt = std::min(dt, t - time());
+        dt = evalTimeStep(m_x, dt, t);
         // avoid very small time step
-        if ( dt < 1.0e-10 )
+        if ( dt < 1.0e-12 )
             break;
+
         if ( loglevel > 0 )
-        {
             writelog(" {:10.4g} {:10.4g}", time(), dt);
-        }
 
         double norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
 
@@ -464,8 +463,6 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
         }
 
     }
-
-    //m_tstep = dt;
 
 }
 

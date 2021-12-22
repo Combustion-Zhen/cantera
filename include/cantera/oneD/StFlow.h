@@ -369,6 +369,8 @@ protected:
     virtual void evalScalar(size_t j, double* x, double* r,
                             integer* mask, double dt);
 
+    virtual double evalMaxCFL(vector_fp& x, double dt);
+
     //! Update the properties (thermo, transport, and diffusion flux).
     //! This function is called in eval after the points which need
     //! to be updated are defined.

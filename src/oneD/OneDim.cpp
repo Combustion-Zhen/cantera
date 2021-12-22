@@ -27,7 +27,8 @@ OneDim::OneDim() :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_maxIter(100),
+    m_time(0.0), m_limitCFL(1.0), m_limitStep(1e-6),
+    m_splitScheme(0), m_maxIter(100),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -45,7 +46,8 @@ OneDim::OneDim(vector<Domain1D*> domains) :
     m_ss_jac_age(20), m_ts_jac_age(20),
     m_interrupt(0), m_time_step_callback(0),
     m_nsteps(0), m_nsteps_max(500),
-    m_time(0.0), m_splittingScheme(0), m_maxIter(100),
+    m_time(0.0), m_limitCFL(1.0), m_limitStep(1e-6),
+    m_splitScheme(0), m_maxIter(100),
     m_bwScalar(0), m_sizeScalar(0), m_sizeVelocity(0),
     m_nevals(0), m_evaltime(0.0),
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
@@ -265,7 +267,7 @@ void OneDim::setSteadyMode()
 
 void OneDim::setSplittingScheme(int scheme)
 {
-    m_splittingScheme = scheme;
+    m_splitScheme = scheme;
 
     if (scheme != 0)
     {
@@ -382,9 +384,7 @@ void OneDim::evalContinuity(vector_fp& x, vector_fp& r,
 {
     fill(r.begin(), r.end(), 0.0);
     if (rdt < 0.0) 
-    {
         rdt = m_rdt;
-    }
 
     // iterate over the bulk domains first
     for (const auto& domain : m_bulk) 
@@ -405,18 +405,43 @@ void OneDim::evalContinuity(vector_fp& x, vector_fp& r,
     }
 }
 
+double OneDim::evalMaxCFL(vector_fp& x, double dt)
+{
+    double maxCFL = SmallNumber;
+
+    Domain1D* d = left();
+    while (d)
+    {
+        maxCFL = std::max(maxCFL, d->evalMaxCFL(x, dt));
+        d = d->right();
+    }
+
+    return maxCFL;
+}
+
+double OneDim::evalTimeStep(vector_fp& x, double dt, double t)
+{
+    double dtOld = dt;
+    double maxCFL = evalMaxCFL(x, dt);
+    double dtNew = m_limitCFL / maxCFL * dtOld;
+    dtNew = std::min(m_limitStep, dtNew);
+    // relax the increase of time step size
+    if ( dtNew > dtOld )
+        dtNew = 0.5 * (dtOld + dtNew);
+
+    return std::min(dtNew, t-time()); 
+}
+
 void OneDim::advanceScalarChemistry(double* x, double dt, bool firstSubstep)
 {
     clock_t t0 = clock();
 
-    switch (m_splittingScheme)
+    switch (m_splitScheme)
     {
     case 1:
     {
         if (firstSubstep)
-        {
             advanceDomainChemistry(x, dt);
-        }
         break;
     }
     case 2:
@@ -471,15 +496,11 @@ double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 
         // monitor convergence
         if (m<0)
-        {
             throw CanteraError("OneDim::advanceTransport",
                 "Scalar solver fails to convergence ({}) ",
                 m);
-        }
         else
-        {
             copy(r, r + m_size, x);
-        }
 
         solveVelocity(x, r, loglevel-1);
 
@@ -504,10 +525,8 @@ double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
     }
 
     if ( norm > 1.0 )
-    {
         throw CanteraError("OneDim::advanceTransport",
                            "Semi-implicit iteration does dot converge.");
-    }
 
     clock_t t1 = clock();
     m_evalTimeTransport += double(t1-t0)/CLOCKS_PER_SEC;
@@ -677,12 +696,9 @@ doublereal OneDim::timeStep(int nsteps, double dt, double* x,
     return dt;
 }
 
-double OneDim::timeStepIteration(double dt, double* x, 
-                                 double* r, int loglevel)
+double OneDim::timeStepIteration(double dt, double* x, double* r, int loglevel)
 {
-
     bool firstSubstep = true;
-
     advanceScalarChemistry(x, dt, firstSubstep);
     firstSubstep = false;
 

@@ -113,6 +113,10 @@ public:
     void evalContinuity(vector_fp& x, vector_fp& r, 
                         vector_fp& dl, vector_fp& d, vector_fp& du,
                         double rdt=-1.0);
+    
+    double evalMaxCFL(vector_fp& x, double dt);
+
+    double evalTimeStep(vector_fp& x, double dt, double t);
 
     void advanceScalarChemistry(double* x, double dt, bool firstSubstep);
 
@@ -313,6 +317,14 @@ public:
         m_nsteps_max = nmax;
     }
 
+    void setLimitCFL(double cfl) {
+        m_limitCFL = cfl;
+    }
+
+    void setLimitStep(double step) {
+        m_limitStep = step;
+    }
+
     void setMaxIteration(size_t nmax) {
         m_maxIter = nmax;
     }
@@ -468,14 +480,13 @@ protected:
     //! Zhen Lu for transient solution
     //! Physical time for the transient solution
     double m_time;
-
+    //! CFL numer
+    double m_limitCFL, m_limitStep;
     //! time splitting scheme
     //! 0: coupled solver, 1: 1st-order splitting, 2: Strang splitting
-    int m_splittingScheme;
-
+    int m_splitScheme;
     //!< maximum iteration for each time step
     size_t m_maxIter; 
-
     //!< scalar Jacobian bandwidth
     size_t m_bwScalar; 
     //!< scalar solution vector size
@@ -486,7 +497,6 @@ protected:
     std::vector<size_t> m_locScalar; 
     //!< scalar solver
     std::unique_ptr<MultiSolverScalar> m_scalarSolver; 
-
     //!< velocity solution vector size
     size_t m_sizeVelocity;
     //!< location of the first component at each point in the velocity solution vector
