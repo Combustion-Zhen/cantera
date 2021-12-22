@@ -131,7 +131,7 @@ void Boundary1D::swapDiagonalsRight
     fill(du.begin(), du.end(), 0.0);
 }
 
-void Boundary1D::eliminateSubDiagonals
+void Boundary1D::eliminateSubDiagonalsL
 (
     double br, double bj, vector_fp& r,
     vector_fp& dl, vector_fp& d, vector_fp& du
@@ -152,6 +152,32 @@ void Boundary1D::eliminateSubDiagonals
     fill(du.begin(), du.end(), 0.0);
 }
 
+void Boundary1D::eliminateSubDiagonalsR
+(
+    double br, double bj, vector_fp& r,
+    vector_fp& dl, vector_fp& d, vector_fp& du
+)
+{
+    size_t iloc = m_flow_left->locVelocity();
+    size_t np = m_flow_left->nPoints();
+
+    r[iloc+np-1] -= br * d[iloc+np-1] / bj;
+
+    for (size_t j = np-2; j != 0; j--)
+    {
+        r[iloc+j] -= r[iloc+j+1] * d[iloc+j] / dl[iloc+j];
+    }
+    for ( size_t j = 0; j != np-1; j++)
+    {
+        r[iloc+j] = r[iloc+j+1];
+        d[iloc+j] = dl[iloc+j];
+    }
+    r[iloc+np-1] = br;
+    d[iloc+np-1] = bj;
+
+    fill(dl.begin(), dl.end(), 0.0);
+    fill(du.begin(), du.end(), 0.0);
+}
 // ---------------- Inlet1D methods ----------------
 
 Inlet1D::Inlet1D()
@@ -329,7 +355,7 @@ void Inlet1D::evalContinuityResidualJacobian
         if ( divScheme() == 1 )
             swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
         else
-            eliminateSubDiagonals(bcResidual, bcJacobian, rg, dl, d, du);
+            eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
     if (m_flow_left)
@@ -346,8 +372,7 @@ void Inlet1D::evalContinuityResidualJacobian
         if ( divScheme() == 1 )
             swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
         else
-            throw CanteraError("Inlet1D::evalContinuityResidualJacobian",
-                               "upwind not implemented for right side inlet.");
+            eliminateSubDiagonalsR(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
 
@@ -543,7 +568,7 @@ void Symm1D::evalContinuityResidualJacobian
         if ( divScheme() == 1 )
             swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
         else
-            eliminateSubDiagonals(bcResidual, bcJacobian, rg, dl, d, du);
+            eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
     if (m_flow_left)
