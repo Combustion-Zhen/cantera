@@ -432,14 +432,14 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
             if ( dt < 1.e-12 )
                 break;
             // time step iteration
-            norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
+            norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);
             // refine
             newPoints = refineTransient(loglevel-1);
         } while (newPoints != 0);
 
         increaseTime(dt);
 
-        if (loglevel == 1) 
+        if (loglevel > 0) 
         {
             writelog(" {:10.4g} {:10.4g} {:4d} {:10.4g} {:10.4g}\n", 
                      time(), dt, nIter, log10(tsNormScalar(m_x.data())), log10(norm));

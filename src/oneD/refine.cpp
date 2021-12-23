@@ -90,6 +90,9 @@ int Refiner::analyze(size_t n, const doublereal* z,
     }
 
     for (size_t i = 0; i < m_nv; i++) {
+        //writelog("Refiner::analyze active compnent {} {}\n",
+        //         m_domain->componentName(i),
+        //         m_active[i]);
         if (m_active[i]) {
             string name = m_domain->componentName(i);
             // get component i at all points

@@ -83,6 +83,12 @@ class FlameBase(Sim1D):
         """
         super().set_refine_criteria(self.flame, ratio, slope, curve, prune)
 
+    def set_refine_components(self, components=['T',]):
+        """
+        Set the components to do the mesh refinement
+        """
+        super().set_refine_components(self.flame, components)
+
     def get_refine_criteria(self):
         """
         Get a dictionary of the criteria used for grid refinement. The items in
