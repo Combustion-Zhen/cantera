@@ -77,6 +77,14 @@ doublereal Sim1D::workValue(size_t dom, size_t comp, size_t localPoint) const
     return m_xnew[iloc];
 }
 
+double Sim1D::valueLast(size_t dom, size_t comp, size_t localPoint) const
+{
+    size_t iloc = domain(dom).loc() + domain(dom).index(comp, localPoint);
+    AssertThrowMsg(iloc < m_xlast_ts.size(), "Sim1D::valueLast",
+                   "Index out of bounds: {} > {}", iloc, m_xlast_ts.size());
+    return m_xlast_ts[iloc];
+}
+
 void Sim1D::setProfile(size_t dom, size_t comp,
                        const vector_fp& pos, const vector_fp& values)
 {
@@ -405,52 +413,36 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
     while (time() < t) 
     {
+        int nIter = 0;
+        int newPoints = 0;
+        double norm = 1.0;
 
-        // grid refinement
-        if (refine_grid) 
-        {
-            int new_points = refine(loglevel-1);
-            if (new_points) 
-            {
-                // If the grid has changed, preemptively reduce the timestep
-                // to avoid multiple successive failed time steps.
-                dt = m_tstep;
-            }
-            if (new_points && loglevel > 6) 
-            {
-                save("debug_sim1d.xml", "debug", "After regridding");
-            }
-            if (new_points && loglevel > 7) 
-            {
-                saveResidual("debug_sim1d.xml", "residual",
-                             "After regridding");
-            }
-        } 
-        else 
-        {
-            debuglog("grid refinement disabled.\n", loglevel);
-        }
-
-        // time step
-        dt = evalTimeStep(m_x, dt, t);
-        // avoid very small time step
-        if ( dt < 1.0e-12 )
-            break;
-
-        if ( loglevel > 0 )
-            writelog(" {:10.4g} {:10.4g}", time(), dt);
-
-        double norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
-
+        // store the solution
         m_xlast_ts = m_x;
+
+        do
+        {
+            // iteration count
+            nIter++;
+            // start from t0
+            m_x = m_xlast_ts;
+            // estimate the time stepsize
+            dt = evalTimeStep(m_x, dt, t);
+            // skip very small time step
+            if ( dt < 1.e-12 )
+                break;
+            // time step iteration
+            norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel);
+            // refine
+            newPoints = refineTransient(loglevel-1);
+        } while (newPoints != 0);
 
         increaseTime(dt);
 
         if (loglevel == 1) 
         {
-            writelog(" {:10.4g} {:10.4g}\n", 
-                     log10(tsNormScalar(m_x.data())),
-                     log10(norm));
+            writelog(" {:10.4g} {:10.4g} {:4d} {:10.4g} {:10.4g}\n", 
+                     time(), dt, nIter, log10(tsNormScalar(m_x.data())), log10(norm));
         }
         if (loglevel > 6) 
         {
@@ -464,6 +456,88 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
 
     }
 
+}
+
+int Sim1D::refineTransient(int loglevel)
+{
+    int ianalyze, np = 0;
+    vector_fp znew, xnew, xlnew;
+    std::vector<size_t> dsize;
+
+    for (size_t n = 0; n < nDomains(); n++) {
+        Domain1D& d = domain(n);
+        Refiner& r = d.refiner();
+
+        // determine where new points are needed
+        ianalyze = r.analyze(d.grid().size(), d.grid().data(), &m_x[start(n)]);
+        if (ianalyze < 0)
+            return ianalyze;
+
+        if (loglevel > 0)
+            r.show();
+
+        np += r.nNewPoints();
+        size_t comp = d.nComponents();
+
+        // loop over points in the current grid
+        size_t npnow = d.nPoints();
+        size_t nstart = znew.size();
+        for (size_t m = 0; m < npnow; m++) {
+            if (r.keepPoint(m) || r.nNewPoints() != 0) {
+                // add the current grid point to the new grid
+                znew.push_back(d.grid(m));
+
+                // do the same for the solution at this point
+                for (size_t i = 0; i < comp; i++) {
+                    xnew.push_back(value(n, i, m));
+                    xlnew.push_back(valueLast(n, i, m));
+                }
+
+                // now check whether a new point is needed in the interval to
+                // the right of point m, and if so, add entries to znew and xnew
+                // for this new point
+                if (r.newPointNeeded(m) && m + 1 < npnow) {
+                    // add new point at midpoint
+                    double zmid = 0.5*(d.grid(m) + d.grid(m+1));
+                    znew.push_back(zmid);
+
+                    // for each component, linearly interpolate
+                    // the solution to this point
+                    for (size_t i = 0; i < comp; i++) {
+                        double xmid = 0.5*(value(n, i, m) + value(n, i, m+1));
+                        xnew.push_back(xmid);
+
+                        xmid = 0.5*(valueLast(n, i, m) + valueLast(n, i, m+1));
+                        xlnew.push_back(xmid);
+                    }
+                }
+            } else {
+                if (loglevel > 0) {
+                    writelog("refine: discarding point at {}\n", d.grid(m));
+                }
+            }
+        }
+        dsize.push_back(znew.size() - nstart);
+    }
+
+    // At this point, the new grid znew and the new solution vector xnew have
+    // been constructed, but the domains themselves have not yet been modified.
+    // Now update each domain with the new grid.
+
+    size_t gridstart = 0, gridsize;
+    for (size_t n = 0; n < nDomains(); n++) {
+        Domain1D& d = domain(n);
+        gridsize = dsize[n];
+        d.setupGrid(gridsize, &znew[gridstart]);
+        gridstart += gridsize;
+    }
+
+    // Replace the current solution vector with the new one
+    m_x = xnew;
+    m_xlast_ts = xlnew;
+    resize();
+    finalize();
+    return np;
 }
 
 int Sim1D::refine(int loglevel)
@@ -802,6 +876,7 @@ void Sim1D::resize()
     OneDim::resize();
     m_x.resize(size(), 0.0);
     m_xnew.resize(size(), 0.0);
+    m_xlast_ts.resize(size(), 0.0);
 }
 
 // private

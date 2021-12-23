@@ -76,6 +76,8 @@ public:
 
     doublereal workValue(size_t dom, size_t comp, size_t localPoint) const;
 
+    double valueLast(size_t dom, size_t comp, size_t localPoint) const;
+
     /**
      * Specify a profile for one component of one domain.
      * @param dom domain number, beginning with 0 for the leftmost domain.
@@ -132,6 +134,10 @@ public:
 
     /// Refine the grid in all domains.
     int refine(int loglevel=0);
+
+    /// Refine the grid in all domains for the transient problem.
+    /// Only prune when there is no new point.
+    int refineTransient(int loglevel=0);
 
     //! Add node for fixed temperature point of freely propagating flame
     int setFixedTemperature(double t);

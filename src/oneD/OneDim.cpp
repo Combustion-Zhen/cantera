@@ -425,9 +425,14 @@ double OneDim::evalTimeStep(vector_fp& x, double dt, double t)
     double maxCFL = evalMaxCFL(x, dt);
     double dtNew = m_limitCFL / maxCFL * dtOld;
     dtNew = std::min(m_limitStep, dtNew);
+
     // relax the increase of time step size
     if ( dtNew > dtOld )
         dtNew = 0.5 * (dtOld + dtNew);
+
+    if ( dtNew < m_tmin )
+        throw CanteraError("OneDim::evalTimeStep",
+                           "Time integration failed.");
 
     return std::min(dtNew, t-time()); 
 }
