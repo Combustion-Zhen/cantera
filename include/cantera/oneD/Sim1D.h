@@ -157,6 +157,8 @@ public:
                            double slope = 0.8, double curve = 0.8,
                            double prune = -0.1);
 
+    void setRefineComponents(const vector_int& comp, int dom = -1);
+
     /**
      * Get the grid refinement criteria. dom must be greater than
      * or equal to zero (i.e., the domain must be specified).

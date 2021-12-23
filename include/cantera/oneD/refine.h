@@ -38,6 +38,9 @@ public:
                      doublereal curve = 0.8,
                      doublereal prune = -0.1);
 
+    //! set the active components for mesh refinement
+    void setActives(const vector_int& comp);
+
     //! Get the grid refinement criteria. @see Refiner::setCriteria
     vector_fp getCriteria()
     {

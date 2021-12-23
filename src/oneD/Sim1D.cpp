@@ -794,6 +794,23 @@ void Sim1D::setRefineCriteria(int dom, double ratio,
     }
 }
 
+void Sim1D::setRefineComponents(const vector_int& comp, int dom)
+{
+    if (dom >= 0)
+    {
+        Refiner& r = domain(dom).refiner();
+        r.setActives(comp);
+    }
+    else
+    {
+        for (size_t n = 0; n != nDomains(); n++)
+        {
+            Refiner& r = domain(n).refiner();
+            r.setActives(comp);
+        }
+    }
+}
+
 vector_fp Sim1D::getRefineCriteria(int dom)
 {
    if (dom >= 0) {

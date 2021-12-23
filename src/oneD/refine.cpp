@@ -44,6 +44,18 @@ void Refiner::setCriteria(doublereal ratio, doublereal slope,
     m_prune = prune;
 }
 
+void Refiner::setActives(const vector_int& comp)
+{
+    for (size_t j = 0; j != m_nv; j++)
+    {
+        setActive(j, false);
+    }
+    for (auto i : comp)
+    {
+        setActive(i, true);
+    }
+}
+
 int Refiner::analyze(size_t n, const doublereal* z,
                      const doublereal* x)
 {
