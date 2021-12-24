@@ -434,7 +434,8 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
             // time step iteration
             norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);
             // refine
-            newPoints = refineTransient(loglevel-1);
+            if (refine_grid)
+                newPoints = refineTransient(loglevel-1);
         } while (newPoints != 0);
 
         increaseTime(dt);
