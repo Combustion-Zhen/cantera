@@ -405,7 +405,7 @@ void Sim1D::solve(int loglevel, bool refine_grid)
     }
 }
 
-void Sim1D::advance(double t, int loglevel, bool refine_grid)
+void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_timestep)
 {
     double dt = m_tstep;
 
@@ -426,13 +426,19 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
             nIter++;
             // start from t0
             m_x = m_xlast_ts;
-            // estimate the time stepsize
-            dt = evalTimeStep(m_x, dt, t);
-            // skip very small time step
-            if ( dt < m_tmin )
-                break;
+
+            if ( adaptive_timestep )
+            {
+                // estimate the time stepsize
+                dt = evalTimeStep(m_x, dt, t);
+                // skip very small time step
+                if ( dt < m_tmin )
+                    break;
+            }
+
             // time step iteration
             norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);
+
             // refine
             if (refine_grid)
                 newPoints = refineTransient(loglevel-1);

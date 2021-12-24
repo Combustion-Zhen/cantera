@@ -754,8 +754,7 @@ void StFlow::solveEnergyEqn(size_t j)
         }
         m_do_energy[j] = true;
     }
-    if (domainType()==cFreeFlow || domainType()==cAxisymmetricStagnationFlow)
-        m_refiner->setActive(c_offset_U, true);
+    m_refiner->setActive(c_offset_U, true);
     if (domainType()==cAxisymmetricStagnationFlow)
         m_refiner->setActive(c_offset_V, true);
     m_refiner->setActive(c_offset_T, true);

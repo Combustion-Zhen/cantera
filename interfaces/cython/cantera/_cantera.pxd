@@ -1007,7 +1007,7 @@ cdef extern from "cantera/oneD/Sim1D.h":
         int maxTimeStepCount()
         void getInitialSoln() except +translate_exception
         void solve(int, cbool) except +translate_exception
-        void advance(double, int, cbool) except +translate_exception
+        void advance(double, int, cbool, cbool) except +translate_exception
         void refine(int) except +translate_exception
         void setRefineCriteria(size_t, double, double, double, double) except +translate_exception
         vector[double] getRefineCriteria(int) except +translate_exception

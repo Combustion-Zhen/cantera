@@ -1367,8 +1367,9 @@ cdef class Sim1D:
         if have_user_tolerances or solve_multi or soret_doms:
             self.sim.solve(loglevel, <cbool>refine_grid)
     
-    def advance(self, time, loglevel=1, refine_grid=True):
-        return self.sim.advance(time, loglevel, <cbool>refine_grid)
+    def advance(self, time, loglevel=1, refine_grid=True, adaptive_timestep=True):
+        return self.sim.advance(time, loglevel, 
+                                <cbool>refine_grid, <cbool>adaptive_timestep)
 
     def set_tolerances(self, rtol=1.0e-4, atol=1.0e-11):
         for i in range(len(self.domains)):
