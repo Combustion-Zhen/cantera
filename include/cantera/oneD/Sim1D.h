@@ -131,7 +131,7 @@ public:
     void solve(int loglevel = 0, bool refine_grid = true);
 
     void advance(double t, int loglevel = 0, 
-                 bool refine_grid = true, bool adaptive_timestep = true);
+                 bool refine_grid = true, bool adaptive_timestep = false);
 
     /// Refine the grid in all domains.
     int refine(int loglevel=0);
