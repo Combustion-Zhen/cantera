@@ -73,64 +73,6 @@ void Boundary1D::_init(size_t n)
     }
 }
 
-void Boundary1D::swapDiagonalsLeft
-(
-    double br, double bj, vector_fp& r,
-    vector_fp& dl, vector_fp& d, vector_fp& du
-)
-{
-    size_t iloc = m_flow_right->locVelocity();
-    size_t np = m_flow_right->nPoints();
-
-    r[iloc] -= br * d[iloc] / bj;
-    r[iloc+1] -= br * dl[iloc] / bj;
-
-    for (size_t j = 2; j != np; j++)
-    {
-        r[iloc+j] -= r[iloc+j-2] * dl[iloc+j-1] / du[iloc+j-2];
-    }
-    // swap rows of residual and diagonal
-    for (size_t j = np-1; j != 0; j--)
-    {
-        r[iloc+j] = r[iloc+j-1];
-        d[iloc+j] = du[iloc+j-1];
-    }
-    r[iloc] = br;
-    d[iloc] = bj;
-
-    fill(dl.begin(), dl.end(), 0.0);
-    fill(du.begin(), du.end(), 0.0);
-}
-
-void Boundary1D::swapDiagonalsRight
-(
-    double br, double bj, vector_fp& r,
-    vector_fp& dl, vector_fp& d, vector_fp& du
-)
-{
-    size_t iloc = m_flow_right->locVelocity();
-    size_t np = m_flow_right->nPoints();
-
-    r[iloc+np-1] -= br * d[iloc+np-1] / bj;
-    r[iloc+np-2] -= br * du[iloc+np-2] / bj;
-
-    for (size_t j = np-3; j != 0; j--)
-    {
-        r[iloc+j] -= r[iloc+j+2] * du[iloc+j] / dl[iloc+j+1];
-    }
-    // swap rows of residual and diagonal
-    for (size_t j = 0; j != np-1; j++)
-    {
-        r[iloc+j] = r[iloc+j+1];
-        d[iloc+j] = dl[iloc+j];
-    }
-    r[iloc+np-1] = br;
-    d[iloc+np-1] = bj;
-
-    fill(dl.begin(), dl.end(), 0.0);
-    fill(du.begin(), du.end(), 0.0);
-}
-
 void Boundary1D::eliminateSubDiagonalsL
 (
     double br, double bj, vector_fp& r,
@@ -351,10 +293,6 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcResidual = m_mdot - rho * xb[c_offset_U];
         double bcJacobian = rho;
 
-        // elimination
-        //if ( divScheme() == 1 )
-        //    swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
-        //else
         eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
@@ -368,10 +306,6 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcResidual = - m_mdot - rho * xb[c_offset_U];
         double bcJacobian = rho;
 
-        // elimination
-        //if ( divScheme() == 1 )
-        //    swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
-        //else
         eliminateSubDiagonalsR(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
@@ -510,6 +444,9 @@ void Symm1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
         if (m_flow_right->doEnergy(0)) {
             rb[c_offset_T] = xb[c_offset_T] - xb[c_offset_T + nc]; // zero dT/dz
         }
+        for (size_t k = c_offset_Y; k != nc; k++) {
+            rb[k] = xb[k] - xb[k + nc];
+        }
     }
 
     if (m_flow_left) {
@@ -544,32 +481,6 @@ void Symm1D::evalContinuityResidualJacobian
         double bcResidual = 0 - xb[c_offset_U];
         double bcJacobian = 1;
 
-        /*
-        // update the residual and Jacobian considering the symmetry
-        size_t nc = m_flow_right->nComponents();
-        rg[iloc]
-        =
-        - rdt * m_flow_right->dz(0) *
-        (
-            m_flow_right->density(0)
-            -
-            m_flow_right->density_prev(0)
-        )
-        -
-        (
-            m_flow_right->density(1) 
-            *
-            xb[c_offset_U+nc]
-        );
-
-        d[iloc] = 0;
-        du[iloc] = m_flow_right->density(1);
-        */
-
-        // elimination
-        //if ( divScheme() == 1 )
-        //    swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
-        //else
         eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
@@ -672,10 +583,6 @@ void Outlet1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
                 db[k] = 0;
             }
         }
-        // Zhen Lu 211022
-        //for (size_t k = c_offset_Y; k < nc; k++) {
-        //    rb[k] = xb[k] - xb[k - nc]; // zero mass fraction gradient
-        //}
     }
 }
 

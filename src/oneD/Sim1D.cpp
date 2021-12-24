@@ -429,7 +429,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid)
             // estimate the time stepsize
             dt = evalTimeStep(m_x, dt, t);
             // skip very small time step
-            if ( dt < 1.e-12 )
+            if ( dt < m_tmin )
                 break;
             // time step iteration
             norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);

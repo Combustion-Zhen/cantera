@@ -1157,7 +1157,6 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
         for (size_t k = 0; k < m_nsp; k++) {
             hrr += wdot(k,j) * h_RT[k];
 
-            //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
             double flxk = (
                 m_flux(k,j) * dz(j-1)
                 +
@@ -1302,7 +1301,6 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         for (size_t k = 0; k < m_nsp; k++) {
             hrr += wdot(k,j) * h_RT[k];
 
-            //double flxk = 0.5*(m_flux(k,j-1) + m_flux(k,j));
             double flxk = (
                 m_flux(k,j) * dz(j-1)
                 +
@@ -1636,23 +1634,33 @@ doublereal StFlow::shear(const doublereal* x, size_t j) const
 
 doublereal StFlow::divDiffFlux(size_t k, size_t j) const
 {
+    /*
     double dfluxdz = 2.0 * (m_flux(k,j) - m_flux(k,j-1)) / d2z(j);
     // interp the flux
     double flux = (m_flux(k,j-1) * dz(j) + m_flux(k,j) * dz(j-1)) / d2z(j);
 
     return dfluxdz + coordinatesType() * flux / z(j);
+    */
+    int m = coordinatesType();
+    double div = ( m_flux(k,j)*pow(zm(j)/z(j),m)
+                  -m_flux(k,j-1)*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
+    return div;
 }
 
 doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 {
     double flux_l = m_tcon[j-1] * ( T(x,j) - T(x,j-1) ) / dz(j-1);
     double flux_r = m_tcon[j] * ( T(x,j+1) - T(x,j) ) / dz(j);
-
+    /*
     double dfluxdz = 2.0 * (flux_r - flux_l) / d2z(j);
     // interp the flux
     double flux = (flux_l * dz(j) + flux_r * dz(j-1)) / d2z(j);
-
     return - dfluxdz - coordinatesType() * flux / z(j);
+    */
+    int m = coordinatesType();
+    double div = ( flux_r*pow(zm(j)/z(j),m)
+                  -flux_l*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
+    return - div;
 }
 
 doublereal StFlow::dVdz(const doublereal* x, size_t j) const 
