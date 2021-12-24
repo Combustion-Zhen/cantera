@@ -561,6 +561,9 @@ public:
     inline doublereal d2z(size_t j) const {
         return m_z[j+1] - m_z[j-1];
     }
+    inline double zm(size_t j) const {
+        return (m_z[j]+m_z[j+1])/2.0;
+    }
     inline doublereal zmin() const {
         return m_z[0];
     }

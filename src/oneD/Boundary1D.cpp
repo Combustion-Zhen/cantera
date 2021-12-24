@@ -352,10 +352,10 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcJacobian = rho;
 
         // elimination
-        if ( divScheme() == 1 )
-            swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
-        else
-            eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
+        //if ( divScheme() == 1 )
+        //    swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
+        //else
+        eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
     if (m_flow_left)
@@ -369,10 +369,10 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcJacobian = rho;
 
         // elimination
-        if ( divScheme() == 1 )
-            swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
-        else
-            eliminateSubDiagonalsR(bcResidual, bcJacobian, rg, dl, d, du);
+        //if ( divScheme() == 1 )
+        //    swapDiagonalsRight(bcResidual, bcJacobian, rg, dl, d, du);
+        //else
+        eliminateSubDiagonalsR(bcResidual, bcJacobian, rg, dl, d, du);
     }
 }
 
@@ -539,10 +539,14 @@ void Symm1D::evalContinuityResidualJacobian
 
     if (m_flow_right)
     {
-        size_t nc = m_flow_right->nComponents();
         double* xb = x;
+        // u = 0
+        double bcResidual = 0 - xb[c_offset_U];
+        double bcJacobian = 1;
 
+        /*
         // update the residual and Jacobian considering the symmetry
+        size_t nc = m_flow_right->nComponents();
         rg[iloc]
         =
         - rdt * m_flow_right->dz(0) *
@@ -560,15 +564,13 @@ void Symm1D::evalContinuityResidualJacobian
 
         d[iloc] = 0;
         du[iloc] = m_flow_right->density(1);
+        */
 
-        // u = 0
-        double bcResidual = 0 - xb[c_offset_U];
-        double bcJacobian = 1;
         // elimination
-        if ( divScheme() == 1 )
-            swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
-        else
-            eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
+        //if ( divScheme() == 1 )
+        //    swapDiagonalsLeft(bcResidual, bcJacobian, rg, dl, d, du);
+        //else
+        eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
 
     if (m_flow_left)
