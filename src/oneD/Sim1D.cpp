@@ -408,6 +408,7 @@ void Sim1D::solve(int loglevel, bool refine_grid)
 void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_timestep)
 {
     double dt = m_tstep;
+    double maxCFL = 0.0;
 
     finalize();
 
@@ -427,14 +428,14 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
             // start from t0
             m_x = m_xlast_ts;
 
+            double tmp = dt;
+            // estimate the time stepsize
+            maxCFL = evalTimeStep(m_x, tmp, t);
+            // skip very small time step
+            if ( tmp < m_tmin )
+                break;
             if ( adaptive_timestep )
-            {
-                // estimate the time stepsize
-                dt = evalTimeStep(m_x, dt, t);
-                // skip very small time step
-                if ( dt < m_tmin )
-                    break;
-            }
+                dt = tmp;
 
             // time step iteration
             norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);
@@ -448,8 +449,9 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 
         if (loglevel > 0) 
         {
-            writelog("{:15.6e} {:10.3e} {:4d} {:10.4g} {:10.4g}\n",
-                     time(), dt, nIter, log10(tsNormScalar(m_x.data())), log10(norm));
+            writelog("{:15.6e} {:10.4g} {:10.3e} {:4d} {:10.4g} {:10.4g}\n",
+                     time(), maxCFL, dt, 
+                     nIter, log10(tsNormScalar(m_x.data())), log10(norm));
         }
         if (loglevel > 6) 
         {

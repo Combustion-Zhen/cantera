@@ -116,7 +116,7 @@ public:
     
     double evalMaxCFL(vector_fp& x, double dt);
 
-    double evalTimeStep(vector_fp& x, double dt, double t);
+    double evalTimeStep(vector_fp& x, double& dt, double t);
 
     void advanceScalarChemistry(double* x, double dt, bool firstSubstep);
 

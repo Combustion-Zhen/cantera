@@ -419,7 +419,7 @@ double OneDim::evalMaxCFL(vector_fp& x, double dt)
     return maxCFL;
 }
 
-double OneDim::evalTimeStep(vector_fp& x, double dt, double t)
+double OneDim::evalTimeStep(vector_fp& x, double& dt, double t)
 {
     double dtOld = dt;
     double maxCFL = evalMaxCFL(x, dt);
@@ -434,7 +434,9 @@ double OneDim::evalTimeStep(vector_fp& x, double dt, double t)
         throw CanteraError("OneDim::evalTimeStep",
                            "Time integration failed.");
 
-    return std::min(dtNew, t-time()); 
+    dt = std::min(dtNew, t-time()); 
+
+    return maxCFL;
 }
 
 void OneDim::advanceScalarChemistry(double* x, double dt, bool firstSubstep)
