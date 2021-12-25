@@ -358,10 +358,8 @@ void OneDim::evalScalar(size_t j, double* x, double* r, int count)
     double dt = m_dt;
     double rdt = m_rdt;
 
-    vector_fp rf, rs;
-
-    rf.resize(m_size, 0.0);
-    rs.resize(m_sizeScalar, 0.0);
+    vector_fp rf(m_size, 0.0);
+    vector_fp rs(m_sizeScalar, 0.0);
 
     // iterate over the bulk domains first
     for (const auto& d : m_bulk) {

@@ -203,8 +203,8 @@ int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
 
         writeTitle = false;
 
-        if (loglevel > 0)
-            writelog("\n\n reverse condition number {:10.4g}", rcond(oneNorm()));
+        //if (loglevel > 0)
+        //    writelog("\n\n reverse condition number {:10.4g}", rcond(oneNorm()));
 
         // Successful step, but not converged yet. Take the damped step, and try
         // again.
