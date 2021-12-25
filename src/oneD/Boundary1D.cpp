@@ -200,8 +200,6 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
         return;
     }
 
-    // Zhen Lu 210920 usages of the boundary pointer is not the same as other bcs
-
     if (m_ilr == LeftInlet) {
         // Array elements corresponding to the first point of the flow domain
         double* xb = xg + m_flow->loc();
@@ -307,6 +305,48 @@ void Inlet1D::evalContinuityResidualJacobian
         double bcJacobian = rho;
 
         eliminateSubDiagonalsR(bcResidual, bcJacobian, rg, dl, d, du);
+    }
+}
+
+void Inlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
+{
+    if (jg != npos && (jg + 2 < firstPoint() || jg > lastPoint() + 2)) {
+        return;
+    }
+
+    if (m_ilr == LeftInlet) {
+        // Array elements corresponding to the first point of the flow domain
+        double* rb = rg + m_flow->locScalar();
+
+        // The third flow residual is for T, where it is set to T(0).  Subtract
+        // the local temperature to hold the flow T to the inlet T.
+        if (m_flow->doEnergy(0)) {
+            rb[cOffsetScalarT] -= m_temp;
+        }
+
+        // add the convective term to the species residual equations
+        for (size_t k = 0; k < m_nsp; k++) {
+            if (k != m_flow_right->leftExcessSpecies()) {
+                rb[cOffsetScalarY+k] += m_mdot*m_yin[k];
+            }
+        }
+
+    } else {
+        // right inlet
+        // Array elements corresponding to the last point in the flow domain
+        double* rb = rg + locScalar() - m_flow->nScalars();
+
+        // fixed temperature
+        if (m_flow->doEnergy(m_flow->nPoints() - 1)) {
+            rb[cOffsetScalarT] -= m_temp; // T
+        }
+
+        // add the convective term to the species residual equations
+        for (size_t k = 0; k < m_nsp; k++) {
+            if (k != m_flow_left->rightExcessSpecies()) {
+                rb[cOffsetScalarY+k] += m_mdot * m_yin[k];
+            }
+        }
     }
 }
 
@@ -491,6 +531,35 @@ void Symm1D::evalContinuityResidualJacobian
     }
 }
 
+void Symm1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
+{
+    if (jg != npos && (jg + 2< firstPoint() || jg > lastPoint() + 2)) {
+        return;
+    }
+
+    // start of local part of global arrays
+    double* x = xg + loc();
+    double* r = rg + locScalar();
+
+    if (m_flow_right) {
+        size_t nc = m_flow_right->nComponents();
+        double* xb = x;
+        double* rb = r;
+        if (m_flow_right->doEnergy(0)) {
+            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc]; // zero dT/dz
+        }
+    }
+
+    if (m_flow_left) {
+        size_t nc = m_flow_left->nComponents();
+        double* xb = x - nc;
+        double* rb = r - m_flow_left->nScalars();
+        if (m_flow_left->doEnergy(m_flow_left->nPoints() - 1)) {
+            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T - nc]; // zero dT/dz
+        }
+    }
+}
+
 XML_Node& Symm1D::save(XML_Node& o, const double* const soln)
 {
     XML_Node& symm = Domain1D::save(o, soln);
@@ -579,6 +648,45 @@ void Outlet1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
                 rb[k] = xb[k] - xb[k - nc]; // zero mass fraction gradient
                 db[k] = 0;
             }
+        }
+    }
+}
+
+void Outlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
+{
+    if (jg != npos && (jg + 2 < firstPoint() || jg > lastPoint() + 2)) {
+        return;
+    }
+
+    // start of local part of global arrays
+    double* x = xg + loc();
+    double* r = rg + locScalar();
+
+    if (m_flow_right) {
+        size_t nc = m_flow_right->nComponents();
+        double* xb = x;
+        double* rb = r;
+        if (m_flow_right->doEnergy(0)) {
+            // zero T gradient
+            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc];
+        }
+        for (size_t k = c_offset_Y; k != nc; k++) {
+            // zero mass fraction gradient
+            rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
+        }
+    }
+
+    if (m_flow_left) {
+        size_t nc = m_flow_left->nComponents();
+        double* xb = x - nc;
+        double* rb = r - m_flow_left->nScalars();
+        if (m_flow_left->doEnergy(m_flow_left->nPoints()-1)) {
+            // zero T gradient
+            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T - nc];
+        }
+        for (size_t k = c_offset_Y; k < nc; k++) {
+            // zero mass fraction gradient
+            rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k - nc];
         }
     }
 }

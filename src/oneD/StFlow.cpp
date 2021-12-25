@@ -1268,19 +1268,60 @@ void StFlow::evalContinuityResidualJacobian
     }
 }
 
+void StFlow::evalScalarLeftBoundary(double* x, double* rsd, double dt)
+{
+    // the inlet (or other) object connected to this one will modify
+    // these equations by subtracting its values for V, T, and mdot. As
+    // a result, these residual equations will force the solution
+    // variables to the values for the boundary object
+
+    if (doEnergy(0)) {
+        rsd[indexScalar(cOffsetScalarT,0)] = T(x,0);
+    } else {
+        rsd[indexScalar(cOffsetScalarT,0)] = T(x,0) - T_fixed(0);
+    }
+
+    // The default boundary condition for species is zero flux. However,
+    // the boundary object may modify this.
+    double sum = 0.0;
+    for (size_t k = 0; k < m_nsp; k++) {
+        sum += Y(x,k,0);
+        rsd[indexScalar(cOffsetScalarY+k,0)] = - m_flux(k,0) - rho_u(x,0)*Y(x,k,0);
+    }
+    rsd[indexScalar(cOffsetScalarY+leftExcessSpecies(),0)] = 1.0 - sum;
+}
+
+void StFlow::evalScalarRightBoundary(double* x, double* rsd, double dt)
+{
+    size_t j = nPoints() - 1;
+
+    if (doEnergy(j)) {
+        rsd[indexScalar(cOffsetScalarT, j)] = T(x,j);
+    } else {
+        rsd[indexScalar(cOffsetScalarT, j)] = T(x,j) - T_fixed(j);
+    }
+
+    doublereal sum = 0.0;
+    for (size_t k = 0; k < m_nsp; k++) {
+        sum += Y(x,k,j);
+        rsd[indexScalar(cOffsetScalarY+k,j)] = m_flux(k,j-1) + rho_u(x,j)*Y(x,k,j);
+    }
+    rsd[indexScalar(cOffsetScalarY+rightExcessSpecies(),j)] = 1.0 - sum;
+}
+
 void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
 {
     for (size_t k = 0; k < m_nsp; k++) 
     {
-        r[index(c_offset_Y + k, j)] = - rho_u(x,j) * dYdz(x,k,j)
-                                      - divDiffFlux(k,j);
+        r[indexScalar(cOffsetScalarY+k, j)] = - rho_u(x,j) * dYdz(x,k,j)
+                                              - divDiffFlux(k,j);
         if ( m_do_reaction )
         {
-            r[index(c_offset_Y + k, j)] += m_wt[k] * wdot(k,j);
+            r[indexScalar(cOffsetScalarY+k, j)] += m_wt[k] * wdot(k,j);
         }
-        r[index(c_offset_Y + k, j)] /= m_rho[j];
-        r[index(c_offset_Y + k, j)] *= dt;
-        r[index(c_offset_Y + k, j)] -= (Y(x,k,j) - Y_prev(k,j));
+        r[indexScalar(cOffsetScalarY+k, j)] /= m_rho[j];
+        r[indexScalar(cOffsetScalarY+k, j)] *= dt;
+        r[indexScalar(cOffsetScalarY+k, j)] -= (Y(x,k,j) - Y_prev(k,j));
     }
 }
 
@@ -1314,31 +1355,27 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         sum_flux *= GasConstant * dtdzj;
 
         // convection and diffusion
-        r[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
-                                  - divHeatFlux(x,j) - sum_flux;
+        r[indexScalar(cOffsetScalarT, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
+                                            - divHeatFlux(x,j) - sum_flux;
         // heat release
         if ( m_do_reaction )
-        {
-            r[index(c_offset_T, j)] -= hrr;
-        }
-        // Zhen Lu 211027 ignition
+            r[indexScalar(cOffsetScalarT, j)] -= hrr;
+        // ignition
         if ( m_do_ignition ) 
-        {
-            r[index(c_offset_T, j)] += ignEnergy(j);
-        }
-        r[index(c_offset_T, j)] -= m_qdotRadiation[j];
-        r[index(c_offset_T, j)] /= (m_rho[j]*m_cp[j]);
-        r[index(c_offset_T, j)] *= dt;
-        r[index(c_offset_T, j)] -= (T(x,j) - T_prev(j));
+            r[indexScalar(cOffsetScalarT, j)] += ignEnergy(j);
+        r[indexScalar(cOffsetScalarT, j)] -= m_qdotRadiation[j];
+        r[indexScalar(cOffsetScalarT, j)] /= (m_rho[j]*m_cp[j]);
+        r[indexScalar(cOffsetScalarT, j)] *= dt;
+        r[indexScalar(cOffsetScalarT, j)] -= (T(x,j) - T_prev(j));
     }
     else
     {
         // residual equations if the energy equation is disabled
-        r[index(c_offset_T, j)] = T(x,j) - T_fixed(j);
+        r[indexScalar(cOffsetScalarT, j)] = T(x,j) - T_fixed(j);
     }
 }
 
-void StFlow::evalScalarResidual(double* x, double* rsd, int* diag,
+void StFlow::evalScalarResidual(double* x, double* rsd,
                                 double dt, size_t jmin, size_t jmax)
 {
     //----------------------------------------------------
@@ -1353,14 +1390,14 @@ void StFlow::evalScalarResidual(double* x, double* rsd, int* diag,
             //----------------------------------------------
             //         left boundary
             //----------------------------------------------
-            evalLeftBoundary(x, rsd, diag, dt);
+            evalScalarLeftBoundary(x, rsd, dt);
         } 
-        else if (j == m_points - 1) 
+        else if (j == nPoints()-1) 
         {
             //----------------------------------------------
             //         right boundary
             //----------------------------------------------
-            evalRightBoundary(x, rsd, diag, dt);
+            evalScalarRightBoundary(x, rsd, dt);
         } 
         else 
         {
@@ -1374,8 +1411,7 @@ void StFlow::evalScalarResidual(double* x, double* rsd, int* diag,
     }
 }
 
-void StFlow::evalScalar(size_t jg, double* xg, double* rg,
-                        integer* diagg, double dt)
+void StFlow::evalScalar(size_t jg, double* xg, double* rg, double dt)
 {
     // if evaluating a Jacobian, and the global point is outside the domain of
     // influence for this domain, then skip evaluating the residual
@@ -1384,9 +1420,8 @@ void StFlow::evalScalar(size_t jg, double* xg, double* rg,
     }
 
     // start of local part of global arrays
-    doublereal* x = xg + loc();
-    doublereal* rsd = rg + loc();
-    integer* diag = diagg + loc();
+    double* x = xg + loc();
+    double* rsd = rg + locScalar();
 
     size_t jmin, jmax;
     if (jg == npos) { // evaluate all points
@@ -1399,7 +1434,7 @@ void StFlow::evalScalar(size_t jg, double* xg, double* rg,
     }
 
     updateProperties(jg, x, jmin, jmax);
-    evalScalarResidual(x, rsd, diag, dt, jmin, jmax);
+    evalScalarResidual(x, rsd, dt, jmin, jmax);
 }
 
 double StFlow::evalMaxCFL(vector_fp& xg, double dt)
@@ -1664,35 +1699,41 @@ doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 
 doublereal StFlow::dVdz(const doublereal* x, size_t j) const 
 {
+    /*
     vector_fp s(3); 
     s[0] = V(x,j-1);
     s[1] = V(x,j);
     s[2] = V(x,j+1);
     return scalarGradient(s, u(x,j), j);
-    //size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    //return (V(x,jloc) - V(x,jloc-1))/dz(jloc-1);
+    */
+    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    return (V(x,jloc) - V(x,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dYdz(const doublereal* x, size_t k, size_t j) const 
 {
+    /*
     vector_fp s(3); 
     s[0] = Y(x,k,j-1);
     s[1] = Y(x,k,j);
     s[2] = Y(x,k,j+1);
     return scalarGradient(s, u(x,j), j);
-    //size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    //return (Y(x,k,jloc) - Y(x,k,jloc-1))/dz(jloc-1);
+    */
+    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    return (Y(x,k,jloc) - Y(x,k,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dTdz(const doublereal* x, size_t j) const 
 {
+    /*
     vector_fp s(3); 
     s[0] = T(x,j-1);
     s[1] = T(x,j);
     s[2] = T(x,j+1);
     return scalarGradient(s, u(x,j), j);
-    //size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
-    //return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
+    */
+    size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
+    return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
 }
 
 double StFlow::scalarGradient(const vector_fp& s, const double v, size_t j) const

@@ -358,24 +358,16 @@ void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
 void OneDim::evalScalar(size_t j, double* x, double* r, int count)
 {
     double dt = m_dt;
-    double rdt = m_rdt;
-
-    vector_fp rf(m_size, 0.0);
-    vector_fp rs(m_sizeScalar, 0.0);
 
     // iterate over the bulk domains first
     for (const auto& d : m_bulk) {
-        d->evalScalar(j, x, rf.data(), m_mask.data(), dt);
+        d->evalScalar(j, x, r, dt);
     }
 
     // then over the connector domains
     for (const auto& d : m_connect) {
-        d->eval(j, x, rf.data(), m_mask.data(), rdt);
+        d->evalScalar(j, x, r, dt);
     }
-
-    m_scalarSolver->convertFullToScalar(rf, rs);
-
-    copy(rs.begin(), rs.end(), r);
 }
 
 void OneDim::evalContinuity(vector_fp& x, vector_fp& r, 
@@ -517,7 +509,7 @@ double OneDim::advanceTransport(double* x, double* r, double* w, double dt, int 
 
         if (loglevel == 1) 
         {
-            double ts = tsNormScalar(x);
+            double ts = tsNormScalar(x, w);
             writelog("      {:4d}  {:10.4g}         {:10.4g}     {:10.4g}\n", 
                      i, dt, log10(ts), log10(norm));
         }
@@ -546,14 +538,13 @@ doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
     return ss;
 }
 
-double OneDim::tsNormScalar(double* x)
+double OneDim::tsNormScalar(double* x, double* w)
 {
-    vector_fp r(m_sizeScalar, 0.0);
-    evalScalar(npos, x, r.data(), 0);
+    evalScalar(npos, x, w, 0);
 
     double ts = 0.0;
     for (size_t i = 0; i != m_sizeScalar; i++) {
-        ts = std::max(fabs(r[i]),ts);
+        ts = std::max(fabs(w[i]),ts);
     }
     return ts;
 }

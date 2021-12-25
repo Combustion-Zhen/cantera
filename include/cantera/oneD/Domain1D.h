@@ -212,8 +212,7 @@ public:
         throw NotImplementedError("Domain1D::evalContinuityResidualJacobian");
     }
 
-    virtual void evalScalar(size_t j, doublereal* x, doublereal* r,
-                            integer* mask, doublereal dt) {
+    virtual void evalScalar(size_t j, double* x, double* r, double dt) {
         throw NotImplementedError("Domain1D::evalScalar");
     }
 
@@ -446,6 +445,11 @@ public:
     inline size_t index(size_t n, size_t j) const {
         return m_nv*j + n;
     }
+
+    inline size_t indexScalar(size_t n, size_t j) const {
+        return m_nc*j + n;
+    }
+
     inline doublereal value(const doublereal* x, size_t n, size_t j) const {
         return x[index(n,j)];
     }

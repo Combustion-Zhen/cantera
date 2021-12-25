@@ -132,7 +132,7 @@ public:
      */
     doublereal ssnorm(doublereal* x, doublereal* r);
 
-    double tsNormScalar(double* x);
+    double tsNormScalar(double* x, double* w);
 
     double tsNorm2Step(double* x, double* step) const;
 

@@ -144,7 +144,7 @@ public:
         vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
         double rdt
     ); 
-
+    virtual void evalScalar(size_t j, double* x, double* r, double dt);
     virtual XML_Node& save(XML_Node& o, const double* const soln);
     virtual void restore(const XML_Node& dom, double* soln, int loglevel);
     virtual AnyMap serialize(const double* soln) const;
@@ -205,6 +205,7 @@ public:
         vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
         double rdt
     ); 
+    virtual void evalScalar(size_t j, double* x, double* r, double dt);
 
     virtual XML_Node& save(XML_Node& o, const double* const soln);
     virtual void restore(const XML_Node& dom, double* soln, int loglevel);
@@ -234,6 +235,7 @@ public:
         vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
         double rdt
     ) {}; 
+    virtual void evalScalar(size_t j, double* x, double* r, double dt);
 
     virtual XML_Node& save(XML_Node& o, const double* const soln);
     virtual void restore(const XML_Node& dom, double* soln, int loglevel);

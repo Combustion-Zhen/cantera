@@ -359,16 +359,26 @@ protected:
         double rdt
     ); 
 
+    //! Evaluate scalar residual components at the left boundary.
+    virtual void evalScalarLeftBoundary(double* x, double* r, double dt);
+
+    //! Evaluate scalar residual components at the right boundary.
+    virtual void evalScalarRightBoundary(double* x, double* r, double dt);
+
+    //! Evaluate species residual at interior points
     virtual void evalScalarSpecies(size_t j, double* x, double* r, double dt);
 
+    //! Evaluate temperature residual at interior points
     virtual void evalScalarTemperature(size_t j, double* x, double* r, double dt);
 
-    virtual void evalScalarResidual(double* x, double* rsd, int* diag,
+    //! Evaluate scalar residuals
+    virtual void evalScalarResidual(double* x, double* rsd,
                                     double dt, size_t jmin, size_t jmax);
 
-    virtual void evalScalar(size_t j, double* x, double* r,
-                            integer* mask, double dt);
+    //! Evaluate scalar residuals
+    virtual void evalScalar(size_t j, double* x, double* r, double dt);
 
+    //! Evaluate the max CFL number
     virtual double evalMaxCFL(vector_fp& x, double dt);
 
     //! Update the properties (thermo, transport, and diffusion flux).
