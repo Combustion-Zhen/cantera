@@ -143,6 +143,11 @@ MultiSolverScalar::MultiSolverScalar(OneDim& r) :
 {
     m_resid = &r;
     m_x.resize(m_resid->size());
+    m_scalar.resize(m_resid->sizeScalar());
+    m_step0.resize(m_resid->sizeScalar());
+    m_step1.resize(m_resid->sizeScalar());
+    m_xTmp.resize(m_resid->size());
+    m_scalarTmp.resize(m_resid->sizeScalar());
 }
 
 int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
@@ -151,16 +156,14 @@ int MultiSolverScalar::newtonSolve(double* x0, double* x1, int loglevel)
 
     evalJac(m_x);
 
-    vector_fp stp(m_resid->sizeScalar(), 0.0);
-    step(m_x.data(), stp.data(), loglevel-1);
+    step(m_x.data(), m_step0.data(), loglevel-1);
 
-    vector_fp scalar(m_resid->sizeScalar(), 0.0);
-    convertFullToScalar(m_x, scalar);
+    convertFullToScalar(m_x, m_scalar);
 
     for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
-        scalar[j] = scalar[j] + stp[j];
+        m_scalar[j] += m_step0[j];
     }
-    convertScalarToFull(scalar, m_x);
+    convertScalarToFull(m_scalar, m_x);
 
     copy(m_x.begin(), m_x.end(), x1);
 
@@ -250,15 +253,12 @@ int MultiSolverScalar::dampedNewtonSolve(double* x0, double* x1, int loglevel)
 void MultiSolverScalar::evalJac(vector_fp& x)
 {
     clock_t t0 = clock();
-    vector_fp rf(m_resid->size(), 0.0);
-    vector_fp r0(m_resid->sizeScalar(), 0.0);
-    vector_fp r1(m_resid->sizeScalar(), 0.0);
 
     bfill(0.0);
     incrementJacEval();
 
     // evaluate the unperturbed residual
-    m_resid->evalScalar(npos, x.data(), r0.data(), 0);
+    m_resid->evalScalar(npos, x.data(), m_step0.data(), 0);
 
     // perturb the full solution vector to obtain the Jacobian of scalars
     for (size_t j = 0; j != m_resid->points(); j++) 
@@ -284,7 +284,7 @@ void MultiSolverScalar::evalJac(vector_fp& x)
             x[iFull] = tmp + dx;
 
             // calculate perturbed residual
-            m_resid->evalScalar(j, x.data(), r1.data(), 0);
+            m_resid->evalScalar(j, x.data(), m_step1.data(), 0);
 
             // compute nth column of Jacobian
             for (size_t i = j - 1; i != j+2; i++) 
@@ -295,7 +295,7 @@ void MultiSolverScalar::evalJac(vector_fp& x)
                     size_t iloc = m_resid->locScalar(i);
                     for (size_t m = 0; m < mv; m++) 
                     {
-                        value(iloc+m,iScalar) = (r1[iloc+m] - r0[iloc+m])*rdx;
+                        value(iloc+m,iScalar) = (m_step1[iloc+m]-m_step0[iloc+m])*rdx;
                     }
 
                 }
@@ -312,11 +312,6 @@ void MultiSolverScalar::evalJac(vector_fp& x)
 
 int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
 {
-
-    vector_fp scalar0(m_resid->sizeScalar(), 0.0);
-    vector_fp scalar1(m_resid->sizeScalar(), 0.0);
-    vector_fp stp0(m_resid->sizeScalar(), 0.0);
-    vector_fp stp1(m_resid->sizeScalar(), 0.0);
     double s0, s1;
 
     // write header
@@ -330,16 +325,16 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
         writeline('-', 65);
     }
 
-    convertFullToScalar(m_x, scalar0);
+    convertFullToScalar(m_x, m_scalar);
 
     // compute the undamped Newton step
-    step(m_x.data(), stp0.data(), loglevel-1);
+    step(m_x.data(), m_step0.data(), loglevel-1);
 
     // compute the weighted norm of the undamped step size step0
-    s0 = norm2(scalar0, stp0);
+    s0 = norm2(m_scalar, m_step0);
 
     // compute the multiplier to keep all components in bounds
-    double fbound = boundStep(scalar0, stp0, loglevel-1);
+    double fbound = boundStep(m_scalar, m_step0, loglevel-1);
 
     // if fbound is very small, then x0 is already close to the boundary and
     // step0 points out of the allowed domain. In this case, the Newton
@@ -355,23 +350,24 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
     // damping coefficient starts at 1.0
     double damp = 1.0;
     size_t m;
-    vector_fp tmp(m_x);
+
+    copy(m_x.begin(), m_x.end(), m_xTmp.begin());
 
     for (m = 0; m != NDAMP; m++) {
         double ff = fbound*damp;
 
         // step the solution by the damped step size
         for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
-            scalar1[j] = scalar0[j] + ff*stp0[j];
+            m_scalarTmp[j] = m_scalar[j] + ff*m_step0[j];
             //x1[j] = ff*step0[j] + x0[j];
         }
-        convertScalarToFull(scalar1, tmp);
+        convertScalarToFull(m_scalarTmp, m_xTmp);
 
         // compute the next undamped step that would result if x1 is accepted
-        step(tmp.data(), stp1.data(), loglevel-1);
+        step(m_xTmp.data(), m_step1.data(), loglevel-1);
 
         // compute the weighted norm of step1
-        s1 = norm2(scalar1, stp1);
+        s1 = norm2(m_scalarTmp, m_step1);
 
         // write log information
         if (loglevel > 0)
@@ -391,7 +387,7 @@ int MultiSolverScalar::dampStep(double* x1, int loglevel, bool writeTitle)
         damp /= DampFactor;
     }
 
-    copy(tmp.begin(), tmp.end(), x1);
+    copy(m_xTmp.begin(), m_xTmp.end(), x1);
 
     // If a damping coefficient was found, return 1 if the solution after
     // stepping by the damped step would represent a converged solution, and

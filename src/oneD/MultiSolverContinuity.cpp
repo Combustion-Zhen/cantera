@@ -23,6 +23,8 @@ MultiSolverContinuity::MultiSolverContinuity(OneDim& r) :
 {
     m_resid = &r;
     m_x.resize(m_resid->size());
+    m_velocity.resize(m_resid->sizeVelocity());
+    m_step.resize(m_resid->sizeVelocity());
 }
 
 void MultiSolverContinuity::convertFullToVelocity(const vector_fp& full, vector_fp& velocity)
@@ -52,48 +54,44 @@ void MultiSolverContinuity::convertVelocityToFull(const vector_fp& velocity, vec
 int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 {
 
-    vector_fp velocity(m_resid->sizeVelocity(), 0.0);
-    vector_fp step(m_resid->sizeVelocity(), 0.0);
-
     copy(x0, x0+m_resid->size(), m_x.begin());
 
-    convertFullToVelocity(m_x, velocity);
+    convertFullToVelocity(m_x, m_velocity);
 
     // get the residual and Jacobian from the continuity equation
-    m_resid->evalContinuity(m_x, step, m_dl, m_d, m_du);
+    m_resid->evalContinuity(m_x, m_step, m_dl, m_d, m_du);
 
     // solve the tridiagonal problem
     //int m = this->solve(step);
     for (size_t i = 0; i != m_resid->sizeVelocity(); i++ )
     {
         //velocity[i] += step[i];
-        velocity[i] += step[i]/m_d[i];
+        m_velocity[i] += m_step[i]/m_d[i];
     }
-    convertVelocityToFull(velocity, m_x);
+    convertVelocityToFull(m_velocity, m_x);
+    copy(m_x.begin(), m_x.end(), x1);
 
     if (loglevel > 0)
     {
         writelog("\n\n velocity    residual    diagonal    s-diagonals \n");
         writelog("===============left  boundary===============\n");
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
-                 velocity[0], step[0], m_d[0], m_du[0]);
+                 m_velocity[0], m_step[0], m_d[0], m_du[0]);
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
-                 velocity[1], step[1], m_d[1], m_dl[0], m_du[1]);
+                 m_velocity[1], m_step[1], m_d[1], m_dl[0], m_du[1]);
         writelog("===============right boundary===============\n");
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
-                 velocity[m_resid->sizeVelocity()-2], 
-                 step[m_resid->sizeVelocity()-2], 
+                 m_velocity[m_resid->sizeVelocity()-2], 
+                 m_step[m_resid->sizeVelocity()-2], 
                  m_d[m_resid->sizeVelocity()-2], 
                  m_dl[m_resid->sizeVelocity()-3],
                  m_du[m_resid->sizeVelocity()-2]);
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
-                 velocity[m_resid->sizeVelocity()-1], 
-                 step[m_resid->sizeVelocity()-1], 
+                 m_velocity[m_resid->sizeVelocity()-1], 
+                 m_step[m_resid->sizeVelocity()-1], 
                  m_d[m_resid->sizeVelocity()-1], 
                  m_dl[m_resid->sizeVelocity()-2]);
     }
-
-    copy(m_x.begin(), m_x.end(), x1);
 
     return 0;
 }

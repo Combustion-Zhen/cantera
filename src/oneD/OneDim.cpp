@@ -235,6 +235,8 @@ void OneDim::resize()
     m_scalarSolver.reset(new MultiSolverScalar(*this));
     // set the velocity solver
     m_continuitySolver.reset(new MultiSolverContinuity(*this));
+
+    m_res.resize(size());
 }
 
 void OneDim::showResidual(const double* r) const
@@ -471,7 +473,7 @@ void OneDim::advanceDomainChemistry(double* x, double dt)
     }
 }
 
-double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
+double OneDim::advanceTransport(double* x, double* r, double* w, double dt, int loglevel)
 {
     clock_t t0 = clock();
     double norm = 1.e10;
@@ -494,29 +496,24 @@ double OneDim::advanceTransport(double* x, double* r, double dt, int loglevel)
 
     for (size_t i=0; i != maxIter(); i++)
     {
-        vector_fp step(size(), 0.0);
-        copy(x, x+size(), step.begin());
+        copy(x, x + size(), r);
 
-        int m = solveScalar(x, r, loglevel-1);
+        int m = solveScalar(x, w, loglevel-1);
 
         // monitor convergence
         if (m<0)
             throw CanteraError("OneDim::advanceTransport",
                 "Scalar solver fails to convergence ({}) ",
                 m);
-        else
-            copy(r, r + m_size, x);
 
-        solveVelocity(x, r, loglevel-1);
-
-        copy(r, r + m_size, x);
+        m = solveVelocity(w, x, loglevel-1);
 
         // check the residuals
         for (size_t j = 0; j != size(); j++)
         {
-            step[j] -= x[j];
+            r[j] -= x[j];
         }
-        norm = tsNorm2Step(x, step.data());
+        norm = tsNorm2Step(x, r);
 
         if (loglevel == 1) 
         {
@@ -707,7 +704,7 @@ double OneDim::timeStepIteration(double dt, double* x, double* r, int loglevel)
     advanceScalarChemistry(x, dt, firstSubstep);
     firstSubstep = false;
 
-    double norm = advanceTransport(x, r, dt, loglevel-1);
+    double norm = advanceTransport(x, r, m_res.data(), dt, loglevel-1);
 
     advanceScalarChemistry(x, dt, firstSubstep);
 

@@ -122,7 +122,8 @@ public:
 
     void advanceDomainChemistry(double* x, double dt);
 
-    double advanceTransport(double*x, double*r, double dt, int loglevel);
+    double advanceTransport(double* x, double* r, double* w,
+                            double dt, int loglevel);
 
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using
@@ -503,6 +504,8 @@ protected:
     std::vector<size_t> m_locVelocity; 
     //!< velocity solver
     std::unique_ptr<MultiSolverContinuity> m_continuitySolver; 
+    //!< work space for residuals
+    vector_fp m_res;
 
 private:
     // statistics

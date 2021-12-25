@@ -119,8 +119,8 @@ public:
 
 protected:
 
-    //! Work arrays of size #m_n used in solve().
-    vector_fp m_x;
+    //! Work arrays
+    vector_fp m_x, m_scalar, m_step0, m_step1, m_xTmp, m_scalarTmp;
 
     //! Residual evaluator for this Jacobian
     /*!

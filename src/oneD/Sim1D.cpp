@@ -902,7 +902,6 @@ void Sim1D::resize()
     OneDim::resize();
     m_x.resize(size(), 0.0);
     m_xnew.resize(size(), 0.0);
-    m_xlast_ts.resize(size(), 0.0);
 }
 
 // private

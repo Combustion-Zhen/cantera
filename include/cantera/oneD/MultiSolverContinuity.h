@@ -42,7 +42,7 @@ public:
 protected:
 
     //! Work arrays of size #m_n used in solve().
-    vector_fp m_x;
+    vector_fp m_x, m_velocity, m_step;
 
     //! Residual evaluator for this Jacobian
     /*!
