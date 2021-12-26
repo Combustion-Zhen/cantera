@@ -75,13 +75,11 @@ public:
     int analyze(size_t n, const doublereal* z, const doublereal* x);
     int getNewGrid(int n, const doublereal* z, int nn, doublereal* znew);
     int nNewPoints() {
-        //return static_cast<int>(m_loc.size());
-        return m_np;
+        return static_cast<int>(m_loc.size());
     }
     void show();
     bool newPointNeeded(size_t j) {
-        //return m_loc.find(j) != m_loc.end();
-        return (m_loc[j] == 1);
+        return m_loc.find(j) != m_loc.end();
     }
     bool keepPoint(size_t j) {
         return (m_keep[j] != -1);
@@ -102,7 +100,7 @@ public:
     }
 
 protected:
-    std::vector<int> m_loc;
+    std::map<std::size_t, int> m_loc;
     std::vector<int> m_keep;
     std::map<std::string, int> m_c;
     std::vector<bool> m_active;
@@ -116,7 +114,6 @@ protected:
 private:
     //! vectors to store value and slope
     vector_fp m_v, m_s;
-    size_t m_np;
 };
 
 }

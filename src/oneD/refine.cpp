@@ -14,7 +14,7 @@ namespace Cantera
 Refiner::Refiner(Domain1D& domain) :
     m_ratio(10.0), m_slope(0.8), m_curve(0.8), m_prune(-0.001),
     m_min_range(0.01), m_domain(&domain), m_npmax(1000),
-    m_gridmin(1e-10), m_np(0)
+    m_gridmin(1e-10)
 {
     m_nv = m_domain->nComponents();
     m_active.resize(m_nv, true);
@@ -76,9 +76,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
     m_keep[0] = 1;
     m_keep[n-1] = 1;
 
-    m_loc.resize(n);
-    fill(m_loc.begin(), m_loc.end(), 0);
-
+    m_loc.clear();
     m_c.clear();
 
     if (m_domain->nPoints() <= 1) {
@@ -215,11 +213,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
         }
     }
 
-    m_np = 0;
-    for (size_t j = 0; j != n; j++) {
-        m_np += m_loc[j];
-    }
-    return m_np;
+    return int(m_loc.size());
 }
 
 double Refiner::value(const double* x, size_t i, size_t j)
@@ -229,16 +223,14 @@ double Refiner::value(const double* x, size_t i, size_t j)
 
 void Refiner::show()
 {
-    //if (!m_loc.empty()) {
-    if ( m_np != 0 ) {
+    if (!m_loc.empty()) {
         writelog("\n\n");
         writeline('#', 78);
         writelog(string("Refining grid in ") +
                  m_domain->id()+".\n"
                  +"    New points inserted after grid points ");
-        for (size_t j = 0; j != m_domain->nPoints(); j++) {
-            if (newPointNeeded(j))
-                writelog("{} ", j);
+        for (const auto& loc : m_loc) {
+            writelog("{} ", loc.first);
         }
         writelog("\n");
         writelog("    to resolve ");
@@ -270,7 +262,7 @@ int Refiner::getNewGrid(int n, const doublereal* z,
     for (int j = 0; j < n - 1; j++) {
         zn[jn] = z[j];
         jn++;
-        if ( newPointNeeded(j) ) {
+        if ( m_loc.count(j) ) {
             zn[jn] = 0.5*(z[j] + z[j+1]);
             jn++;
         }
