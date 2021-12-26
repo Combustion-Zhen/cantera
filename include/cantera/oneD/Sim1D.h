@@ -128,6 +128,10 @@ public:
 
     void setTimeStep(double stepsize, size_t n, const int* tsteps);
 
+    void setTimeStep(double stepsize) {
+        m_tstep = stepsize;
+    }
+
     void solve(int loglevel = 0, bool refine_grid = true);
 
     void advance(double t, int loglevel = 0, 
