@@ -6,7 +6,6 @@
 #ifndef CT_MULTISOLVERCONTINUITY_H
 #define CT_MULTISOLVERCONTINUITY_H
 
-#include "cantera/numerics/TridiagonalMatrix.h"
 #include "OneDim.h"
 
 namespace Cantera
@@ -17,7 +16,7 @@ namespace Cantera
  * Used by class OneDim.
  * @ingroup onedim
  */
-class MultiSolverContinuity : public TridiagonalMatrix
+class MultiSolverContinuity
 {
 public:
 
@@ -41,15 +40,17 @@ public:
 
 protected:
 
-    //! Work arrays of size #m_n used in solve().
-    vector_fp m_velocity, m_step;
-
     //! Residual evaluator for this Jacobian
     /*!
      * This is a pointer to the residual evaluator. This object isn't owned by
      * this Jacobian object.
      */
     OneDim* m_resid;
+
+    size_t m_n;
+
+    //! Work arrays of size #m_n used in solve().
+    vector_fp m_velocity, m_step, m_dl, m_d, m_du;
 
 };
 }

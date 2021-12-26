@@ -19,11 +19,14 @@ namespace Cantera
 // public
 
 MultiSolverContinuity::MultiSolverContinuity(OneDim& r) :
-    TridiagonalMatrix(r.sizeVelocity())
+    m_resid(&r)
 {
-    m_resid = &r;
-    m_velocity.resize(m_resid->sizeVelocity());
-    m_step.resize(m_resid->sizeVelocity());
+    m_n = m_resid->sizeVelocity();
+    m_velocity.resize(m_n);
+    m_step.resize(m_n);
+    m_dl.resize(m_n-1);
+    m_d.resize(m_n);
+    m_du.resize(m_n-1);
 }
 
 void MultiSolverContinuity::copyFullToVelocity(const double* full, double* velocity)
@@ -57,7 +60,7 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 
     copyFullToVelocity(x0, m_velocity.data());
     // solve the tridiagonal problem
-    for (size_t i = 0; i != m_resid->sizeVelocity(); i++)
+    for (size_t i = 0; i != m_n; i++)
     {
         m_velocity[i] += m_step[i]/m_d[i];
     }
@@ -75,16 +78,9 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
                  m_velocity[1], m_step[1], m_d[1], m_dl[0], m_du[1]);
         writelog("===============right boundary===============\n");
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
-                 m_velocity[m_resid->sizeVelocity()-2], 
-                 m_step[m_resid->sizeVelocity()-2], 
-                 m_d[m_resid->sizeVelocity()-2], 
-                 m_dl[m_resid->sizeVelocity()-3],
-                 m_du[m_resid->sizeVelocity()-2]);
+                 m_velocity[m_n-2], m_step[m_n-2], m_d[m_n-2], m_dl[m_n-3], m_du[m_n-2]);
         writelog(" {:10.4g} {:10.4g} {:10.4g} {:10.4g}\n", 
-                 m_velocity[m_resid->sizeVelocity()-1], 
-                 m_step[m_resid->sizeVelocity()-1], 
-                 m_d[m_resid->sizeVelocity()-1], 
-                 m_dl[m_resid->sizeVelocity()-2]);
+                 m_velocity[m_n-1], m_step[m_n-1], m_d[m_n-1], m_dl[m_n-2]);
     }
 
     return 0;
