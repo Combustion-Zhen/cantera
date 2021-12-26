@@ -14,11 +14,12 @@ namespace Cantera
 Refiner::Refiner(Domain1D& domain) :
     m_ratio(10.0), m_slope(0.8), m_curve(0.8), m_prune(-0.001),
     m_min_range(0.01), m_domain(&domain), m_npmax(1000),
-    m_gridmin(1e-10)
+    m_gridmin(1e-10), m_np(0)
 {
     m_nv = m_domain->nComponents();
     m_active.resize(m_nv, true);
     m_thresh = std::sqrt(std::numeric_limits<double>::epsilon());
+    m_c.resize(m_nv);
 }
 
 void Refiner::setCriteria(doublereal ratio, doublereal slope,
@@ -63,10 +64,6 @@ int Refiner::analyze(size_t n, const doublereal* z,
         throw CanteraError("Refiner::analyze", "max number of grid points reached ({}).", m_npmax);
     }
 
-    if (m_domain->nPoints() <= 1) {
-        return 0;
-    }
-
     // check consistency
     if (n != m_domain->nPoints()) {
         throw CanteraError("Refiner::analyze", "inconsistent");
@@ -75,17 +72,20 @@ int Refiner::analyze(size_t n, const doublereal* z,
     m_v.resize(n);
     m_s.resize(n-1);
 
-    m_loc.clear();
-    m_c.clear();
-
-    m_keep.clear();
+    m_keep.resize(n);
+    fill(m_keep.begin(), m_keep.end(), 0);
     m_keep[0] = 1;
     m_keep[n-1] = 1;
 
-    m_k.resize(n, 0);
-    fill(m_k.begin(), m_k.end(), 0);
-    m_k[0] = 1;
-    m_k[n-1] = 1;
+    m_loc.resize(n);
+    fill(m_loc.begin(), m_loc.end(), 0);
+
+    //m_c.clear();
+    fill(m_c.begin(), m_c.end(), 0);
+
+    if (m_domain->nPoints() <= 1) {
+        return 0;
+    }
 
     m_nv = m_domain->nComponents();
     for (size_t i = 0; i < m_nv; i++) {
@@ -127,16 +127,14 @@ int Refiner::analyze(size_t n, const doublereal* z,
                     double r = fabs(m_v[j+1] - m_v[j])/dmax;
                     if (r > 1.0 && dz >= 2 * m_gridmin) {
                         m_loc[j] = 1;
-                        m_c[name] = 1;
+                        //m_c[name] = 1;
+                        m_c[i] = 1;
                     }
                     if (r >= m_prune) {
                         m_keep[j] = 1;
                         m_keep[j+1] = 1;
-                        m_k[j] = 1;
-                        m_k[j+1] = 1;
                     } else if (m_keep[j] == 0) {
                         m_keep[j] = -1;
-                        m_k[j] = -1;
                     }
                 }
             }
@@ -154,16 +152,15 @@ int Refiner::analyze(size_t n, const doublereal* z,
                     double dz1 = m_domain->dz(j+1);
                     double r = fabs(m_s[j+1] - m_s[j]) / (dmax + m_thresh/dz0);
                     if (r > 1.0 && dz0 >= 2 * m_gridmin && dz1 >= 2 * m_gridmin) {
-                        m_c[name] = 1;
                         m_loc[j] = 1;
                         m_loc[j+1] = 1;
+                        //m_c[name] = 1;
+                        m_c[i] = 1;
                     }
                     if (r >= m_prune) {
                         m_keep[j+1] = 1;
-                        m_k[j+1] = 1;
                     } else if (m_keep[j+1] == 0) {
                         m_keep[j+1] = -1;
-                        m_k[j+1] = -1;
                     }
                 }
             }
@@ -179,7 +176,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
         // Add a new point if the ratio with left interval is too large
         if (dz > m_ratio*dz1) {
             m_loc[j] = 1;
-            m_c[fmt::format("point {}", j)] = 1;
+            //m_c[fmt::format("point {}", j)] = 1;
             m_keep[j-1] = 1;
             m_keep[j] = 1;
             m_keep[j+1] = 1;
@@ -189,7 +186,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
         // Add a point if the ratio with right interval is too large
         if (dz < dz1/m_ratio) {
             m_loc[j-1] = 1;
-            m_c[fmt::format("point {}", j-1)] = 1;
+            //m_c[fmt::format("point {}", j-1)] = 1;
             m_keep[j-2] = 1;
             m_keep[j-1] = 1;
             m_keep[j] = 1;
@@ -222,7 +219,11 @@ int Refiner::analyze(size_t n, const doublereal* z,
         }
     }
 
-    return int(m_loc.size());
+    m_np = 0;
+    for (size_t j = 0; j != n; j++) {
+        m_np += m_loc[j];
+    }
+    return m_np;
 }
 
 double Refiner::value(const double* x, size_t i, size_t j)
@@ -232,19 +233,25 @@ double Refiner::value(const double* x, size_t i, size_t j)
 
 void Refiner::show()
 {
-    if (!m_loc.empty()) {
+    //if (!m_loc.empty()) {
+    if ( m_np != 0 ) {
         writelog("\n\n");
         writeline('#', 78);
         writelog(string("Refining grid in ") +
                  m_domain->id()+".\n"
                  +"    New points inserted after grid points ");
-        for (const auto& loc : m_loc) {
-            writelog("{} ", loc.first);
+        for (size_t j = 0; j != m_domain->nPoints(); j++) {
+            if (newPointNeeded(j))
+                writelog("{} ", j);
         }
         writelog("\n");
         writelog("    to resolve ");
-        for (const auto& c : m_c) {
-            writelog(string(c.first)+" ");
+        //for (const auto& c : m_c) {
+        //    writelog(string(c.first)+" ");
+        //}
+        for (size_t j = 0; j != m_domain->nComponents(); j++) {
+            if (m_c[j] ==1)
+                writelog("{} ", m_domain->componentName(j));
         }
         writelog("\n");
         writeline('#', 78);
@@ -271,7 +278,7 @@ int Refiner::getNewGrid(int n, const doublereal* z,
     for (int j = 0; j < n - 1; j++) {
         zn[jn] = z[j];
         jn++;
-        if (m_loc.count(j)) {
+        if ( newPointNeeded(j) ) {
             zn[jn] = 0.5*(z[j] + z[j+1]);
             jn++;
         }

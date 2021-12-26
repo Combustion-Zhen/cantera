@@ -67,7 +67,7 @@ int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 
     copy(x0, x0+m_resid->size(), x1);
     copyVelocityToFull(m_velocity.data(), x1);
-
+    
     if (loglevel > 0)
     {
         writelog("\n\n velocity    residual    diagonal    s-diagonals \n");

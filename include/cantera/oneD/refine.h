@@ -75,15 +75,16 @@ public:
     int analyze(size_t n, const doublereal* z, const doublereal* x);
     int getNewGrid(int n, const doublereal* z, int nn, doublereal* znew);
     int nNewPoints() {
-        return static_cast<int>(m_loc.size());
+        //return static_cast<int>(m_loc.size());
+        return m_np;
     }
     void show();
     bool newPointNeeded(size_t j) {
-        return m_loc.find(j) != m_loc.end();
+        //return m_loc.find(j) != m_loc.end();
+        return (m_loc[j] == 1);
     }
     bool keepPoint(size_t j) {
         return (m_keep[j] != -1);
-        //return (m_k[j] != -1);
     }
     double value(const double* x, size_t i, size_t j);
 
@@ -101,9 +102,10 @@ public:
     }
 
 protected:
-    std::map<size_t, int> m_loc;
-    std::map<size_t, int> m_keep;
-    std::map<std::string, int> m_c;
+    std::vector<int> m_loc;
+    std::vector<int> m_keep;
+    //std::map<std::string, int> m_c;
+    std::vector<int> m_c;
     std::vector<bool> m_active;
     doublereal m_ratio, m_slope, m_curve, m_prune;
     doublereal m_min_range;
@@ -111,11 +113,11 @@ protected:
     size_t m_nv, m_npmax;
     doublereal m_thresh;
     doublereal m_gridmin; //!< minimum grid spacing [m]
-    std::vector<int> m_k;
 
 private:
     //! vectors to store value and slope
     vector_fp m_v, m_s;
+    size_t m_np;
 };
 
 }

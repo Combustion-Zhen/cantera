@@ -501,8 +501,8 @@ void Symm1D::evalContinuityResidualJacobian(double* xg, double* rg,
     {
         double* xb = x;
         // u = 0
-        double bcResidual = 0 - xb[c_offset_U];
-        double bcJacobian = 1;
+        double bcResidual = 0.0 - xb[c_offset_U];
+        double bcJacobian = 1.0;
 
         eliminateSubDiagonalsL(bcResidual, bcJacobian, rg, dl, d, du);
     }
@@ -512,8 +512,8 @@ void Symm1D::evalContinuityResidualJacobian(double* xg, double* rg,
         size_t nc = m_flow_left->nComponents();
         double* xb = x - nc;
         rg[iloc-1] = - xb[c_offset_U];
-        dl[iloc-2] = 0;
-        d[iloc-1] = 1;
+        dl[iloc-2] = 0.0;
+        d[iloc-1] = 1.0;
     }
 }
 
