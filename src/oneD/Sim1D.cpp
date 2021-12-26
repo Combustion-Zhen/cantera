@@ -420,14 +420,16 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
         double norm = 1.0;
 
         // store the solution
-        m_xlast_ts = m_x;
+        //m_xlast_ts = m_x;
+        copy(m_x.begin(), m_x.end(), m_xlast_ts.begin());
 
         do
         {
             // iteration count
             nIter++;
             // start from t0
-            m_x = m_xlast_ts;
+            //m_x = m_xlast_ts;
+            copy(m_xlast_ts.begin(), m_xlast_ts.end(), m_x.begin());
 
             double tmp = dt;
             // estimate the time stepsize
@@ -444,6 +446,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
             // refine
             if (refine_grid)
                 newPoints = refineTransient(loglevel-1);
+
         } while (newPoints != 0);
 
         increaseTime(dt);
@@ -473,6 +476,10 @@ int Sim1D::refineTransient(int loglevel)
     int ianalyze, np = 0;
     size_t iz = 0;
     size_t ix = 0;
+
+    m_zRefined.resize(2*points());
+    m_xCurrentRefined.resize(2*size());
+    m_xLastRefined.resize(2*size());
     double* z = m_zRefined.data();
     double* xc = m_xCurrentRefined.data();
     double* xl = m_xLastRefined.data();
@@ -547,12 +554,13 @@ int Sim1D::refineTransient(int loglevel)
     }
 
     // Replace the current solution vector with the new one
+    //m_x = m_xCurrentRefined;
+    //m_xlast_ts = m_xLastRefined;
     resize();
+    finalize();
 
     copy(xc, xc+size(), m_x.begin());
     copy(xl, xl+size(), m_xlast_ts.begin());
-
-    finalize();
 
     return np;
 }
@@ -911,10 +919,6 @@ void Sim1D::resize()
     m_x.resize(size(), 0.0);
     m_xnew.resize(size(), 0.0);
     m_xlast_ts.resize(size(), 0.0);
-
-    m_zRefined.resize(2*points());
-    m_xCurrentRefined.resize(2*size());
-    m_xLastRefined.resize(2*size());
 }
 
 // private

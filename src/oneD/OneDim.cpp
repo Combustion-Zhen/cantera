@@ -138,43 +138,38 @@ void OneDim::init()
 void OneDim::resize()
 {
     m_bw = 0;
-    m_nvars.clear();
-    m_loc.clear();
 
-    m_nScalar.clear();
-    m_locScalar.clear();
-
-    m_locVelocity.clear();
-
-    size_t lv = 0;
-    size_t lc = 0;
-    size_t lu = 0;
-
-    // save the statistics for the last grid
-    saveStats();
+    // get m_pts
     m_pts = 0;
+    for (size_t i = 0; i != nDomains(); i++)
+    {
+        Domain1D* d = m_dom[i];
+        m_pts += d->nPoints();
+    }
+
+    m_nvars.resize(m_pts);
+    m_loc.resize(m_pts);
+    m_nScalar.resize(m_pts);
+    m_locScalar.resize(m_pts);
+    m_locVelocity.resize(m_pts);
+
+    size_t lp = 0;
     for (size_t i = 0; i < nDomains(); i++) {
         Domain1D* d = m_dom[i];
 
         size_t np = d->nPoints();
         size_t nv = d->nComponents();
-        size_t nc = d->nScalars();
+        size_t ns = d->nScalars();
         size_t nu = d->nVelocity();
-
-        for (size_t n = 0; n < np; n++) {
-            m_nvars.push_back(nv);
-            m_loc.push_back(lv);
-            lv += nv;
-
-            m_nScalar.push_back(nc);
-            m_locScalar.push_back(lc);
-            lc += nc;
-
-            m_locVelocity.push_back(lu);
-            lu += nu;
-
-            m_pts++;
+        for (size_t n = 0; n != np; n++)
+        {
+            m_nvars[lp+n] = nv;
+            m_nScalar[lp+n] = ns;
+            m_loc[lp+n] = d->loc() + n * nv;
+            m_locScalar[lp+n] = d->locScalar() + n * ns;
+            m_locVelocity[lp+n] = d->locVelocity() + n * nu;
         }
+        lp += np;
 
         // update the Jacobian bandwidth
 

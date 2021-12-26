@@ -104,7 +104,8 @@
             "stop_token": "cpp",
             "cinttypes": "cpp",
             "filesystem": "cpp",
-            "alignedvector3": "cpp"
+            "alignedvector3": "cpp",
+            "fft": "cpp"
         }
     }
 }
