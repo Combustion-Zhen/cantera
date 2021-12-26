@@ -114,9 +114,9 @@ public:
                         double* dl, double* d, double* du,
                         double rdt=-1.0);
     
-    double evalMaxCFL(vector_fp& x, double dt);
+    double evalMaxCFL(double* x, double dt);
 
-    double evalTimeStep(vector_fp& x, double& dt, double t);
+    double evalTimeStep(double* x, double& dt, double t);
 
     void advanceScalarChemistry(double* x, double dt, bool firstSubstep);
 

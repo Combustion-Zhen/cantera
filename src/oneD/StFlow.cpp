@@ -1436,10 +1436,10 @@ void StFlow::evalScalar(size_t jg, double* xg, double* rg, double dt)
     evalScalarResidual(x, rsd, dt, jmin, jmax);
 }
 
-double StFlow::evalMaxCFL(vector_fp& xg, double dt)
+double StFlow::evalMaxCFL(double* xg, double dt)
 {
     double maxCFL = SmallNumber;
-    double* x = xg.data() + loc();
+    double* x = xg + loc();
 
     size_t jmin = 0;
     size_t jmax = nPoints() - 1;

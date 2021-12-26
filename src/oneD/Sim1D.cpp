@@ -433,7 +433,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 
             double tmp = dt;
             // estimate the time stepsize
-            maxCFL = evalTimeStep(m_x, tmp, t);
+            maxCFL = evalTimeStep(m_x.data(), tmp, t);
             // skip very small time step
             if ( adaptive_timestep )
                 dt = tmp;

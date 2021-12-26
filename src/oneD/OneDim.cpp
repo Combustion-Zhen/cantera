@@ -388,7 +388,7 @@ void OneDim::evalContinuity(double* x, double* r,
     }
 }
 
-double OneDim::evalMaxCFL(vector_fp& x, double dt)
+double OneDim::evalMaxCFL(double* x, double dt)
 {
     double maxCFL = SmallNumber;
 
@@ -402,7 +402,7 @@ double OneDim::evalMaxCFL(vector_fp& x, double dt)
     return maxCFL;
 }
 
-double OneDim::evalTimeStep(vector_fp& x, double& dt, double t)
+double OneDim::evalTimeStep(double* x, double& dt, double t)
 {
     double dtOld = dt;
     double maxCFL = evalMaxCFL(x, dt);

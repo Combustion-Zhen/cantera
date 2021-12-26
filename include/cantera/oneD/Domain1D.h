@@ -212,7 +212,7 @@ public:
         throw NotImplementedError("Domain1D::evalScalar");
     }
 
-    virtual double evalMaxCFL(vector_fp& x, double dt) {
+    virtual double evalMaxCFL(double* x, double dt) {
         return 0.0;
     }
 
