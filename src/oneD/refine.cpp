@@ -19,7 +19,6 @@ Refiner::Refiner(Domain1D& domain) :
     m_nv = m_domain->nComponents();
     m_active.resize(m_nv, true);
     m_thresh = std::sqrt(std::numeric_limits<double>::epsilon());
-    m_c.resize(m_nv);
 }
 
 void Refiner::setCriteria(doublereal ratio, doublereal slope,
@@ -80,8 +79,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
     m_loc.resize(n);
     fill(m_loc.begin(), m_loc.end(), 0);
 
-    //m_c.clear();
-    fill(m_c.begin(), m_c.end(), 0);
+    m_c.clear();
 
     if (m_domain->nPoints() <= 1) {
         return 0;
@@ -127,8 +125,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
                     double r = fabs(m_v[j+1] - m_v[j])/dmax;
                     if (r > 1.0 && dz >= 2 * m_gridmin) {
                         m_loc[j] = 1;
-                        //m_c[name] = 1;
-                        m_c[i] = 1;
+                        m_c[name] = 1;
                     }
                     if (r >= m_prune) {
                         m_keep[j] = 1;
@@ -154,8 +151,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
                     if (r > 1.0 && dz0 >= 2 * m_gridmin && dz1 >= 2 * m_gridmin) {
                         m_loc[j] = 1;
                         m_loc[j+1] = 1;
-                        //m_c[name] = 1;
-                        m_c[i] = 1;
+                        m_c[name] = 1;
                     }
                     if (r >= m_prune) {
                         m_keep[j+1] = 1;
@@ -176,7 +172,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
         // Add a new point if the ratio with left interval is too large
         if (dz > m_ratio*dz1) {
             m_loc[j] = 1;
-            //m_c[fmt::format("point {}", j)] = 1;
+            m_c[fmt::format("point {}", j)] = 1;
             m_keep[j-1] = 1;
             m_keep[j] = 1;
             m_keep[j+1] = 1;
@@ -186,7 +182,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
         // Add a point if the ratio with right interval is too large
         if (dz < dz1/m_ratio) {
             m_loc[j-1] = 1;
-            //m_c[fmt::format("point {}", j-1)] = 1;
+            m_c[fmt::format("point {}", j-1)] = 1;
             m_keep[j-2] = 1;
             m_keep[j-1] = 1;
             m_keep[j] = 1;
@@ -246,12 +242,8 @@ void Refiner::show()
         }
         writelog("\n");
         writelog("    to resolve ");
-        //for (const auto& c : m_c) {
-        //    writelog(string(c.first)+" ");
-        //}
-        for (size_t j = 0; j != m_domain->nComponents(); j++) {
-            if (m_c[j] ==1)
-                writelog("{} ", m_domain->componentName(j));
+        for (const auto& c : m_c) {
+            writelog(string(c.first)+" ");
         }
         writelog("\n");
         writeline('#', 78);

@@ -104,8 +104,7 @@ public:
 protected:
     std::vector<int> m_loc;
     std::vector<int> m_keep;
-    //std::map<std::string, int> m_c;
-    std::vector<int> m_c;
+    std::map<std::string, int> m_c;
     std::vector<bool> m_active;
     doublereal m_ratio, m_slope, m_curve, m_prune;
     doublereal m_min_range;
