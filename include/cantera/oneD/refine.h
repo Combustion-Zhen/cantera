@@ -102,6 +102,7 @@ public:
 protected:
     std::map<size_t, int> m_loc;
     std::map<size_t, int> m_keep;
+    //vector_int m_keep;
     std::map<std::string, int> m_c;
     std::vector<bool> m_active;
     doublereal m_ratio, m_slope, m_curve, m_prune;
@@ -114,6 +115,7 @@ protected:
 private:
     //! vectors to store value and slope
     vector_fp m_v, m_s;
+    vector_int m_k;
 };
 
 }

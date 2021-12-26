@@ -67,24 +67,24 @@ int Refiner::analyze(size_t n, const doublereal* z,
         return 0;
     }
 
-    m_loc.clear();
-    m_c.clear();
-    m_keep.clear();
-
-    m_keep[0] = 1;
-    m_keep[n-1] = 1;
-
-    m_nv = m_domain->nComponents();
-
     // check consistency
     if (n != m_domain->nPoints()) {
         throw CanteraError("Refiner::analyze", "inconsistent");
     }
 
-    // find locations where cell size ratio is too large.
     m_v.resize(n);
     m_s.resize(n-1);
 
+    m_loc.clear();
+    m_c.clear();
+
+    //m_keep.resize(n);
+    //fill(m_keep.begin(), m_keep.end(), 0);
+    m_keep.clear();
+    m_keep[0] = 1;
+    m_keep[n-1] = 1;
+
+    m_nv = m_domain->nComponents();
     for (size_t i = 0; i < m_nv; i++) {
         //writelog("Refiner::analyze active compnent {} {}\n",
         //         m_domain->componentName(i),

@@ -446,7 +446,6 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
             // refine
             if (refine_grid)
                 newPoints = refineTransient(loglevel-1);
-
         } while (newPoints != 0);
 
         increaseTime(dt);
