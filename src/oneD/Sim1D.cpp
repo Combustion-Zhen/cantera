@@ -473,15 +473,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 int Sim1D::refineTransient(int loglevel)
 {
     int ianalyze, np = 0;
-    size_t iz = 0;
-    size_t ix = 0;
-
-    m_zRefined.resize(2*points());
-    m_xCurrentRefined.resize(2*size());
-    m_xLastRefined.resize(2*size());
-    double* z = m_zRefined.data();
-    double* xc = m_xCurrentRefined.data();
-    double* xl = m_xLastRefined.data();
+    vector_fp zRefined, xCurrentRefined, xLastRefined;
 
     for (size_t n = 0; n < nDomains(); n++) {
         Domain1D& d = domain(n);
@@ -499,37 +491,35 @@ int Sim1D::refineTransient(int loglevel)
         size_t nc = d.nComponents();
 
         // loop over points in the current grid
-        size_t nstart = iz;
+        size_t nstart = zRefined.size();
         size_t npnow = d.nPoints();
         for (size_t m = 0; m != npnow; m++) {
             if (r.keepPoint(m) || r.nNewPoints() != 0) {
                 // add the current grid point to the new grid
-                z[iz] = d.grid(m);
-                iz++;
+                zRefined.push_back(d.grid(m));
 
                 // do the same for the solution at this point
                 for (size_t i = 0; i != nc; i++) {
-                    xc[ix+i] = value(n, i, m);
-                    xl[ix+i] = valueLast(n, i, m);
+                    xCurrentRefined.push_back( value(n, i, m));
+                    xLastRefined.push_back( valueLast(n, i, m));
                 }
-                ix += nc;
 
                 // now check whether a new point is needed in the interval to
                 // the right of point m, and if so, add entries to znew and xnew
                 // for this new point
                 if (r.newPointNeeded(m) && m + 1 < npnow) {
                     // add new point at midpoint
-                    z[iz] = 0.5*(d.grid(m) + d.grid(m+1));
-                    iz++;
+                    double zmid = 0.5*(d.grid(m) + d.grid(m+1));
+                    zRefined.push_back(zmid);
 
                     // for each component, linearly interpolate
                     // the solution to this point
                     for (size_t i = 0; i != nc; i++) {
-                        xc[ix+i] = 0.5*(value(n, i, m) + value(n, i, m+1));
-                        xl[ix+i] = 0.5*(valueLast(n, i, m) + valueLast(n, i, m+1));
+                        double xmid = 0.5*(value(n, i, m) + value(n, i, m+1));
+                        xCurrentRefined.push_back(xmid);
+                        xmid = 0.5*(valueLast(n, i, m) + valueLast(n, i, m+1));
+                        xLastRefined.push_back(xmid);
                     }
-                    ix += nc;
-
                 }
             } else {
                 if (loglevel > 0) {
@@ -537,7 +527,7 @@ int Sim1D::refineTransient(int loglevel)
                 }
             }
         }
-        m_dsize[n] = iz - nstart;
+        m_dsize[n] = zRefined.size() - nstart;
     }
 
     // At this point, the new grid znew and the new solution vector xnew have
@@ -547,13 +537,13 @@ int Sim1D::refineTransient(int loglevel)
     for (size_t n = 0; n < nDomains(); n++) {
         Domain1D& d = domain(n);
         gridsize = m_dsize[n];
-        d.setupGrid(gridsize, &z[gridstart]);
+        d.setupGrid(gridsize, &zRefined[gridstart]);
         gridstart += gridsize;
     }
 
     // Replace the current solution vector with the new one
-    m_x = m_xCurrentRefined;
-    m_xlast_ts = m_xLastRefined;
+    m_x = xCurrentRefined;
+    m_xlast_ts = xLastRefined;
     resize();
     finalize();
 

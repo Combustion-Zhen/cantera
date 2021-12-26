@@ -229,10 +229,8 @@ void OneDim::resize()
     }
 
     // set the scalar solver
-    //m_scalarSolver.reset(new MultiSolverScalar(*this));
     m_scalarSolver->resize();
     // set the velocity solver
-    //m_continuitySolver.reset(new MultiSolverContinuity(*this));
     m_continuitySolver->resize();
 
     m_res.resize(size());
