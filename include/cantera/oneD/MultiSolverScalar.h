@@ -31,6 +31,8 @@ public:
 
     MultiSolverScalar& operator=(const MultiSolverScalar&) = delete;
 
+    void resize();
+
     /**
      * Find the solution to F(X) = 0 by damped Newton iteration. On entry, x0
      * contains an initial estimate of the solution. On successful return, x1
@@ -71,10 +73,6 @@ public:
     /// Set options.
     void setOptions(int maxJacAge = 5) {
         m_maxJacAge = maxJacAge;
-    }
-
-    inline int size() { 
-        return m_n;
     }
 
     /////////// Jacobian

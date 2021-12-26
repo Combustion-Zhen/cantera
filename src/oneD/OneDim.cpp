@@ -54,6 +54,8 @@ OneDim::OneDim(vector<Domain1D*> domains) :
 {
     // create a Newton iterator, and add each domain.
     m_newt.reset(new MultiNewton(1));
+    m_scalarSolver.reset(new MultiSolverScalar(*this));
+    m_continuitySolver.reset(new MultiSolverContinuity(*this));
     for (size_t i = 0; i < domains.size(); i++) {
         addDomain(domains[i]);
     }
@@ -227,9 +229,11 @@ void OneDim::resize()
     }
 
     // set the scalar solver
-    m_scalarSolver.reset(new MultiSolverScalar(*this));
+    //m_scalarSolver.reset(new MultiSolverScalar(*this));
+    m_scalarSolver->resize();
     // set the velocity solver
-    m_continuitySolver.reset(new MultiSolverContinuity(*this));
+    //m_continuitySolver.reset(new MultiSolverContinuity(*this));
+    m_continuitySolver->resize();
 
     m_res.resize(size());
 }

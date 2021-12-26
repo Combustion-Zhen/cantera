@@ -415,25 +415,21 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 
     while (time() < t) 
     {
-        writelog("loop start\n");
         int nIter = 0;
         int newPoints = 0;
         double norm = 1.0;
 
         // store the solution
-        //m_xlast_ts = m_x;
-        copy(m_x.begin(), m_x.end(), m_xlast_ts.begin());
+        m_xlast_ts = m_x;
+        //copy(m_x.begin(), m_x.end(), m_xlast_ts.begin());
 
-        writelog("iteration start\n");
         do
         {
-            writelog("step 0\n");
             // iteration count
             nIter++;
             // start from t0
-            //m_x = m_xlast_ts;
-            copy(m_xlast_ts.begin(), m_xlast_ts.end(), m_x.begin());
-            writelog("step 1\n");
+            m_x = m_xlast_ts;
+            //copy(m_xlast_ts.begin(), m_xlast_ts.end(), m_x.begin());
 
             double tmp = dt;
             // estimate the time stepsize
@@ -443,19 +439,15 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
                 dt = tmp;
             if ( dt < m_tmin )
                 break;
-            writelog("step 2\n");
 
             // time step iteration
             norm = timeStepIteration(dt, m_x.data(), m_xnew.data(), loglevel-1);
 
-            writelog("step 3\n");
             // refine
             if (refine_grid) {
                 newPoints = refineTransient(loglevel-1);
             }
-            writelog("step 4\n");
         } while (newPoints != 0);
-        writelog("iteration end\n");
 
         increaseTime(dt);
 
@@ -474,20 +466,16 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
             saveResidual("debug_sim1d.xml", "residual",
                          "After timestepping");
         }
-
-        writelog("loop end\n");
     }
 
 }
 
 int Sim1D::refineTransient(int loglevel)
 {
-    writelog("refine 0\n");
     int ianalyze, np = 0;
     size_t iz = 0;
     size_t ix = 0;
 
-    writelog("refine 1\n");
     m_zRefined.resize(2*points());
     m_xCurrentRefined.resize(2*size());
     m_xLastRefined.resize(2*size());
@@ -495,25 +483,21 @@ int Sim1D::refineTransient(int loglevel)
     double* xc = m_xCurrentRefined.data();
     double* xl = m_xLastRefined.data();
 
-    writelog("refine 2\n");
     for (size_t n = 0; n < nDomains(); n++) {
         Domain1D& d = domain(n);
         Refiner& r = d.refiner();
 
-        writelog("n {:4d} gridsize {:4d} start {:4d}\n", n, d.grid().size(), start(n));
         // determine where new points are needed
         ianalyze = r.analyze(d.grid().size(), d.grid().data(), &m_x[start(n)]);
         if (ianalyze < 0)
             return ianalyze;
 
-        writelog("refine 3\n");
         if (loglevel > 0)
             r.show();
 
         np += r.nNewPoints();
         size_t nc = d.nComponents();
 
-        writelog("refine 4\n");
         // loop over points in the current grid
         size_t nstart = iz;
         size_t npnow = d.nPoints();
@@ -568,13 +552,10 @@ int Sim1D::refineTransient(int loglevel)
     }
 
     // Replace the current solution vector with the new one
-    //m_x = m_xCurrentRefined;
-    //m_xlast_ts = m_xLastRefined;
+    m_x = m_xCurrentRefined;
+    m_xlast_ts = m_xLastRefined;
     resize();
     finalize();
-
-    copy(xc, xc+size(), m_x.begin());
-    copy(xl, xl+size(), m_xlast_ts.begin());
 
     return np;
 }
@@ -932,7 +913,6 @@ void Sim1D::resize()
     OneDim::resize();
     m_x.resize(size(), 0.0);
     m_xnew.resize(size(), 0.0);
-    m_xlast_ts.resize(size(), 0.0);
 }
 
 // private

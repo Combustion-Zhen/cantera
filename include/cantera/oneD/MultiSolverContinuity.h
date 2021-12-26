@@ -30,6 +30,8 @@ public:
 
     MultiSolverContinuity& operator=(const MultiSolverContinuity&) = delete;
 
+    void resize();
+
     void copyFullToVelocity(const double* full, double* velocity);
 
     void copyVelocityToFull(const double* velocity, double* full);

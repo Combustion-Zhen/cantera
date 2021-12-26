@@ -20,6 +20,9 @@ namespace Cantera
 
 MultiSolverContinuity::MultiSolverContinuity(OneDim& r) :
     m_resid(&r)
+{}
+
+void MultiSolverContinuity::resize()
 {
     m_n = m_resid->sizeVelocity();
     m_velocity.resize(m_n);
