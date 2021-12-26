@@ -110,6 +110,10 @@ protected:
     size_t m_nv, m_npmax;
     doublereal m_thresh;
     doublereal m_gridmin; //!< minimum grid spacing [m]
+
+private:
+    //! vectors to store value and slope
+    vector_fp m_v, m_s;
 };
 
 }

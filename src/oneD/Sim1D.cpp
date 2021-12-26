@@ -26,7 +26,8 @@ namespace Cantera
 
 Sim1D::Sim1D(vector<Domain1D*>& domains) :
     OneDim(domains),
-    m_steady_callback(0)
+    m_steady_callback(0),
+    m_dsize(nDomains())
 {
     // resize the internal solution vector and the work array, and perform
     // domain-specific initialization of the solution vector.
@@ -470,8 +471,11 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 int Sim1D::refineTransient(int loglevel)
 {
     int ianalyze, np = 0;
-    vector_fp znew, xnew, xlnew;
-    std::vector<size_t> dsize;
+    size_t iz = 0;
+    size_t ix = 0;
+    double* z = m_zRefined.data();
+    double* xc = m_xCurrentRefined.data();
+    double* xl = m_xLastRefined.data();
 
     for (size_t n = 0; n < nDomains(); n++) {
         Domain1D& d = domain(n);
@@ -486,39 +490,40 @@ int Sim1D::refineTransient(int loglevel)
             r.show();
 
         np += r.nNewPoints();
-        size_t comp = d.nComponents();
+        size_t nc = d.nComponents();
 
         // loop over points in the current grid
+        size_t nstart = iz;
         size_t npnow = d.nPoints();
-        size_t nstart = znew.size();
-        for (size_t m = 0; m < npnow; m++) {
+        for (size_t m = 0; m != npnow; m++) {
             if (r.keepPoint(m) || r.nNewPoints() != 0) {
                 // add the current grid point to the new grid
-                znew.push_back(d.grid(m));
+                z[iz] = d.grid(m);
+                iz++;
 
                 // do the same for the solution at this point
-                for (size_t i = 0; i < comp; i++) {
-                    xnew.push_back(value(n, i, m));
-                    xlnew.push_back(valueLast(n, i, m));
+                for (size_t i = 0; i != nc; i++) {
+                    xc[ix+i] = value(n, i, m);
+                    xl[ix+i] = valueLast(n, i, m);
                 }
+                ix += nc;
 
                 // now check whether a new point is needed in the interval to
                 // the right of point m, and if so, add entries to znew and xnew
                 // for this new point
                 if (r.newPointNeeded(m) && m + 1 < npnow) {
                     // add new point at midpoint
-                    double zmid = 0.5*(d.grid(m) + d.grid(m+1));
-                    znew.push_back(zmid);
+                    z[iz] = 0.5*(d.grid(m) + d.grid(m+1));
+                    iz++;
 
                     // for each component, linearly interpolate
                     // the solution to this point
-                    for (size_t i = 0; i < comp; i++) {
-                        double xmid = 0.5*(value(n, i, m) + value(n, i, m+1));
-                        xnew.push_back(xmid);
-
-                        xmid = 0.5*(valueLast(n, i, m) + valueLast(n, i, m+1));
-                        xlnew.push_back(xmid);
+                    for (size_t i = 0; i != nc; i++) {
+                        xc[ix+i] = 0.5*(value(n, i, m) + value(n, i, m+1));
+                        xl[ix+i] = 0.5*(valueLast(n, i, m) + valueLast(n, i, m+1));
                     }
+                    ix += nc;
+
                 }
             } else {
                 if (loglevel > 0) {
@@ -526,7 +531,7 @@ int Sim1D::refineTransient(int loglevel)
                 }
             }
         }
-        dsize.push_back(znew.size() - nstart);
+        m_dsize[n] = iz - nstart;
     }
 
     // At this point, the new grid znew and the new solution vector xnew have
@@ -536,16 +541,19 @@ int Sim1D::refineTransient(int loglevel)
     size_t gridstart = 0, gridsize;
     for (size_t n = 0; n < nDomains(); n++) {
         Domain1D& d = domain(n);
-        gridsize = dsize[n];
-        d.setupGrid(gridsize, &znew[gridstart]);
+        gridsize = m_dsize[n];
+        d.setupGrid(gridsize, &z[gridstart]);
         gridstart += gridsize;
     }
 
     // Replace the current solution vector with the new one
-    m_x = xnew;
-    m_xlast_ts = xlnew;
     resize();
+
+    copy(xc, xc+size(), m_x.begin());
+    copy(xl, xl+size(), m_xlast_ts.begin());
+
     finalize();
+
     return np;
 }
 
@@ -902,6 +910,11 @@ void Sim1D::resize()
     OneDim::resize();
     m_x.resize(size(), 0.0);
     m_xnew.resize(size(), 0.0);
+    m_xlast_ts.resize(size(), 0.0);
+
+    m_zRefined.resize(2*points());
+    m_xCurrentRefined.resize(2*size());
+    m_xLastRefined.resize(2*size());
 }
 
 // private

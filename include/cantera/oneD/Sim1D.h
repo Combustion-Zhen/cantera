@@ -271,6 +271,9 @@ private:
      * @return 0 if successful, -1 on failure
      */
     int newtonSolve(int loglevel);
+
+    vector_fp m_zRefined, m_xCurrentRefined, m_xLastRefined;
+    std::vector<size_t> m_dsize;
 };
 
 }

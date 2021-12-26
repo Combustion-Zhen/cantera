@@ -82,12 +82,8 @@ int Refiner::analyze(size_t n, const doublereal* z,
     }
 
     // find locations where cell size ratio is too large.
-    vector_fp v(n), s(n-1);
-
-    vector_fp dz(n-1);
-    for (size_t j = 0; j < n-1; j++) {
-        dz[j] = z[j+1] - z[j];
-    }
+    m_v.resize(n);
+    m_s.resize(n-1);
 
     for (size_t i = 0; i < m_nv; i++) {
         //writelog("Refiner::analyze active compnent {} {}\n",
@@ -97,19 +93,19 @@ int Refiner::analyze(size_t n, const doublereal* z,
             string name = m_domain->componentName(i);
             // get component i at all points
             for (size_t j = 0; j < n; j++) {
-                v[j] = value(x, i, j);
+                m_v[j] = value(x, i, j);
             }
 
             // slope of component i
             for (size_t j = 0; j < n-1; j++) {
-                s[j] = (value(x, i, j+1) - value(x, i, j))/(z[j+1] - z[j]);
+                m_s[j] = (value(x, i, j+1) - value(x, i, j))/(z[j+1] - z[j]);
             }
 
             // find the range of values and slopes
-            doublereal vmin = *min_element(v.begin(), v.end());
-            doublereal vmax = *max_element(v.begin(), v.end());
-            doublereal smin = *min_element(s.begin(), s.end());
-            doublereal smax = *max_element(s.begin(), s.end());
+            doublereal vmin = *min_element(m_v.begin(), m_v.end());
+            doublereal vmax = *max_element(m_v.begin(), m_v.end());
+            doublereal smin = *min_element(m_s.begin(), m_s.end());
+            doublereal smax = *max_element(m_s.begin(), m_s.end());
 
             // max absolute values of v and s
             doublereal aa = std::max(fabs(vmax), fabs(vmin));
@@ -124,8 +120,9 @@ int Refiner::analyze(size_t n, const doublereal* z,
                 // points.
                 doublereal dmax = m_slope*(vmax - vmin) + m_thresh;
                 for (size_t j = 0; j < n-1; j++) {
-                    doublereal r = fabs(v[j+1] - v[j])/dmax;
-                    if (r > 1.0 && dz[j] >= 2 * m_gridmin) {
+                    double dz = m_domain->dz(j);
+                    double r = fabs(m_v[j+1] - m_v[j])/dmax;
+                    if (r > 1.0 && dz >= 2 * m_gridmin) {
                         m_loc[j] = 1;
                         m_c[name] = 1;
                     }
@@ -147,9 +144,10 @@ int Refiner::analyze(size_t n, const doublereal* z,
                 // adjacent points.
                 doublereal dmax = m_curve*(smax - smin);
                 for (size_t j = 0; j < n-2; j++) {
-                    doublereal r = fabs(s[j+1] - s[j]) / (dmax + m_thresh/dz[j]);
-                    if (r > 1.0 && dz[j] >= 2 * m_gridmin &&
-                            dz[j+1] >= 2 * m_gridmin) {
+                    double dz0 = m_domain->dz(j);
+                    double dz1 = m_domain->dz(j+1);
+                    double r = fabs(m_s[j+1] - m_s[j]) / (dmax + m_thresh/dz0);
+                    if (r > 1.0 && dz0 >= 2 * m_gridmin && dz1 >= 2 * m_gridmin) {
                         m_c[name] = 1;
                         m_loc[j] = 1;
                         m_loc[j+1] = 1;
@@ -168,8 +166,10 @@ int Refiner::analyze(size_t n, const doublereal* z,
 
     // Refine based on properties of the grid itself
     for (size_t j = 1; j < n-1; j++) {
+        double dz = m_domain->dz(j);
+        double dz1 = m_domain->dz(j-1);
         // Add a new point if the ratio with left interval is too large
-        if (dz[j] > m_ratio*dz[j-1]) {
+        if (dz > m_ratio*dz1) {
             m_loc[j] = 1;
             m_c[fmt::format("point {}", j)] = 1;
             m_keep[j-1] = 1;
@@ -179,7 +179,7 @@ int Refiner::analyze(size_t n, const doublereal* z,
         }
 
         // Add a point if the ratio with right interval is too large
-        if (dz[j] < dz[j-1]/m_ratio) {
+        if (dz < dz1/m_ratio) {
             m_loc[j-1] = 1;
             m_c[fmt::format("point {}", j-1)] = 1;
             m_keep[j-2] = 1;
@@ -190,13 +190,13 @@ int Refiner::analyze(size_t n, const doublereal* z,
 
         // Keep the point if removing would make the ratio with the left
         // interval too large.
-        if (j > 1 && z[j+1]-z[j-1] > m_ratio * dz[j-2]) {
+        if (j > 1 && m_domain->d2z(j) > m_ratio * m_domain->dz(j-2)) {
             m_keep[j] = 1;
         }
 
         // Keep the point if removing would make the ratio with the right
         // interval too large.
-        if (j < n-2 && z[j+1]-z[j-1] > m_ratio * dz[j+1]) {
+        if (j < n-2 && m_domain->d2z(j) > m_ratio * m_domain->dz(j+1)) {
             m_keep[j] = 1;
         }
 
