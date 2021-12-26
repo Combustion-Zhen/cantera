@@ -22,12 +22,11 @@ MultiSolverContinuity::MultiSolverContinuity(OneDim& r) :
     TridiagonalMatrix(r.sizeVelocity())
 {
     m_resid = &r;
-    m_x.resize(m_resid->size());
     m_velocity.resize(m_resid->sizeVelocity());
     m_step.resize(m_resid->sizeVelocity());
 }
 
-void MultiSolverContinuity::convertFullToVelocity(const vector_fp& full, vector_fp& velocity)
+void MultiSolverContinuity::copyFullToVelocity(const double* full, double* velocity)
 {
     for (size_t i = 0 ; i != m_resid->points() ; i++ )
     {
@@ -39,7 +38,7 @@ void MultiSolverContinuity::convertFullToVelocity(const vector_fp& full, vector_
     }
 }
 
-void MultiSolverContinuity::convertVelocityToFull(const vector_fp& velocity, vector_fp& full)
+void MultiSolverContinuity::copyVelocityToFull(const double* velocity, double* full)
 {
     for (size_t i = 0 ; i != m_resid->points() ; i++ )
     {
@@ -53,23 +52,18 @@ void MultiSolverContinuity::convertVelocityToFull(const vector_fp& velocity, vec
 
 int MultiSolverContinuity::newtonSolve(double* x0, double* x1, int loglevel)
 {
-
-    copy(x0, x0+m_resid->size(), m_x.begin());
-
-    convertFullToVelocity(m_x, m_velocity);
-
     // get the residual and Jacobian from the continuity equation
-    m_resid->evalContinuity(m_x, m_step, m_dl, m_d, m_du);
+    m_resid->evalContinuity(x0, m_step.data(), m_dl.data(), m_d.data(), m_du.data());
 
+    copyFullToVelocity(x0, m_velocity.data());
     // solve the tridiagonal problem
-    //int m = this->solve(step);
-    for (size_t i = 0; i != m_resid->sizeVelocity(); i++ )
+    for (size_t i = 0; i != m_resid->sizeVelocity(); i++)
     {
-        //velocity[i] += step[i];
         m_velocity[i] += m_step[i]/m_d[i];
     }
-    convertVelocityToFull(m_velocity, m_x);
-    copy(m_x.begin(), m_x.end(), x1);
+
+    copy(x0, x0+m_resid->size(), x1);
+    copyVelocityToFull(m_velocity.data(), x1);
 
     if (loglevel > 0)
     {

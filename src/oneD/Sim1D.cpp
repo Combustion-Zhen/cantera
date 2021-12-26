@@ -477,8 +477,6 @@ int Sim1D::refineTransient(int loglevel)
     size_t iz = 0;
     size_t ix = 0;
 
-    writelog("first hand");
-    writelog("np {:4d} size {:4d}", points(), size());
     m_zRefined.resize(2*points());
     m_xCurrentRefined.resize(2*size());
     m_xLastRefined.resize(2*size());
@@ -490,7 +488,6 @@ int Sim1D::refineTransient(int loglevel)
         Domain1D& d = domain(n);
         Refiner& r = d.refiner();
 
-        writelog("n {:4d} grid {:4d}", n, d.grid().size());
         // determine where new points are needed
         ianalyze = r.analyze(d.grid().size(), d.grid().data(), &m_x[start(n)]);
         if (ianalyze < 0)

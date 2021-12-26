@@ -352,12 +352,9 @@ protected:
                             int* diag, double rdt);
 
     //! Evaluate the residual and Jacobian of the continuity equation at all points
-    virtual void evalContinuityResidualJacobian
-    (
-        vector_fp& xg, 
-        vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
-        double rdt
-    ); 
+    virtual void evalContinuityResidualJacobian(double* xg, double* rg, 
+                                                double* dl, double* d, double* du,
+                                                double rdt); 
 
     //! Evaluate scalar residual components at the left boundary.
     virtual void evalScalarLeftBoundary(double* x, double* r, double dt);

@@ -31,9 +31,9 @@ public:
 
     MultiSolverContinuity& operator=(const MultiSolverContinuity&) = delete;
 
-    void convertFullToVelocity(const vector_fp& full, vector_fp& velocity);
+    void copyFullToVelocity(const double* full, double* velocity);
 
-    void convertVelocityToFull(const vector_fp& velocity, vector_fp& full);
+    void copyVelocityToFull(const double* velocity, double* full);
 
     //! solve the continuity equation to get the velocity
     //! this is a linear problem
@@ -42,7 +42,7 @@ public:
 protected:
 
     //! Work arrays of size #m_n used in solve().
-    vector_fp m_x, m_velocity, m_step;
+    vector_fp m_velocity, m_step;
 
     //! Residual evaluator for this Jacobian
     /*!

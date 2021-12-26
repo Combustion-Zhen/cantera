@@ -202,13 +202,9 @@ public:
         throw NotImplementedError("Domain1D::eval");
     }
 
-    virtual void evalContinuityResidualJacobian
-    (
-        vector_fp& xg, 
-        vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du,
-        double rdt
-    ) 
-    {
+    virtual void evalContinuityResidualJacobian(double* xg, double* rg, 
+                                                double* dl, double* d, double* du, 
+                                                double rdt) {
         throw NotImplementedError("Domain1D::evalContinuityResidualJacobian");
     }
 

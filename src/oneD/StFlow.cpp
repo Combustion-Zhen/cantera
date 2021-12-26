@@ -1193,26 +1193,23 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
     }
 }
 
-void StFlow::evalContinuityResidualJacobian
-(
-    vector_fp& xg, 
-    vector_fp& rg, vector_fp& dlg, vector_fp& dg, vector_fp& dug,
-    double rdt
-)
+void StFlow::evalContinuityResidualJacobian(double* xg, double* rg, 
+                                            double* dlg, double* dg, double* dug,
+                                            double rdt)
 {
     size_t jmin = 0;
     size_t jmax = nPoints()-1;
 
-    double* x = xg.data() + loc();
+    double* x = xg + loc();
 
     // update density
     updateThermo(x, jmin, jmax);
 
     size_t iloc = locVelocity();
-    double* r = rg.data() + iloc;
-    double* d = dg.data() + iloc;
-    double* dl = dlg.data() + iloc;
-    double* du = dug.data() + iloc;
+    double* r = rg + iloc;
+    double* d = dg + iloc;
+    double* dl = dlg + iloc;
+    double* du = dug + iloc;
 
     // coordinates type
     size_t m = coordinatesType();
@@ -1263,6 +1260,8 @@ void StFlow::evalContinuityResidualJacobian
             d[j] = density(j);
             dl[j-1] = - density(j-1) * pow(z(j-1)/z(j), m);
         }
+        if (j != jmin+1)
+            du[j-1] = 0.0;
         //writelog("\n {:4d} {:10.4g} {:10.4g} {:10.4g} {:10.4g}", 
         //         j, rg[iloc+j], dlg[iloc+j-1], dg[iloc+j], dug[iloc+j]);
     }

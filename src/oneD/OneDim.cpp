@@ -323,7 +323,7 @@ void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
     if (m_interrupt) {
         m_interrupt->eval(m_nevals);
     }
-    fill(r, r + m_size, 0.0);
+    fill(r, r + size(), 0.0);
     if (j == npos) {
         fill(m_mask.begin(), m_mask.end(), 0);
     }
@@ -352,6 +352,8 @@ void OneDim::eval(size_t j, double* x, double* r, doublereal rdt, int count)
 // todo : implement independet calculation of scalar residual
 void OneDim::evalScalar(size_t j, double* x, double* r, int count)
 {
+    fill(r, r+ sizeScalar(), 0.0);
+
     double dt = m_dt;
 
     // iterate over the bulk domains first
@@ -365,30 +367,24 @@ void OneDim::evalScalar(size_t j, double* x, double* r, int count)
     }
 }
 
-void OneDim::evalContinuity(vector_fp& x, vector_fp& r, 
-                            vector_fp& dl, vector_fp& d, vector_fp& du,
+void OneDim::evalContinuity(double* x, double* r, 
+                            double* dl, double* d, double* du,
                             double rdt)
 {
-    fill(r.begin(), r.end(), 0.0);
+    fill(r, r + sizeVelocity(), 0.0);
     if (rdt < 0.0) 
         rdt = m_rdt;
 
     // iterate over the bulk domains first
     for (const auto& domain : m_bulk) 
     {
-        domain->evalContinuityResidualJacobian
-        (
-            x, r, dl, d, du, rdt
-        );
+        domain->evalContinuityResidualJacobian(x, r, dl, d, du, rdt);
     }
 
     // then over the connector domains
     for (const auto& domain : m_connect) 
     {
-        domain->evalContinuityResidualJacobian
-        (
-            x, r, dl, d, du, rdt
-        );
+        domain->evalContinuityResidualJacobian(x, r, dl, d, du, rdt);
     }
 }
 

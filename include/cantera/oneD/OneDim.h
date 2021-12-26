@@ -110,8 +110,8 @@ public:
 
     void evalScalar(size_t j, double* x, double* r, int count=1);
 
-    void evalContinuity(vector_fp& x, vector_fp& r, 
-                        vector_fp& dl, vector_fp& d, vector_fp& du,
+    void evalContinuity(double* x, double* r, 
+                        double* dl, double* d, double* du,
                         double rdt=-1.0);
     
     double evalMaxCFL(vector_fp& x, double dt);

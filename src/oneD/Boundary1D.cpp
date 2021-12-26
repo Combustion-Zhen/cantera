@@ -73,32 +73,25 @@ void Boundary1D::_init(size_t n)
     }
 }
 
-void Boundary1D::eliminateSubDiagonalsL
-(
-    double br, double bj, vector_fp& r,
-    vector_fp& dl, vector_fp& d, vector_fp& du
-)
+void Boundary1D::eliminateSubDiagonalsL(double br, double bj, double* r,
+                                        double* dl, double* d, double* du)
 {
     size_t iloc = m_flow_right->locVelocity();
     size_t np = m_flow_right->nPoints();
 
     r[iloc] = br;
     d[iloc] = bj;
+    du[iloc] = 0.0;
 
     for (size_t j = 1; j != np; j++)
     {
         r[iloc+j] -= r[iloc+j-1] * dl[iloc+j-1] / d[iloc+j-1];
+        dl[iloc+j-1] = 0.0;
     }
-
-    fill(dl.begin(), dl.end(), 0.0);
-    fill(du.begin(), du.end(), 0.0);
 }
 
-void Boundary1D::eliminateSubDiagonalsR
-(
-    double br, double bj, vector_fp& r,
-    vector_fp& dl, vector_fp& d, vector_fp& du
-)
+void Boundary1D::eliminateSubDiagonalsR(double br, double bj, double* r,
+                                        double* dl, double* d, double* du)
 {
     size_t iloc = m_flow_left->locVelocity();
     size_t np = m_flow_left->nPoints();
@@ -113,12 +106,11 @@ void Boundary1D::eliminateSubDiagonalsR
     {
         r[iloc+j] = r[iloc+j+1];
         d[iloc+j] = dl[iloc+j];
+        dl[iloc+j] = 0.0;
     }
     r[iloc+np-1] = br;
     d[iloc+np-1] = bj;
-
-    fill(dl.begin(), dl.end(), 0.0);
-    fill(du.begin(), du.end(), 0.0);
+    du[iloc] = 0.0;
 }
 // ---------------- Inlet1D methods ----------------
 
@@ -273,15 +265,12 @@ void Inlet1D::eval(size_t jg, double* xg, double* rg,
     }
 }
 
-void Inlet1D::evalContinuityResidualJacobian
-(
-    vector_fp& xg, 
-    vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du, 
-    double rdt
-)
+void Inlet1D::evalContinuityResidualJacobian(double* xg, double* rg,
+                                             double* dl, double* d, double* du, 
+                                             double rdt)
 {
     // start of local part of global arrays
-    double* x = xg.data() + loc();
+    double* x = xg + loc();
 
     if (m_flow_right)
     {
@@ -500,16 +489,13 @@ void Symm1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
     }
 }
 
-void Symm1D::evalContinuityResidualJacobian
-(
-    vector_fp& xg, 
-    vector_fp& rg, vector_fp& dl, vector_fp& d, vector_fp& du, 
-    double rdt
-)
+void Symm1D::evalContinuityResidualJacobian(double* xg, double* rg,
+                                            double* dl, double* d, double* du, 
+                                            double rdt)
 {
     size_t iloc = locVelocity();
     // start of local part of global arrays
-    double* x = xg.data() + loc();
+    double* x = xg + loc();
 
     if (m_flow_right)
     {
