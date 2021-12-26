@@ -31,8 +31,6 @@ public:
 
     MultiSolverScalar& operator=(const MultiSolverScalar&) = delete;
 
-    int newtonSolve(double* x0, double* x1, int loglevel);
-
     /**
      * Find the solution to F(X) = 0 by damped Newton iteration. On entry, x0
      * contains an initial estimate of the solution. On successful return, x1
@@ -41,7 +39,7 @@ public:
     int dampedNewtonSolve(double* x0, double* x1, int loglevel);
 
     //! Evaluate the Jacobian at m_x
-    void evalJac(vector_fp& x);
+    void evalJac(double* x);
 
     /**
      * On entry, step0 must contain an undamped Newton step for the solution x0.
@@ -50,7 +48,7 @@ public:
      * successful, the new solution after taking the damped step is returned in
      * x1, and the undamped step at x1 is returned in step1.
      */
-    int dampStep(double* x1, int loglevel, bool writetitle);
+    int dampStep(double* x0, double* x1, int loglevel, bool writetitle);
 
     //! Compute the undamped Newton step.  The residual function is evaluated
     //! at `x`, but the Jacobian is not recomputed.
@@ -66,9 +64,9 @@ public:
      */
     double boundStep(const vector_fp& x, const vector_fp& step, int loglevel);
 
-    void convertFullToScalar(const vector_fp& full, vector_fp& scalar);
+    void copyFullToScalar(const double* full, double* scalar);
 
-    void convertScalarToFull(const vector_fp& scalar, vector_fp& full);
+    void copyScalarToFull(const double* scalar, double* full);
 
     /// Set options.
     void setOptions(int maxJacAge = 5) {
@@ -120,7 +118,7 @@ public:
 protected:
 
     //! Work arrays
-    vector_fp m_x, m_scalar, m_step0, m_step1, m_xTmp, m_scalarTmp;
+    vector_fp m_scalar0, m_scalar1, m_step0, m_step1;
 
     //! Residual evaluator for this Jacobian
     /*!

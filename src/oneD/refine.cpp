@@ -78,11 +78,14 @@ int Refiner::analyze(size_t n, const doublereal* z,
     m_loc.clear();
     m_c.clear();
 
-    //m_keep.resize(n);
-    //fill(m_keep.begin(), m_keep.end(), 0);
     m_keep.clear();
     m_keep[0] = 1;
     m_keep[n-1] = 1;
+
+    m_k.resize(n, 0);
+    fill(m_k.begin(), m_k.end(), 0);
+    m_k[0] = 1;
+    m_k[n-1] = 1;
 
     m_nv = m_domain->nComponents();
     for (size_t i = 0; i < m_nv; i++) {
@@ -129,8 +132,11 @@ int Refiner::analyze(size_t n, const doublereal* z,
                     if (r >= m_prune) {
                         m_keep[j] = 1;
                         m_keep[j+1] = 1;
+                        m_k[j] = 1;
+                        m_k[j+1] = 1;
                     } else if (m_keep[j] == 0) {
                         m_keep[j] = -1;
+                        m_k[j] = -1;
                     }
                 }
             }
@@ -154,8 +160,10 @@ int Refiner::analyze(size_t n, const doublereal* z,
                     }
                     if (r >= m_prune) {
                         m_keep[j+1] = 1;
+                        m_k[j+1] = 1;
                     } else if (m_keep[j+1] == 0) {
                         m_keep[j+1] = -1;
+                        m_k[j+1] = -1;
                     }
                 }
             }
