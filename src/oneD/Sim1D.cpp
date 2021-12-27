@@ -473,7 +473,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 
 int Sim1D::refineTransient(int loglevel)
 {
-    int ianalyze, np = 0;
+    int ianalyze, np = 0, dp = 0;
     vector_fp zRefined, xCurrentRefined, xLastRefined;
 
     for (size_t n = 0; n < nDomains(); n++) {
@@ -523,6 +523,7 @@ int Sim1D::refineTransient(int loglevel)
                     }
                 }
             } else {
+                dp++;
                 if (loglevel > 0) {
                     writelog("refine: discarding point at {}\n", d.grid(m));
                 }
@@ -530,6 +531,10 @@ int Sim1D::refineTransient(int loglevel)
         }
         m_dsize[n] = zRefined.size() - nstart;
     }
+
+    // skip resizing if there is no increased or discarded point
+    if ( np == 0 && dp == 0 )
+        return 0;
 
     // At this point, the new grid znew and the new solution vector xnew have
     // been constructed, but the domains themselves have not yet been modified.
