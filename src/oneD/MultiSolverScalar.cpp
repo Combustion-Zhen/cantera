@@ -136,7 +136,6 @@ const size_t NDAMP = 8;
 // ---------------- MultiSolverScalar methods ----------------
 
 MultiSolverScalar::MultiSolverScalar(OneDim& r) : 
-    //BandMatrix(r.sizeScalar(),r.bandwidthScalar(),r.bandwidthScalar()), 
     m_resid(&r),
     m_jacAge(0), m_nJacEval(0), m_maxJacAge(5),
     m_atol(sqrt(std::numeric_limits<double>::epsilon())), m_rtol(1.0e-5),

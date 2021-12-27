@@ -24,6 +24,8 @@ class MultiJac : public BandMatrix
 public:
     MultiJac(OneDim& r);
 
+    void resize();
+
     /**
      * Evaluate the Jacobian at x0. The unperturbed residual function is resid0,
      * which must be supplied on input. The third parameter 'rdt' is the
@@ -73,15 +75,15 @@ protected:
      */
     OneDim* m_resid;
 
-    vector_fp m_r1;
-    doublereal m_rtol, m_atol;
-    doublereal m_elapsed;
-    vector_fp m_ssdiag;
-    vector_int m_mask;
     int m_nevals;
     int m_age;
+    doublereal m_rtol, m_atol;
+    doublereal m_elapsed;
     size_t m_size;
     size_t m_points;
+    vector_fp m_r1;
+    vector_fp m_ssdiag;
+    vector_int m_mask;
 };
 }
 

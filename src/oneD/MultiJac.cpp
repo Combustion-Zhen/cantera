@@ -11,20 +11,24 @@ using namespace std;
 namespace Cantera
 {
 
-MultiJac::MultiJac(OneDim& r)
-    : BandMatrix(r.size(),r.bandwidth(),r.bandwidth())
+MultiJac::MultiJac(OneDim& r) :
+    m_resid(&r), m_nevals(0), m_age(100000),
+    m_rtol(1.0e-5),
+    m_atol(sqrt(std::numeric_limits<double>::epsilon())),
+    m_elapsed(0.0)
+{}
+
+void MultiJac::resize()
 {
-    m_size = r.size();
-    m_points = r.points();
-    m_resid = &r;
+    m_nevals = 0;
+    m_age = 100000;
+
+    m_size = m_resid->size();
+    m_points = m_resid->points();
+    BandMatrix::resize(m_resid->size(), m_resid->bandwidth(), m_resid->bandwidth());
     m_r1.resize(m_size);
     m_ssdiag.resize(m_size);
     m_mask.resize(m_size);
-    m_elapsed = 0.0;
-    m_nevals = 0;
-    m_age = 100000;
-    m_atol = sqrt(std::numeric_limits<double>::epsilon());
-    m_rtol = 1.0e-5;
 }
 
 void MultiJac::updateTransient(doublereal rdt, integer* mask)

@@ -34,6 +34,7 @@ OneDim::OneDim() :
     m_evalTimeTransport(0.0), m_evalTimeChemistry(0.0)
 {
     m_newt.reset(new MultiNewton(1));
+    m_jac.reset(new MultiJac(*this));
     m_scalarSolver.reset(new MultiSolverScalar(*this));
     m_continuitySolver.reset(new MultiSolverContinuity(*this));
 }
@@ -54,6 +55,7 @@ OneDim::OneDim(vector<Domain1D*> domains) :
 {
     // create a Newton iterator, and add each domain.
     m_newt.reset(new MultiNewton(1));
+    m_jac.reset(new MultiJac(*this));
     m_scalarSolver.reset(new MultiSolverScalar(*this));
     m_continuitySolver.reset(new MultiSolverContinuity(*this));
     for (size_t i = 0; i < domains.size(); i++) {
@@ -221,7 +223,8 @@ void OneDim::resize()
     m_mask.resize(size());
 
     // delete the current Jacobian evaluator and create a new one
-    m_jac.reset(new MultiJac(*this));
+    //m_jac.reset(new MultiJac(*this));
+    m_jac->resize();
     m_jac_ok = false;
 
     for (size_t i = 0; i < nDomains(); i++) {
