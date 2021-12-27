@@ -219,18 +219,13 @@ void OneDim::resize()
         m_sizeVelocity = d->locVelocity() + d->sizeVelocity();
     }
 
-    m_newt->resize(size());
+    // resize the transient masks
     m_mask.resize(size());
-
-    // delete the current Jacobian evaluator and create a new one
-    //m_jac.reset(new MultiJac(*this));
+    // set the Newton solver
+    m_newt->resize(size());
+    // set the full Jacobian
     m_jac->resize();
     m_jac_ok = false;
-
-    for (size_t i = 0; i < nDomains(); i++) {
-        m_dom[i]->setJac(m_jac.get());
-    }
-
     // set the scalar solver
     m_scalarSolver->resize();
     // set the velocity solver
