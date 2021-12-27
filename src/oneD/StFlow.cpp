@@ -1310,6 +1310,10 @@ void StFlow::evalScalarRightBoundary(double* x, double* rsd, double dt)
 
 void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
 {
+    double* Yc = x + index(c_offset_Y, j);
+    size_t kExcess = distance(Yc, max_element(Yc, Yc + m_nsp));
+    double sum = 0.0;
+
     for (size_t k = 0; k < m_nsp; k++) 
     {
         r[indexScalar(cOffsetScalarY+k, j)] = - rho_u(x,j) * dYdz(x,k,j)
@@ -1321,7 +1325,10 @@ void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
         r[indexScalar(cOffsetScalarY+k, j)] /= m_rho[j];
         r[indexScalar(cOffsetScalarY+k, j)] *= dt;
         r[indexScalar(cOffsetScalarY+k, j)] -= (Y(x,k,j) - Y_prev(k,j));
+
+        sum += Y(x,k,j);
     }
+    r[indexScalar(cOffsetScalarY+kExcess, j)] = 1.0 - sum;
 }
 
 void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)

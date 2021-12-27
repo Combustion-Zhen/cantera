@@ -437,6 +437,7 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
             // skip very small time step
             if ( adaptive_timestep )
                 dt = tmp;
+            dt = std::min(dt, t-time()); 
             if ( dt < m_tmin )
                 break;
 
