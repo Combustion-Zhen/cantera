@@ -452,7 +452,7 @@ void OneDim::advanceDomainChemistry(double* x, double dt)
     }
 }
 
-double OneDim::advanceTransport(double* x, double* r, double* w, double dt, int loglevel)
+int OneDim::advanceTransport(double* x, double* r, double* w, double dt, int loglevel)
 {
     clock_t t0 = clock();
     double norm = 1.e10;
@@ -473,7 +473,8 @@ double OneDim::advanceTransport(double* x, double* r, double* w, double dt, int 
                  "niter", "stepsize", "log10(residual)", "log10(step)");
     }
 
-    for (size_t i=0; i != maxIter(); i++)
+    int iter = 0;
+    for (iter=0; iter != maxIter(); iter++)
     {
         copy(x, x + size(), r);
 
@@ -498,7 +499,7 @@ double OneDim::advanceTransport(double* x, double* r, double* w, double dt, int 
         {
             double ts = tsNormScalar(x, w);
             writelog("      {:4d}  {:10.4g}         {:10.4g}     {:10.4g}\n", 
-                     i, dt, log10(ts), log10(norm));
+                     iter, dt, log10(ts), log10(norm));
         }
 
         if ( norm <= 1.0 )
@@ -512,7 +513,7 @@ double OneDim::advanceTransport(double* x, double* r, double* w, double dt, int 
     clock_t t1 = clock();
     m_evalTimeTransport += double(t1-t0)/CLOCKS_PER_SEC;
 
-    return norm;
+    return iter;
 }
 
 doublereal OneDim::ssnorm(doublereal* x, doublereal* r)
@@ -676,18 +677,18 @@ doublereal OneDim::timeStep(int nsteps, double dt, double* x,
     return dt;
 }
 
-double OneDim::timeStepIteration(double dt, double* x, double* r, int loglevel)
+int OneDim::timeStepIteration(double dt, double* x, double* r, int loglevel)
 {
     bool firstSubstep = true;
     advanceScalarChemistry(x, dt, firstSubstep);
     firstSubstep = false;
 
-    double norm = advanceTransport(x, r, m_res.data(), dt, loglevel-1);
+    int iter = advanceTransport(x, r, m_res.data(), dt, loglevel-1);
 
     advanceScalarChemistry(x, dt, firstSubstep);
 
     // return the value of the stepsize
-    return norm;
+    return iter;
 }
 
 void OneDim::resetBadValues(double* x)

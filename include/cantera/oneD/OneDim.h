@@ -122,8 +122,7 @@ public:
 
     void advanceDomainChemistry(double* x, double dt);
 
-    double advanceTransport(double* x, double* r, double* w,
-                            double dt, int loglevel);
+    int advanceTransport(double* x, double* r, double* w, double dt, int loglevel);
 
     /**
      * Steady-state max norm (infinity norm) of the residual evaluated using
@@ -157,7 +156,7 @@ public:
                     double* r, int loglevel);
 
     // Zhen Lu 211013
-    double timeStepIteration(double dt, double* x, double*r, int loglevel);
+    int timeStepIteration(double dt, double* x, double*r, int loglevel);
 
     void resetBadValues(double* x);
 
