@@ -454,8 +454,8 @@ void Sim1D::advance(double t, int loglevel, bool refine_grid, bool adaptive_time
 
         if (loglevel > 0) 
         {
-            writelog("{:15.6e} {:12.4g} {:10.3e} {:4d} {:4d} {:10.4g}\n",
-                     time(), maxCFL, dt, nIter, subIter,
+            writelog("{:15.6e} {:8.3g} {:10.2e} {:3d} {:3d} {:5d} {:8.3g}\n",
+                     time(), maxCFL, dt, nIter, subIter, static_cast<int>(points()),
                      log10(tsNormScalar(m_x.data(), m_xnew.data())));
         }
         if (loglevel > 6) 
