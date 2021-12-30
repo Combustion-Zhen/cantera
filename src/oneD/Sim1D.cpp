@@ -810,7 +810,7 @@ void Sim1D::setRefineCriteria(int dom, double ratio,
     }
 }
 
-void Sim1D::setRefineComponents(const vector_int& comp, int dom)
+void Sim1D::setRefineActiveComponents(const vector_int& comp, int dom)
 {
     if (dom >= 0)
     {

@@ -822,14 +822,23 @@ cdef class Sim1D:
         self._steady_callback = f
         self.sim.setSteadyCallback(self._steady_callback.func)
 
-    def set_refine_components(self, domain, components):
+    def set_refine_active_components(self, domain, components):
 
         cdef vector[int] comps
         for component in components:
             dom, comp = self._get_indices(domain, component)
             comps.push_back(comp)
 
-        self.sim.setRefineComponents(comps, dom)
+        self.sim.setRefineActiveComponents(comps, dom)
+
+    def set_refine_inactive_components(self, domain, components):
+
+        cdef vector[int] comps
+        for component in components:
+            dom, comp = self._get_indices(domain, component)
+            comps.push_back(comp)
+
+        self.sim.setRefineInactiveComponents(comps, dom)
 
     def time(self):
         return self.sim.time()

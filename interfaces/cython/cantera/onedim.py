@@ -83,11 +83,17 @@ class FlameBase(Sim1D):
         """
         super().set_refine_criteria(self.flame, ratio, slope, curve, prune)
 
-    def set_refine_components(self, components=['T',]):
+    def set_refine_active_components(self, components=['T',]):
         """
         Set the components to do the mesh refinement
         """
-        super().set_refine_components(self.flame, components)
+        super().set_refine_active_components(self.flame, components)
+
+    def set_refine_inactive_components(self, components=['N2',]):
+        """
+        Set the components to do the mesh refinement
+        """
+        super().set_refine_inactive_components(self.flame, components)
 
     def get_refine_criteria(self):
         """

@@ -1022,7 +1022,8 @@ cdef extern from "cantera/oneD/Sim1D.h":
         vector[int]& jacobianCountStats()
         vector[int]& evalCountStats()
         vector[int]& timeStepStats()
-        void setRefineComponents(vector[int]&, int)
+        void setRefineActiveComponents(vector[int]&, int)
+        void setRefineInactiveComponents(vector[int]&, int)
 
         int domainIndex(string) except +translate_exception
         double value(size_t, size_t, size_t) except +translate_exception

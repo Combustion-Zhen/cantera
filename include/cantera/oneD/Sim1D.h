@@ -162,7 +162,7 @@ public:
                            double slope = 0.8, double curve = 0.8,
                            double prune = -0.1);
 
-    void setRefineComponents(const vector_int& comp, int dom = -1);
+    void setRefineActiveComponents(const vector_int& comp, int dom = -1);
 
     void setRefineInactiveComponents(const vector_int& comp, int dom = -1);
 
