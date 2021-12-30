@@ -155,7 +155,6 @@ public:
     double timeStep(int nsteps, double dt, double* x,
                     double* r, int loglevel);
 
-    // Zhen Lu 211013
     int timeStepIteration(double dt, double* x, double*r, int loglevel);
 
     void resetBadValues(double* x);
@@ -431,8 +430,8 @@ public:
         m_time += dt;
     }
 
-    inline size_t maxIter() const {
-        return m_maxIter;
+    inline int maxIter() const {
+        return static_cast<int>(m_maxIter);
     }
 
 protected:
@@ -477,7 +476,6 @@ protected:
     //! Maximum number of timesteps allowed per call to solve()
     int m_nsteps_max;
 
-    //! Zhen Lu for transient solution
     //! Physical time for the transient solution
     double m_time;
     //! CFL numer
