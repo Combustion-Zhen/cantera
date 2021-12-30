@@ -44,7 +44,7 @@ void Refiner::setCriteria(doublereal ratio, doublereal slope,
     m_prune = prune;
 }
 
-void Refiner::setActives(const vector_int& comp)
+void Refiner::setActiveComponents(const vector_int& comp)
 {
     for (size_t j = 0; j != m_nv; j++)
     {
@@ -53,6 +53,14 @@ void Refiner::setActives(const vector_int& comp)
     for (auto i : comp)
     {
         setActive(i, true);
+    }
+}
+
+void Refiner::setInactiveComponents(const vector_int& comp)
+{
+    for (auto i : comp)
+    {
+        setActive(i, false);
     }
 }
 

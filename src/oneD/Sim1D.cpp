@@ -815,14 +815,31 @@ void Sim1D::setRefineComponents(const vector_int& comp, int dom)
     if (dom >= 0)
     {
         Refiner& r = domain(dom).refiner();
-        r.setActives(comp);
+        r.setActiveComponents(comp);
     }
     else
     {
         for (size_t n = 0; n != nDomains(); n++)
         {
             Refiner& r = domain(n).refiner();
-            r.setActives(comp);
+            r.setActiveComponents(comp);
+        }
+    }
+}
+
+void Sim1D::setRefineInactiveComponents(const vector_int& comp, int dom)
+{
+    if (dom >= 0)
+    {
+        Refiner& r = domain(dom).refiner();
+        r.setInactiveComponents(comp);
+    }
+    else
+    {
+        for (size_t n = 0; n != nDomains(); n++)
+        {
+            Refiner& r = domain(n).refiner();
+            r.setInactiveComponents(comp);
         }
     }
 }

@@ -164,6 +164,8 @@ public:
 
     void setRefineComponents(const vector_int& comp, int dom = -1);
 
+    void setRefineInactiveComponents(const vector_int& comp, int dom = -1);
+
     /**
      * Get the grid refinement criteria. dom must be greater than
      * or equal to zero (i.e., the domain must be specified).
