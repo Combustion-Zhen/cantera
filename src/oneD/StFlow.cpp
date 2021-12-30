@@ -1705,39 +1705,18 @@ doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
 
 doublereal StFlow::dVdz(const doublereal* x, size_t j) const 
 {
-    /*
-    vector_fp s(3); 
-    s[0] = V(x,j-1);
-    s[1] = V(x,j);
-    s[2] = V(x,j+1);
-    return scalarGradient(s, u(x,j), j);
-    */
     size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
     return (V(x,jloc) - V(x,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dYdz(const doublereal* x, size_t k, size_t j) const 
 {
-    /*
-    vector_fp s(3); 
-    s[0] = Y(x,k,j-1);
-    s[1] = Y(x,k,j);
-    s[2] = Y(x,k,j+1);
-    return scalarGradient(s, u(x,j), j);
-    */
     size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
     return (Y(x,k,jloc) - Y(x,k,jloc-1))/dz(jloc-1);
 }
 
 doublereal StFlow::dTdz(const doublereal* x, size_t j) const 
 {
-    /*
-    vector_fp s(3); 
-    s[0] = T(x,j-1);
-    s[1] = T(x,j);
-    s[2] = T(x,j+1);
-    return scalarGradient(s, u(x,j), j);
-    */
     size_t jloc = (u(x,j) > 0.0 ? j : j + 1);
     return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
 }
