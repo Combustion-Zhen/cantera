@@ -689,6 +689,18 @@ int OneDim::timeStepIteration(double dt, double* x, double* r, int loglevel)
 
     advanceScalarChemistry(x, dt, firstSubstep);
 
+    if (loglevel > 0)
+    {
+        writelog("{:.3e} {:.3e} {:.3e} {:.3e} {:.3e} {:.3e}\n",
+                 m_evalTimeTransport, 
+                 m_scalarSolver->elapsedNewton(),
+                 m_scalarSolver->elapsedTimeJac(),
+                 m_scalarSolver->elapsedTimeResidual(),
+                 m_scalarSolver->elapsedTimeSolve(),
+                 m_evalTimeChemistry
+                 );
+    }
+
     // return the value of the stepsize
     return iter;
 }

@@ -139,7 +139,8 @@ MultiSolverScalar::MultiSolverScalar(OneDim& r) :
     m_resid(&r),
     m_jacAge(0), m_nJacEval(0), m_maxJacAge(5),
     m_atol(sqrt(std::numeric_limits<double>::epsilon())), m_rtol(1.0e-5),
-    m_elapsedJac(0.0), m_elapsedNewton(0.0)
+    m_elapsedJac(0.0), m_elapsedResidual(0.0), m_elapsedSolve(0.0),
+    m_elapsedNewton(0.0)
 {}
 
 void MultiSolverScalar::resize()
@@ -377,11 +378,16 @@ int MultiSolverScalar::dampStep(double* x0, double* x1, int loglevel, bool write
 
 void MultiSolverScalar::step(double* x, double* step, int loglevel)
 {
+    clock_t t0 = clock();
+
     m_resid->evalScalar(npos, x, step);
     for (size_t n = 0; n != m_resid->sizeScalar(); n++) 
     {
         step[n] = -step[n];
     }
+
+    clock_t t1 = clock();
+    m_elapsedResidual += double(t1 - t0)/CLOCKS_PER_SEC;
 
     try 
     {
@@ -413,6 +419,10 @@ void MultiSolverScalar::step(double* x, double* step, int loglevel)
         }
         throw;
     }
+
+    t0 = clock();
+    m_elapsedSolve += double(t0 - t1)/CLOCKS_PER_SEC;
+
 }
 
 double MultiSolverScalar::norm2(const vector_fp& x, const vector_fp& step) const

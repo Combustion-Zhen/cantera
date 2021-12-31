@@ -75,11 +75,24 @@ public:
         m_maxJacAge = maxJacAge;
     }
 
-    /////////// Jacobian
-
     //! Elapsed CPU time spent computing the Jacobian.
     inline double elapsedTimeJac() const {
         return m_elapsedJac;
+    }
+
+    //! Elapsed CPU time spent computing the residual
+    inline double elapsedTimeResidual() const {
+        return m_elapsedResidual;
+    }
+
+    //! Elapsed CPU time spent solving linear algebra
+    inline double elapsedTimeSolve() const {
+        return m_elapsedSolve;
+    }
+
+    //! Elapsed CPU time spent on the Newton iteration
+    inline double elapsedNewton() const {
+        return m_elapsedNewton;
     }
 
     //! Number of Jacobian evaluations.
@@ -135,6 +148,8 @@ protected:
 
     //! calculation time
     double m_elapsedJac;
+    double m_elapsedResidual;
+    double m_elapsedSolve;
     double m_elapsedNewton;
 };
 }
