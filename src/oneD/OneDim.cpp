@@ -143,6 +143,8 @@ void OneDim::resize()
 {
     m_bw = 0;
 
+    // save the statistics for the last grid
+    saveStats();
     // get m_pts
     m_pts = 0;
     for (size_t i = 0; i != nDomains(); i++)
