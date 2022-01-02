@@ -1275,9 +1275,9 @@ void StFlow::evalScalarLeftBoundary(double* x, double* rsd, double dt)
     // variables to the values for the boundary object
 
     if (doEnergy(0)) {
-        rsd[indexScalar(cOffsetScalarT,0)] = T(x,0);
+        rsd[indexScalar(cOffsetScalarT,0)] = -T(x,0);
     } else {
-        rsd[indexScalar(cOffsetScalarT,0)] = T(x,0) - T_fixed(0);
+        rsd[indexScalar(cOffsetScalarT,0)] = -T(x,0)+T_fixed(0);
     }
 
     // The default boundary condition for species is zero flux. However,
@@ -1295,9 +1295,9 @@ void StFlow::evalScalarRightBoundary(double* x, double* rsd, double dt)
     size_t j = nPoints() - 1;
 
     if (doEnergy(j)) {
-        rsd[indexScalar(cOffsetScalarT, j)] = T(x,j);
+        rsd[indexScalar(cOffsetScalarT, j)] = -T(x,j);
     } else {
-        rsd[indexScalar(cOffsetScalarT, j)] = T(x,j) - T_fixed(j);
+        rsd[indexScalar(cOffsetScalarT, j)] = -T(x,j)+T_fixed(j);
     }
 
     doublereal sum = 0.0;
@@ -1378,7 +1378,7 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
     else
     {
         // residual equations if the energy equation is disabled
-        r[indexScalar(cOffsetScalarT, j)] = T(x,j) - T_fixed(j);
+        r[indexScalar(cOffsetScalarT, j)] = -T(x,j) + T_fixed(j);
     }
 }
 

@@ -310,7 +310,7 @@ void Inlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
         // The third flow residual is for T, where it is set to T(0).  Subtract
         // the local temperature to hold the flow T to the inlet T.
         if (m_flow->doEnergy(0)) {
-            rb[cOffsetScalarT] -= m_temp;
+            rb[cOffsetScalarT] += m_temp;
         }
 
         // add the convective term to the species residual equations
@@ -327,7 +327,7 @@ void Inlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
 
         // fixed temperature
         if (m_flow->doEnergy(m_flow->nPoints() - 1)) {
-            rb[cOffsetScalarT] -= m_temp; // T
+            rb[cOffsetScalarT] += m_temp; // T
         }
 
         // add the convective term to the species residual equations
@@ -531,8 +531,20 @@ void Symm1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
         size_t nc = m_flow_right->nComponents();
         double* xb = x;
         double* rb = r;
+
+        double ratio = pow(m_flow_right->z(1)/m_flow_right->z(2), 2);
+
         if (m_flow_right->doEnergy(0)) {
-            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc]; // zero dT/dz
+            //rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc]; // zero dT/dz
+            rb[cOffsetScalarT] = -xb[c_offset_T] + xb[c_offset_T + nc]; // zero dT/dz
+        }
+        size_t kSkip = c_offset_Y + m_flow_right->leftExcessSpecies();
+        for (size_t k = c_offset_Y; k != nc; k++) {
+            if ( k != kSkip ) {
+                // zero mass fraction gradient
+                //rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
+                rb[cOffsetScalarY-c_offset_Y+k] = -xb[k] + xb[k + nc];
+            }
         }
     }
 
@@ -541,7 +553,7 @@ void Symm1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
         double* xb = x - nc;
         double* rb = r - m_flow_left->nScalars();
         if (m_flow_left->doEnergy(m_flow_left->nPoints() - 1)) {
-            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T - nc]; // zero dT/dz
+            rb[cOffsetScalarT] = -xb[c_offset_T] + xb[c_offset_T - nc]; // zero dT/dz
         }
     }
 }
@@ -657,13 +669,13 @@ void Outlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
         double* rb = r;
         if (m_flow_right->doEnergy(0)) {
             // zero T gradient
-            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc];
+            rb[cOffsetScalarT] = -xb[c_offset_T] + xb[c_offset_T + nc];
         }
         size_t kSkip = c_offset_Y + m_flow_right->leftExcessSpecies();
         for (size_t k = c_offset_Y; k != nc; k++) {
             if ( k != kSkip ) {
                 // zero mass fraction gradient
-                rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
+                rb[cOffsetScalarY-c_offset_Y+k] = -xb[k] + xb[k + nc];
             }
         }
     }
@@ -674,13 +686,13 @@ void Outlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
         double* rb = r - m_flow_left->nScalars();
         if (m_flow_left->doEnergy(m_flow_left->nPoints()-1)) {
             // zero T gradient
-            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T - nc];
+            rb[cOffsetScalarT] = -xb[c_offset_T] + xb[c_offset_T - nc];
         }
         size_t kSkip = c_offset_Y + m_flow_left->rightExcessSpecies();
         for (size_t k = c_offset_Y; k < nc; k++) {
             if ( k != kSkip ) {
                 // zero mass fraction gradient
-                rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k - nc];
+                rb[cOffsetScalarY-c_offset_Y+k] = -xb[k] + xb[k - nc];
             }
         }
     }
