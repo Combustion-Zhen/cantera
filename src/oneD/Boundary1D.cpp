@@ -531,19 +531,20 @@ void Symm1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
         size_t nc = m_flow_right->nComponents();
         double* xb = x;
         double* rb = r;
-
-        double ratio = pow(m_flow_right->z(1)/m_flow_right->z(2), 2);
-
+        //double ratio = pow(m_flow_right->z(1)/m_flow_right->z(2), 2);
         if (m_flow_right->doEnergy(0)) {
-            //rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc]; // zero dT/dz
-            rb[cOffsetScalarT] = -xb[c_offset_T] + xb[c_offset_T + nc]; // zero dT/dz
+            // zero dT/dz
+            rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc];
+            //double value = (xb[c_offset_T+nc] - xb[c_offset_T+2*nc]*ratio)/(1.0-ratio);
+            //rb[cOffsetScalarT] = -xb[c_offset_T] + value; // zero dT/dz
         }
         size_t kSkip = c_offset_Y + m_flow_right->leftExcessSpecies();
         for (size_t k = c_offset_Y; k != nc; k++) {
             if ( k != kSkip ) {
                 // zero mass fraction gradient
-                //rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
-                rb[cOffsetScalarY-c_offset_Y+k] = -xb[k] + xb[k + nc];
+                rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
+                //double value = (xb[k+nc] - xb[k+2*nc]*ratio)/(1.0-ratio);
+                //rb[cOffsetScalarY-c_offset_Y+k] = -xb[k] + value;
             }
         }
     }
