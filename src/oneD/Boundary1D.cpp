@@ -609,8 +609,11 @@ void Outlet1D::eval(size_t jg, double* xg, double* rg, integer* diagg,
         if (m_flow_right->doEnergy(0)) {
             rb[c_offset_T] = xb[c_offset_T] - xb[c_offset_T + nc];
         }
+        size_t kSkip = c_offset_Y + m_flow_right->leftExcessSpecies();
         for (size_t k = c_offset_Y; k < nc; k++) {
-            rb[k] = xb[k] - xb[k + nc];
+            if (k != kSkip) {
+                rb[k] = xb[k] - xb[k + nc];
+            }
         }
     }
 
@@ -656,9 +659,12 @@ void Outlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
             // zero T gradient
             rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T + nc];
         }
+        size_t kSkip = c_offset_Y + m_flow_right->leftExcessSpecies();
         for (size_t k = c_offset_Y; k != nc; k++) {
-            // zero mass fraction gradient
-            rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
+            if ( k != kSkip ) {
+                // zero mass fraction gradient
+                rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k + nc];
+            }
         }
     }
 
@@ -670,9 +676,12 @@ void Outlet1D::evalScalar(size_t jg, double* xg, double* rg, double dt)
             // zero T gradient
             rb[cOffsetScalarT] = xb[c_offset_T] - xb[c_offset_T - nc];
         }
+        size_t kSkip = c_offset_Y + m_flow_left->rightExcessSpecies();
         for (size_t k = c_offset_Y; k < nc; k++) {
-            // zero mass fraction gradient
-            rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k - nc];
+            if ( k != kSkip ) {
+                // zero mass fraction gradient
+                rb[cOffsetScalarY-c_offset_Y+k] = xb[k] - xb[k - nc];
+            }
         }
     }
 }
