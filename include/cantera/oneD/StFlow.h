@@ -420,18 +420,7 @@ protected:
 
     doublereal dTdz(const doublereal* x, size_t j) const;
 
-    double scalarGradient(
-        const vector_fp& s, const double v, size_t j) const;
-
-    double scalarGradientUpwind(
-        const vector_fp& s, const double v, size_t j) const;
-
-    double scalarGradientLinear(
-        const vector_fp& s, const double v, size_t j) const;
-
-    double scalarGradientGamma(
-        const vector_fp& s, const double v, size_t j) const;
-    //! @}
+   //! @}
 
     double ignEnergy(size_t j) const;
 

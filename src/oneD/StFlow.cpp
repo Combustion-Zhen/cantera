@@ -1709,51 +1709,6 @@ doublereal StFlow::dTdz(const doublereal* x, size_t j) const
     return (T(x,jloc) - T(x,jloc-1))/dz(jloc-1);
 }
 
-double StFlow::scalarGradient(const vector_fp& s, const double v, size_t j) const
-{
-    switch (m_convectiveScheme)
-    {
-    case 2:
-        return scalarGradientGamma(s, v, j);
-    case 1:
-        return scalarGradientLinear(s, v, j);
-    default:
-        return scalarGradientUpwind(s, v, j);
-    }
-}
-
-double StFlow::scalarGradientUpwind(const vector_fp& s, const double v, size_t j) const
-{
-    int k = (v > 0.0 ? 0 : 1);
-    return (s[k+1] - s[k])/dz(j+k-1);
-}
-
-double StFlow::scalarGradientLinear(const vector_fp& s, const double v, size_t j) const
-{
-    return (s[2] - s[0])/d2z(j);
-}
-
-double StFlow::scalarGradientGamma(const vector_fp& s, const double v, size_t j) const
-{
-    double grad_UD = scalarGradientUpwind(s, v, j);
-    double grad_CD = scalarGradientLinear(s, v, j);
-
-    double phi = grad_UD / (2*grad_CD);
-
-    if (phi <= 0.0 || phi >= 1.0) 
-    {
-        return grad_UD;
-    } 
-    else if ( phi <= m_gammaSchemeBeta ) 
-    {
-        return phi/m_gammaSchemeBeta*grad_CD + (1-phi/m_gammaSchemeBeta)*grad_UD;
-    } 
-    else 
-    {
-        return grad_CD;
-    }
-}
-
 double StFlow::ignEnergy(size_t j) const
 {
 
