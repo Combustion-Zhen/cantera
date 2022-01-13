@@ -1301,12 +1301,11 @@ void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
     size_t kExcess = distance(Yc, max_element(Yc, Yc + m_nsp));
     double sum = 0.0;
 
-    for (size_t k = 0; k < m_nsp; k++) 
-    {
+    for (size_t k = 0; k < m_nsp; k++) {
+
         r[indexScalar(cOffsetScalarY+k, j)] = -divConvFluxSpecies(x,k,j);
         r[indexScalar(cOffsetScalarY+k, j)] -= divDiffFlux(k,j);
-        if ( m_do_reaction )
-        {
+        if ( m_do_reaction ) {
             r[indexScalar(cOffsetScalarY+k, j)] += m_wt[k] * wdot(k,j);
         }
         r[indexScalar(cOffsetScalarY+k, j)] *= dt;
@@ -1320,8 +1319,7 @@ void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
 
 void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
 {
-    if (m_do_energy[j])
-    {
+    if (m_do_energy[j]) {
         setGas(x,j);
 
         // heat release term
@@ -1352,11 +1350,13 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         r[indexScalar(cOffsetScalarT, j)] = divHeatFlux(x,j);
         r[indexScalar(cOffsetScalarT, j)] -= sum_flux;
         // heat release
-        if ( m_do_reaction )
+        if ( m_do_reaction ) {
             r[indexScalar(cOffsetScalarT, j)] -= hrr;
+        }
         // ignition
-        if ( m_do_ignition ) 
+        if ( m_do_ignition ) {
             r[indexScalar(cOffsetScalarT, j)] += ignEnergy(j);
+        }
         r[indexScalar(cOffsetScalarT, j)] -= m_qdotRadiation[j];
         r[indexScalar(cOffsetScalarT, j)] /= m_cp[j];
         //r[indexScalar(cOffsetScalarT, j)] -= divConvFluxTemperature(x,j);
@@ -1365,9 +1365,7 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         //r[indexScalar(cOffsetScalarT, j)] -= ( density(j)*T(x,j) 
         //                                      -density_prev(j)*T_prev(j));
         r[indexScalar(cOffsetScalarT, j)] -= (T(x,j)-T_prev(j));
-    }
-    else
-    {
+    } else {
         // residual equations if the energy equation is disabled
         r[indexScalar(cOffsetScalarT, j)] = -T(x,j) + T_fixed(j);
     }
@@ -1381,24 +1379,18 @@ void StFlow::evalScalarResidual(double* x, double* rsd,
     // grid points
     //----------------------------------------------------
 
-    for (size_t j = jmin; j <= jmax; j++) 
-    {
-        if (j == 0) 
-        {
+    for (size_t j = jmin; j <= jmax; j++) {
+        if (j == 0) {
             //----------------------------------------------
             //         left boundary
             //----------------------------------------------
             evalScalarLeftBoundary(x, rsd, dt);
-        } 
-        else if (j == nPoints()-1) 
-        {
+        } else if (j == nPoints()-1) {
             //----------------------------------------------
             //         right boundary
             //----------------------------------------------
             evalScalarRightBoundary(x, rsd, dt);
-        } 
-        else 
-        {
+        } else {
             //----------------------------------------------
             //         interior points
             //----------------------------------------------
@@ -1447,14 +1439,12 @@ double StFlow::evalMaxCFL(double* xg, double dt)
     updateTransport(x, jmin, jmax);
     updateDiffFluxes(x, jmin, jmax);
 
-    for ( size_t j = jmin; j != jmax; j++)
-    {
+    for ( size_t j = jmin; j != jmax; j++) {
         // convection
         double convCFL = dt*abs(u(x,j))/dz(j);
         maxCFL = std::max(maxCFL, convCFL);
         // diffusion of species
-        for ( size_t k = 0; k != m_nsp; k++)
-        {
+        for ( size_t k = 0; k != m_nsp; k++) {
             // approximation
             setGasAtMidpoint(x,j);
             double rho = m_thermo->density();
