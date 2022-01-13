@@ -1071,19 +1071,6 @@ void StFlow::evalContinuity(size_t j, double* x, double* rsd, int* diag, double 
             }
         } 
     } 
-    else 
-    {
-        rsd[index(c_offset_U,j)] 
-        = 
-        -
-        (
-            rho_u(x,j+1) * pow(z(j+1), m)
-            -
-            rho_u(x,j) * pow(z(j), m)
-        ) / dz(j) / pow(z(j), m)
-        -
-        rdt * (m_rho[j] - m_rho_last[j]);
-    }
 }
 
 void StFlow::evalRadialMomentum(size_t j, double* x, double* rsd, int* diag, double rdt)
@@ -1171,7 +1158,7 @@ void StFlow::evalEnergy(size_t j, double* x, double* rsd, int* diag, double rdt)
 
         // convection and diffusion
         rsd[index(c_offset_T, j)] = - m_cp[j]*rho_u(x,j)*dtdzj
-                                    - divHeatFlux(x,j) - sum_flux;
+                                    + divHeatFlux(x,j) - sum_flux;
         // heat release
         if ( m_do_reaction )
         {
@@ -1316,15 +1303,15 @@ void StFlow::evalScalarSpecies(size_t j, double *x, double* r, double dt)
 
     for (size_t k = 0; k < m_nsp; k++) 
     {
-        r[indexScalar(cOffsetScalarY+k, j)] = - rho_u(x,j) * dYdz(x,k,j)
-                                              - divDiffFlux(k,j);
+        r[indexScalar(cOffsetScalarY+k, j)] = -divConvFluxSpecies(x,k,j);
+        r[indexScalar(cOffsetScalarY+k, j)] -= divDiffFlux(k,j);
         if ( m_do_reaction )
         {
             r[indexScalar(cOffsetScalarY+k, j)] += m_wt[k] * wdot(k,j);
         }
-        r[indexScalar(cOffsetScalarY+k, j)] /= m_rho[j];
         r[indexScalar(cOffsetScalarY+k, j)] *= dt;
-        r[indexScalar(cOffsetScalarY+k, j)] -= (Y(x,k,j) - Y_prev(k,j));
+        r[indexScalar(cOffsetScalarY+k, j)] -= (density(j)*Y(x,k,j) - 
+                                                density_prev(j)*Y_prev(k,j));
 
         sum += Y(x,k,j);
     }
@@ -1358,11 +1345,11 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         hrr *= GasConstant * T(x,j);
 
         double dtdzj = dTdz(x,j);
-        sum_flux *= GasConstant * dtdzj;
+        //sum_flux *= GasConstant * dtdzj;
+        sum_flux *= GasConstant * (T(x,j+1)-T(x,j-1))/d2z(j) * 2.0;
 
         // convection and diffusion
-        r[indexScalar(cOffsetScalarT, j)] = - m_cp[j]*rho_u(x,j)*dtdzj;
-        r[indexScalar(cOffsetScalarT, j)] -= divHeatFlux(x, j);
+        r[indexScalar(cOffsetScalarT, j)] = divHeatFlux(x,j);
         r[indexScalar(cOffsetScalarT, j)] -= sum_flux;
         // heat release
         if ( m_do_reaction )
@@ -1371,9 +1358,13 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         if ( m_do_ignition ) 
             r[indexScalar(cOffsetScalarT, j)] += ignEnergy(j);
         r[indexScalar(cOffsetScalarT, j)] -= m_qdotRadiation[j];
-        r[indexScalar(cOffsetScalarT, j)] /= (m_rho[j]*m_cp[j]);
+        r[indexScalar(cOffsetScalarT, j)] /= m_cp[j];
+        //r[indexScalar(cOffsetScalarT, j)] -= divConvFluxTemperature(x,j);
+        r[indexScalar(cOffsetScalarT, j)] -= rho_u(x,j)*dtdzj;
         r[indexScalar(cOffsetScalarT, j)] *= dt;
-        r[indexScalar(cOffsetScalarT, j)] -= (T(x,j) - T_prev(j));
+        //r[indexScalar(cOffsetScalarT, j)] -= ( density(j)*T(x,j) 
+        //                                      -density_prev(j)*T_prev(j));
+        r[indexScalar(cOffsetScalarT, j)] -= (T(x,j)-T_prev(j));
     }
     else
     {
@@ -1673,6 +1664,105 @@ doublereal StFlow::shear(const doublereal* x, size_t j) const
     return 2.0 * (stress_r - stress_l) / d2z(j);
 }
 
+double StFlow::reconstructFluxGamma(double fluxC, double fluxD, double fluxU) const
+{
+    double flux = 0.0;
+    double phi = (fluxC-fluxU)/(fluxD-fluxU);
+    if ( phi <= 0.0 || phi >= 1.0 ) {
+        flux = fluxC;
+    } else if ( phi <= m_gammaSchemeBeta ) {
+        double g = phi / m_gammaSchemeBeta;
+        flux = g*0.5*(fluxC+fluxD) + (1-g)*fluxC;
+    } else {
+        flux = 0.5 * (fluxC + fluxD);
+    }
+    return flux;
+}
+
+double StFlow::reconstructFlux(double fluxC, double fluxD, double fluxU) const
+{
+    double flux = 0.0;
+
+    switch (m_convectiveScheme)
+    {
+    case 1:
+        // central differencing
+        flux = 0.5 * (fluxC + fluxD);
+        break;
+    case 2:
+        // gamma scheme
+        flux = reconstructFluxGamma(fluxC, fluxD, fluxU);
+        break;
+    //case 3:
+    //    // TVD schemes
+    //    break;
+    default:
+        // upwind
+        flux = fluxC;
+        break;
+    }
+
+    return flux;
+}
+
+double StFlow::reconstructFluxSpecies(const double* x, size_t k, size_t j) const
+{
+    // interpolate velocity
+    double uf = 0.5*(u(x,j-1)+u(x,j));
+
+    double fluxC=0.0, fluxU=0.0, fluxD=0.0;
+    if ( uf >= 0.0 ) {
+        fluxC = rho_u(x,j-1) * Y(x,k,j-1);
+        fluxD = rho_u(x,j) * Y(x,k,j);
+        fluxU = (j==1) ? fluxC : rho_u(x,j-2) * Y(x,k,j-2);
+    } else {
+        fluxC = rho_u(x,j) * Y(x,k,j);
+        fluxD = rho_u(x,j-1) * Y(x,k,j-1);
+        fluxU = (j==nPoints()-1) ? fluxC : rho_u(x,j+1) * Y(x,k,j+1);
+    }
+
+    return reconstructFlux(fluxC, fluxD, fluxU);
+}
+
+double StFlow::divConvFluxSpecies(const double* x, size_t k, size_t j) const
+{
+    int m = coordinatesType();
+    double fluxL = reconstructFluxSpecies(x, k, j);
+    double fluxR = reconstructFluxSpecies(x, k, j+1);
+    double div = ( fluxR*pow(zm(j)/z(j),m)
+                  -fluxL*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
+    return div;
+}
+
+double StFlow::reconstructFluxTemperature(const double* x, size_t j) const
+{
+    // interpolate velocity
+    double uf = 0.5*(u(x,j-1)+u(x,j));
+
+    double fluxC=0.0, fluxU=0.0, fluxD=0.0;
+    if ( uf >= 0.0 ) {
+        fluxC = rho_u(x,j-1) * T(x,j-1);
+        fluxD = rho_u(x,j) * T(x,j);
+        fluxU = (j==1) ? fluxC : rho_u(x,j-2) * T(x,j-2);
+    } else {
+        fluxC = rho_u(x,j) * T(x,j);
+        fluxD = rho_u(x,j-1) * T(x,j-1);
+        fluxU = (j==nPoints()-1) ? fluxC : rho_u(x,j+1) * T(x,j+1);
+    }
+
+    return reconstructFlux(fluxC, fluxD, fluxU);
+}
+
+double StFlow::divConvFluxTemperature(const double* x, size_t j) const
+{
+    int m = coordinatesType();
+    double fluxL = reconstructFluxTemperature(x, j);
+    double fluxR = reconstructFluxTemperature(x, j+1);
+    double div = ( fluxR*pow(zm(j)/z(j),m)
+                  -fluxL*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
+    return div;
+}
+
 doublereal StFlow::divDiffFlux(size_t k, size_t j) const
 {
     int m = coordinatesType();
@@ -1688,7 +1778,7 @@ doublereal StFlow::divHeatFlux(const doublereal* x, size_t j) const
     int m = coordinatesType();
     double div = ( flux_r*pow(zm(j)/z(j),m)
                   -flux_l*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
-    return - div;
+    return div;
 }
 
 doublereal StFlow::dVdz(const doublereal* x, size_t j) const 

@@ -405,6 +405,22 @@ protected:
     //! Calculate divergence of the stress
     doublereal shear(const doublereal* x, size_t j) const;
 
+    double reconstructFluxGamma(double fluxC, double fluxD, double fluxU) const;
+
+    double reconstructFlux(double fluxC, double fluxD, double fluxU) const;
+
+    //! reconstruct the species flux at the j-1/2
+    double reconstructFluxSpecies(const double* x, size_t k, size_t j) const;
+
+    //! Calculate divergence of the species convective flux
+    double divConvFluxSpecies(const double* x, size_t k, size_t j) const;
+
+    double reconstructFluxTemperature(const double* x, size_t j) const;
+
+    //! Calculate divergence of the temperature convective flux
+    //! also return the temperature gradient
+    double divConvFluxTemperature(const double* x, size_t j) const;
+
     //! Calculate divergence of the diffusive flux
     doublereal divDiffFlux(size_t k, size_t j) const;
 
