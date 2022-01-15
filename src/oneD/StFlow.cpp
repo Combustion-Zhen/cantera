@@ -1358,9 +1358,10 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
             r[indexScalar(cOffsetScalarT, j)] += ignEnergy(j);
         }
         r[indexScalar(cOffsetScalarT, j)] -= m_qdotRadiation[j];
-        r[indexScalar(cOffsetScalarT, j)] /= m_cp[j];
+        r[indexScalar(cOffsetScalarT, j)] /= (m_rho[j]*m_cp[j]);
+        //r[indexScalar(cOffsetScalarT, j)] /= m_cp[j];
         //r[indexScalar(cOffsetScalarT, j)] -= divConvFluxTemperature(x,j);
-        r[indexScalar(cOffsetScalarT, j)] -= rho_u(x,j)*dtdzj;
+        r[indexScalar(cOffsetScalarT, j)] -= u(x,j)*dtdzj;
         r[indexScalar(cOffsetScalarT, j)] *= dt;
         //r[indexScalar(cOffsetScalarT, j)] -= ( density(j)*T(x,j) 
         //                                      -density_prev(j)*T_prev(j));
