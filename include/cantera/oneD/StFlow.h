@@ -65,7 +65,6 @@ public:
     //! Returns true if the specified component is an active part of the solver state
     virtual bool componentActive(size_t n) const;
 
-    // Zhen Lu 210917
     //! Return the type of flow domain being represented.
     //! @see setFreeFlow setAxisymmetricFlow
     virtual std::string flowType() const;
@@ -126,6 +125,12 @@ public:
     //! Set the gas state to be consistent with the solution at the midpoint
     //! between j and j + 1.
     void setGasAtMidpoint(const doublereal* x, size_t j);
+
+    void setGasEnthalpy(const double* x, size_t j);
+
+    double getEnthalpy(size_t jg, double* xg);
+
+    double getTemperature(size_t jg, double* xg);
 
     //! Set the splitting, turn-off reaction
     virtual void setSplit() {
@@ -288,6 +293,14 @@ public:
         return m_rho_last[j];
     }
 
+    inline double enthalpy(size_t j) const {
+        return m_enthalpy[j];
+    }
+
+    inline double enthalpy_prev(size_t j) const {
+        return m_enthalpy_last[j];
+    }
+
     inline virtual bool fixed_mdot() const {
         return (domainType() != cFreeFlow);
     }
@@ -368,6 +381,9 @@ protected:
     //! Evaluate temperature residual at interior points
     virtual void evalScalarTemperature(size_t j, double* x, double* r, double dt);
 
+    //! Evaluate enthalpy residual at interior points
+    virtual void evalScalarEnthalpy(size_t j, double* x, double* r, double dt);
+
     //! Evaluate scalar residuals
     virtual void evalScalarResidual(double* x, double* rsd,
                                     double dt, size_t jmin, size_t jmax);
@@ -415,11 +431,15 @@ protected:
     //! Calculate divergence of the species convective flux
     double divConvFluxSpecies(const double* x, size_t k, size_t j) const;
 
-    double reconstructFluxTemperature(const double* x, size_t j) const;
+    double reconstructConvFluxEnthalpy(const double* x, size_t j) const;
 
     //! Calculate divergence of the temperature convective flux
     //! also return the temperature gradient
-    double divConvFluxTemperature(const double* x, size_t j) const;
+    double divConvFluxEnthalpy(const double* x, size_t j) const;
+
+    double reconstructDiffFluxEnthalpy(const double* x, size_t j);
+
+    double divDiffFluxEnthalpy(const double* x, size_t j);
 
     //! Calculate divergence of the diffusive flux
     doublereal divDiffFlux(size_t k, size_t j) const;
@@ -511,10 +531,9 @@ protected:
     doublereal m_press; // pressure
 
     // mixture thermo properties
-    vector_fp m_rho;
+    vector_fp m_rho, m_rho_last;
     vector_fp m_wtm;
-
-    vector_fp m_rho_last;
+    vector_fp m_enthalpy, m_enthalpy_last;
 
     // species thermo properties
     vector_fp m_wt;

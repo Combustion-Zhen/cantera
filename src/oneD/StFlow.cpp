@@ -91,7 +91,8 @@ StFlow::StFlow(ThermoPhase* ph, size_t nsp, size_t points) :
         setBounds(c_offset_Y+k, -1.0e-7, 1.0e5);
     }
 
-    setBoundsScalar(0, 200.0, 2*m_thermo->maxTemp()); // temperature bounds
+    //setBoundsScalar(0, 200.0, 2*m_thermo->maxTemp()); // temperature bounds
+    setBoundsScalar(0, -1.0e100, 1.0e100);
     for (size_t k = 0; k < m_nsp; k++) {
         setBoundsScalar(cOffsetScalarY+k, -1.0e-7, 1.0e5);
     }
@@ -124,6 +125,8 @@ void StFlow::resize(size_t ncomponents, size_t points)
     m_tcon.resize(m_points, 0.0);
     // Zhen Lu 211005
     m_rho_last.resize(m_points, 0.0);
+    m_enthalpy.resize(m_points, 0.0);
+    m_enthalpy_last.resize(m_points, 0.0);
 
     m_diff.resize(m_nsp*m_points);
     if (m_do_multicomponent) {
@@ -357,6 +360,7 @@ void StFlow::initTimeInteg(doublereal dt, doublereal* x0)
     Domain1D::initTimeInteg(dt, x0);
     updateThermo(x0+loc(), 0, m_points-1);
     std::copy(m_rho.begin(), m_rho.end(), m_rho_last.begin());
+    std::copy(m_enthalpy.begin(), m_enthalpy.end(), m_enthalpy_last.begin());
 }
 
 void StFlow::showSolution(const doublereal* x)
@@ -819,6 +823,31 @@ void StFlow::setGasAtMidpoint(const doublereal* x, size_t j)
     }
     m_thermo->setMassFractions_NoNorm(m_ybar.data());
     m_thermo->setPressure(m_press);
+}
+
+void StFlow::setGasEnthalpy(const double* x, size_t j)
+{
+    //m_thermo->setTemperature(300.0);
+    const double* yy = x + m_nc*j + cOffsetScalarY;
+    double h = x[m_nc*j];
+    m_thermo->setMassFractions_NoNorm(yy);
+    m_thermo->setState_HP(h, m_press);
+}
+
+double StFlow::getEnthalpy(size_t jg, double* xg)
+{
+    double* x = xg + loc();
+    size_t j = jg - firstPoint();
+    setGas(x, j);
+    return m_thermo->enthalpy_mass();
+}
+
+double StFlow::getTemperature(size_t jg, double* xg)
+{
+    double* x = xg + locScalar();
+    size_t j = jg - firstPoint();
+    setGasEnthalpy(x, j);
+    return m_thermo->temperature();
 }
 
 void StFlow::advanceChemistry(double* xg, double dt)
@@ -1359,17 +1388,27 @@ void StFlow::evalScalarTemperature(size_t j, double *x, double* r, double dt)
         }
         r[indexScalar(cOffsetScalarT, j)] -= m_qdotRadiation[j];
         r[indexScalar(cOffsetScalarT, j)] /= (m_rho[j]*m_cp[j]);
-        //r[indexScalar(cOffsetScalarT, j)] /= m_cp[j];
-        //r[indexScalar(cOffsetScalarT, j)] -= divConvFluxTemperature(x,j);
         r[indexScalar(cOffsetScalarT, j)] -= u(x,j)*dtdzj;
         r[indexScalar(cOffsetScalarT, j)] *= dt;
-        //r[indexScalar(cOffsetScalarT, j)] -= ( density(j)*T(x,j) 
-        //                                      -density_prev(j)*T_prev(j));
         r[indexScalar(cOffsetScalarT, j)] -= (T(x,j)-T_prev(j));
     } else {
         // residual equations if the energy equation is disabled
         r[indexScalar(cOffsetScalarT, j)] = -T(x,j) + T_fixed(j);
     }
+}
+
+void StFlow::evalScalarEnthalpy(size_t j, double* x, double* r, double dt)
+{
+    r[indexScalar(cOffsetScalarT, j)] = divHeatFlux(x,j);
+    r[indexScalar(cOffsetScalarT, j)] -= divConvFluxEnthalpy(x,j);
+    r[indexScalar(cOffsetScalarT, j)] -= divDiffFluxEnthalpy(x,j);
+    // ignition
+    if ( m_do_ignition ) {
+        r[indexScalar(cOffsetScalarT, j)] += ignEnergy(j);
+    }
+    r[indexScalar(cOffsetScalarT, j)] *= dt;
+    r[indexScalar(cOffsetScalarT, j)] -= ( density(j) * enthalpy(j) 
+                                          -density_prev(j) * enthalpy_prev(j) );
 }
 
 void StFlow::evalScalarResidual(double* x, double* rsd,
@@ -1397,7 +1436,8 @@ void StFlow::evalScalarResidual(double* x, double* rsd,
             //----------------------------------------------
             evalScalarSpecies(j, x, rsd, dt);
 
-            evalScalarTemperature(j, x, rsd, dt);
+            //evalScalarTemperature(j, x, rsd, dt);
+            evalScalarEnthalpy(j, x, rsd, dt);
         }
     }
 }
@@ -1493,6 +1533,7 @@ void StFlow::updateThermo(const doublereal* x, size_t j0, size_t j1) {
         m_rho[j] = m_thermo->density();
         m_wtm[j] = m_thermo->meanMolecularWeight();
         m_cp[j] = m_thermo->cp_mass();
+        m_enthalpy[j] = m_thermo->enthalpy_mass();
     }
 }
 
@@ -1725,30 +1766,57 @@ double StFlow::divConvFluxSpecies(const double* x, size_t k, size_t j) const
     return div;
 }
 
-double StFlow::reconstructFluxTemperature(const double* x, size_t j) const
+double StFlow::reconstructConvFluxEnthalpy(const double* x, size_t j) const
 {
     // interpolate velocity
     double uf = 0.5*(u(x,j-1)+u(x,j));
 
     double fluxC=0.0, fluxU=0.0, fluxD=0.0;
     if ( uf >= 0.0 ) {
-        fluxC = rho_u(x,j-1) * T(x,j-1);
-        fluxD = rho_u(x,j) * T(x,j);
-        fluxU = (j==1) ? fluxC : rho_u(x,j-2) * T(x,j-2);
+        fluxC = rho_u(x,j-1) * enthalpy(j-1);
+        fluxD = rho_u(x,j) * enthalpy(j);
+        fluxU = (j==1) ? fluxC : rho_u(x,j-2) * enthalpy(j-2);
     } else {
-        fluxC = rho_u(x,j) * T(x,j);
-        fluxD = rho_u(x,j-1) * T(x,j-1);
-        fluxU = (j==nPoints()-1) ? fluxC : rho_u(x,j+1) * T(x,j+1);
+        fluxC = rho_u(x,j) * enthalpy(j);
+        fluxD = rho_u(x,j-1) * enthalpy(j-1);
+        fluxU = (j==nPoints()-1) ? fluxC : rho_u(x,j+1) * enthalpy(j+1);
     }
 
     return reconstructFlux(fluxC, fluxD, fluxU);
 }
 
-double StFlow::divConvFluxTemperature(const double* x, size_t j) const
+double StFlow::divConvFluxEnthalpy(const double* x, size_t j) const
 {
     int m = coordinatesType();
-    double fluxL = reconstructFluxTemperature(x, j);
-    double fluxR = reconstructFluxTemperature(x, j+1);
+    double fluxL = reconstructConvFluxEnthalpy(x, j);
+    double fluxR = reconstructConvFluxEnthalpy(x, j+1);
+    double div = ( fluxR*pow(zm(j)/z(j),m)
+                  -fluxL*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
+    return div;
+}
+
+double StFlow::reconstructDiffFluxEnthalpy(const double* x, size_t j)
+{
+    double flux = 0.0;
+
+    setGasAtMidpoint(x, j);
+    const vector_fp& h_RT = m_thermo->enthalpy_RT_ref();
+    double Tmid = m_thermo->temperature();
+
+    for (size_t k = 0; k < m_nsp; k++) {
+        flux += m_flux(k,j) * h_RT[k]; 
+    }
+
+    flux *= GasConstant * Tmid;
+
+    return flux;
+}
+
+double StFlow::divDiffFluxEnthalpy(const double* x, size_t j)
+{
+    int m = coordinatesType();
+    double fluxL = reconstructDiffFluxEnthalpy(x, j-1);
+    double fluxR = reconstructDiffFluxEnthalpy(x, j);
     double div = ( fluxR*pow(zm(j)/z(j),m)
                   -fluxL*pow(zm(j-1)/z(j),m) )/d2z(j)*2.0;
     return div;

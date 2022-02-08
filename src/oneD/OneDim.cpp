@@ -378,16 +378,32 @@ void OneDim::evalContinuity(double* x, double* r,
         rdt = m_rdt;
 
     // iterate over the bulk domains first
-    for (const auto& domain : m_bulk) 
-    {
+    for (const auto& domain : m_bulk) {
         domain->evalContinuityResidualJacobian(x, r, dl, d, du, rdt);
     }
 
     // then over the connector domains
-    for (const auto& domain : m_connect) 
-    {
+    for (const auto& domain : m_connect) {
         domain->evalContinuityResidualJacobian(x, r, dl, d, du, rdt);
     }
+}
+
+double OneDim::getEnthalpy(size_t j, double* x)
+{
+    double h = 0.0;
+    for (const auto& d : m_bulk) {
+        h = d->getEnthalpy(j, x);
+    }
+    return h;
+}
+
+double OneDim::getTemperature(size_t j, double* x)
+{
+    double T = 0.0;
+    for (const auto& d : m_bulk) {
+        T = d->getTemperature(j, x);
+    }
+    return T;
 }
 
 double OneDim::evalMaxCFL(double* x, double dt)

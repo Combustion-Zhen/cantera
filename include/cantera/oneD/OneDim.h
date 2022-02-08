@@ -114,6 +114,10 @@ public:
                         double* dl, double* d, double* du,
                         double rdt=-1.0);
     
+    double getEnthalpy(size_t j, double* x);
+
+    double getTemperature(size_t j, double* x);
+
     double evalMaxCFL(double* x, double dt);
 
     double evalTimeStep(double* x, double& dt, double t);

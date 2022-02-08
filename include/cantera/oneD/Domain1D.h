@@ -212,6 +212,14 @@ public:
         throw NotImplementedError("Domain1D::evalScalar");
     }
 
+    virtual double getEnthalpy(size_t jg, double* xg) {
+        throw NotImplementedError("Domain1D::getEnthalpy");
+    }
+
+    virtual double getTemperature(size_t jg, double* xg) {
+        throw NotImplementedError("Domain1D::getTemperature");
+    }
+
     virtual double evalMaxCFL(double* x, double dt) {
         return 0.0;
     }

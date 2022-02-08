@@ -239,20 +239,20 @@ void MultiSolverScalar::evalJac(double* x)
     bfill(0.0);
     incrementJacEval();
 
+    convertFullToScalar(x, m_step0.data());
+    copy(m_step0.begin(), m_step0.end(), m_scalar0.begin());
     // evaluate the unperturbed residual
     m_resid->evalScalar(npos, x, m_step0.data(), 0);
 
     // perturb the full solution vector to obtain the Jacobian of scalars
-    for (size_t j = 0; j != m_resid->points(); j++) 
-    {
+    for (size_t j = 0; j != m_resid->points(); j++) {
         // the number of scalars
         size_t nv = m_resid->nVarScalar(j);
         // location of the first variable in scalar and full solution vector for point j
         size_t jFull = m_resid->loc(j);
         size_t jScalar = m_resid->locScalar(j);
         // iterate over scalars
-        for (size_t n = 0; n < nv; n++) 
-        {
+        for (size_t n = 0; n < nv; n++) {
             // location of the scalar
             size_t iScalar = jScalar + n;
             // location of the scalar in the full solution vector
@@ -265,21 +265,22 @@ void MultiSolverScalar::evalJac(double* x)
             double rdx = 1.0/dx;
             x[iFull] = tmp + dx;
 
+            // inefficient
+            convertFullToScalar(x, m_step1.data());
+            if ( offset == c_offset_T ) {
+                rdx = 1.0/abs(m_step1[iScalar] - m_scalar0[iScalar]);
+            }
             // calculate perturbed residual
             m_resid->evalScalar(j, x, m_step1.data(), 0);
 
             // compute nth column of Jacobian
-            for (size_t i = j - 1; i != j+2; i++) 
-            {
-                if (i != npos && i < m_resid->points() ) 
-                {
+            for (size_t i = j - 1; i != j+2; i++) {
+                if (i != npos && i < m_resid->points() ) {
                     size_t mv = m_resid->nVarScalar(i);
                     size_t iloc = m_resid->locScalar(i);
-                    for (size_t m = 0; m < mv; m++) 
-                    {
+                    for (size_t m = 0; m < mv; m++) {
                         value(iloc+m,iScalar) = (m_step1[iloc+m]-m_step0[iloc+m])*rdx;
                     }
-
                 }
             }
 
@@ -297,8 +298,7 @@ int MultiSolverScalar::dampStep(double* x0, double* x1, int loglevel, bool write
     double s0, s1;
 
     // write header
-    if (loglevel > 0 && writeTitle) 
-    {
+    if (loglevel > 0 && writeTitle) {
         writelog("\n\nDamped Newton iteration:\n");
         writeline('-', 65, false);
 
@@ -307,7 +307,8 @@ int MultiSolverScalar::dampStep(double* x0, double* x1, int loglevel, bool write
         writeline('-', 65);
     }
 
-    copyFullToScalar(x0, m_scalar0.data());
+    //copyFullToScalar(x0, m_scalar0.data());
+    convertFullToScalar(x0, m_scalar0.data());
 
     // compute the undamped Newton step
     step(x0, m_step0.data(), loglevel-1);
@@ -321,8 +322,7 @@ int MultiSolverScalar::dampStep(double* x0, double* x1, int loglevel, bool write
     // if fbound is very small, then x0 is already close to the boundary and
     // step0 points out of the allowed domain. In this case, the Newton
     // algorithm fails, so return an error condition.
-    if (fbound < 1.e-10)
-    {
+    if (fbound < 1.e-10) {
         debuglog("\nAt limits.\n", loglevel);
         return -3;
     }
@@ -341,7 +341,8 @@ int MultiSolverScalar::dampStep(double* x0, double* x1, int loglevel, bool write
         for (size_t j = 0; j < m_resid->sizeScalar(); j++) {
             m_scalar1[j] = m_scalar0[j] + ff*m_step0[j];
         }
-        copyScalarToFull(m_scalar1.data(), x1);
+        //copyScalarToFull(m_scalar1.data(), x1);
+        convertScalarToFull(m_scalar1.data(), x1);
 
         // compute the next undamped step that would result if x1 is accepted
         step(x1, m_step1.data(), loglevel-1);
@@ -350,8 +351,7 @@ int MultiSolverScalar::dampStep(double* x0, double* x1, int loglevel, bool write
         s1 = norm2(m_scalar1, m_step1);
 
         // write log information
-        if (loglevel > 0)
-        {
+        if (loglevel > 0) {
             writelog("\n{:d}  {:9.5f}   {:9.5f}   {:9.5f}   {:9.5f}    {:4d}  {:d}/{:d}",
                      m, damp, fbound, log10(s0+SmallNumber), log10(s1+SmallNumber),
                      nJacEval(), getJacAge(), m_maxJacAge);
@@ -454,16 +454,14 @@ double MultiSolverScalar::boundStep(const vector_fp& x, const vector_fp& step, i
 
 void MultiSolverScalar::copyFullToScalar(const double* full, double* scalar)
 {
-    for (size_t j = 0 ; j != m_resid->points() ; j++ )
-    {
+    for (size_t j = 0 ; j != m_resid->points() ; j++ ) {
         // location of the first variable in scalar and full solution vector for point j
         size_t jFull = m_resid->loc(j);
         size_t jScalar = m_resid->locScalar(j);
         // the number of scalars
         size_t nScalar = m_resid->nVarScalar(j);
         // iterate over scalars
-        for (size_t n = 0; n != nScalar; n++) 
-        {
+        for (size_t n = 0; n != nScalar; n++) {
             // location of the scalar
             size_t iScalar = jScalar + n;
             // location of the scalar in the full solution vector
@@ -477,16 +475,14 @@ void MultiSolverScalar::copyFullToScalar(const double* full, double* scalar)
 
 void MultiSolverScalar::copyScalarToFull(const double* scalar, double* full)
 {
-    for (size_t j = 0 ; j != m_resid->points() ; j++ )
-    {
+    for (size_t j = 0 ; j != m_resid->points() ; j++ ) {
         // location of the first variable in scalar and full solution vector for point j
         size_t jFull = m_resid->loc(j);
         size_t jScalar = m_resid->locScalar(j);
         // the number of scalars
         size_t nScalar = m_resid->nVarScalar(j);
         // iterate over scalars
-        for (size_t n = 0; n != nScalar; n++) 
-        {
+        for (size_t n = 0; n != nScalar; n++) {
             // location of the scalar
             size_t iScalar = jScalar + n;
             // location of the scalar in the full solution vector
@@ -494,6 +490,54 @@ void MultiSolverScalar::copyScalarToFull(const double* scalar, double* full)
             size_t iFull = jFull + m;
 
             full[iFull] = scalar[iScalar];
+        }
+    }
+}
+
+void MultiSolverScalar::convertFullToScalar(double* full, double* scalar)
+{
+    for (size_t j = 0 ; j != m_resid->points() ; j++ ) {
+        // location of the first variable in scalar and full solution vector for point j
+        size_t jFull = m_resid->loc(j);
+        size_t jScalar = m_resid->locScalar(j);
+        // the number of scalars
+        size_t nScalar = m_resid->nVarScalar(j);
+        // iterate over scalars
+        for (size_t n = 0; n != nScalar; n++) {
+            // location of the scalar
+            size_t iScalar = jScalar + n;
+            // location of the scalar in the full solution vector
+            size_t m = (n==0) ? c_offset_T : n-cOffsetScalarY+c_offset_Y ;
+            size_t iFull = jFull + m;
+            if ( m == c_offset_T ) {
+                scalar[iScalar] = m_resid->getEnthalpy(j, full);
+            } else {
+                scalar[iScalar] = full[iFull];
+            }
+        }
+    }
+}
+
+void MultiSolverScalar::convertScalarToFull(double* scalar, double* full)
+{
+    for (size_t j = 0 ; j != m_resid->points() ; j++ ) {
+        // location of the first variable in scalar and full solution vector for point j
+        size_t jFull = m_resid->loc(j);
+        size_t jScalar = m_resid->locScalar(j);
+        // the number of scalars
+        size_t nScalar = m_resid->nVarScalar(j);
+        // iterate over scalars
+        for (size_t n = 0; n != nScalar; n++) {
+            // location of the scalar
+            size_t iScalar = jScalar + n;
+            // location of the scalar in the full solution vector
+            size_t m = (n==0) ? c_offset_T : n-cOffsetScalarY+c_offset_Y ;
+            size_t iFull = jFull + m;
+            if ( m == c_offset_T ) {
+                full[iFull] = m_resid->getTemperature(j, scalar);
+            } else {
+                full[iFull] = scalar[iScalar];
+            }
         }
     }
 }

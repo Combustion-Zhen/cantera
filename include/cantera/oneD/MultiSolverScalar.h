@@ -70,6 +70,10 @@ public:
 
     void copyScalarToFull(const double* scalar, double* full);
 
+    void convertFullToScalar(double* full, double* scalar);
+
+    void convertScalarToFull(double* scalar, double* full);
+
     /// Set options.
     void setOptions(int maxJacAge = 5) {
         m_maxJacAge = maxJacAge;
